@@ -70,8 +70,10 @@ export class Timeline {
   private hit(x: number, y: number): { clip: Clip; edge: 'in' | 'out' | null } | null {
     if (y < TRACK_TOP || y > TRACK_TOP + TRACK_H) return null;
     const grab = matchMedia('(pointer: coarse)').matches ? 16 : 7;
-    let start = 0;
-    for (const clip of this.project.clips) {
+    // С конца: при перекрытии на переходе сверху лежит входящий клип.
+    const layers = this.project.layout();
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const { clip, start } = layers[i];
       const x0 = this.x(start);
       const x1 = this.x(start + clip.out - clip.in);
       if (x >= x0 - 2 && x <= x1 + 2) {
@@ -79,7 +81,6 @@ export class Timeline {
         const g = Math.min(grab, w / 3);
         return { clip, edge: x - x0 < g ? 'in' : x1 - x < g ? 'out' : null };
       }
-      start += clip.out - clip.in;
     }
     return null;
   }
@@ -111,6 +112,7 @@ export class Timeline {
     }
     this.project.selected = hit.clip.id;
     if (hit.edge) {
+      this.project.checkpoint();
       this.drag = { kind: 'trim', clip: hit.clip, edge: hit.edge, x0: p.x, orig: hit.edge === 'in' ? hit.clip.in : hit.clip.out };
     } else {
       this.drag = { kind: 'move', clip: hit.clip, x0: p.x, moved: false, drop: -1 };
@@ -139,12 +141,8 @@ export class Timeline {
       this.scrollX = Math.max(0, d.scroll0 - (p.x - d.x0));
       this.draw();
     } else if (d.kind === 'trim') {
-      const asset = this.project.assets.get(d.clip.assetId)!;
       const dt = (p.x - d.x0) / this.pps;
-      const min = 1 / this.project.fps;
-      if (d.edge === 'in') d.clip.in = Math.min(Math.max(asset.start, d.orig + dt), d.clip.out - min);
-      else d.clip.out = Math.max(Math.min(asset.end, d.orig + dt), d.clip.in + min);
-      this.project.changed();
+      this.project.trim(d.clip.id, d.edge === 'in' ? { in: d.orig + dt } : { out: d.orig + dt });
       this.player.seek(d.edge === 'in' ? this.project.startOf(d.clip) : this.project.startOf(d.clip) + d.clip.out - d.clip.in - 1e-3);
     } else if (d.kind === 'move') {
       if (!d.moved && Math.abs(p.x - d.x0) < 6) return;
@@ -169,7 +167,10 @@ export class Timeline {
     const d = this.drag;
     this.drag = null;
     if (d?.kind === 'move') {
-      if (d.moved && d.drop >= 0) this.project.move(d.clip.id, d.drop);
+      if (d.moved && d.drop >= 0) {
+        this.project.checkpoint();
+        this.project.move(d.clip.id, d.drop);
+      }
       else this.player.seek(this.t(this.pos(e).x));
     }
     this.draw();
@@ -221,14 +222,14 @@ export class Timeline {
     }
 
     // Клипы
-    let start = 0;
     const selected = this.project.selected;
-    for (const clip of this.project.clips) {
+    const layers = this.project.layout();
+    for (const [i, { clip, start }] of layers.entries()) {
       const len = clip.out - clip.in;
       const x0 = this.x(start);
       const x1 = this.x(start + len);
-      start += len;
       if (x1 < 0 || x0 > w) continue;
+      const overlap = this.project.transitionLength(i);
       const asset = this.project.assets.get(clip.assetId)!;
       const isSel = clip.id === selected;
       const dragging = this.drag?.kind === 'move' && this.drag.clip === clip && this.drag.moved;
@@ -259,6 +260,25 @@ export class Timeline {
       g.font = '11px "IBM Plex Mono", ui-monospace, monospace';
       g.fillText(`${asset.codec} · ${formatTime(len, asset.fps)}`, x0 + 8, TRACK_TOP + 34);
       g.restore();
+      if (overlap) {
+        // Зона перехода: штриховка поверх стыка.
+        const tx1 = this.x(start + overlap);
+        g.save();
+        g.beginPath();
+        g.rect(x0 + 1, TRACK_TOP, tx1 - x0, TRACK_H);
+        g.clip();
+        g.fillStyle = this.css('--transition');
+        g.fillRect(x0, TRACK_TOP, tx1 - x0, TRACK_H);
+        g.strokeStyle = this.css('--accent');
+        g.lineWidth = 1;
+        for (let k = x0 - TRACK_H; k < tx1; k += 8) {
+          g.beginPath();
+          g.moveTo(k, TRACK_TOP + TRACK_H);
+          g.lineTo(k + TRACK_H, TRACK_TOP);
+          g.stroke();
+        }
+        g.restore();
+      }
       g.globalAlpha = 1;
     }
 

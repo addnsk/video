@@ -1,5 +1,5 @@
 import type { Input, InputVideoTrack, InputAudioTrack, VideoSampleSink, AudioBufferSink } from 'mediabunny';
-import { type Grade, defaultGrade } from './grade';
+import { type Grade, defaultGrade, cloneGrade } from './grade';
 
 export interface Asset {
   id: string;
@@ -18,32 +18,86 @@ export interface Asset {
   end: number;
 }
 
+/** Переход из предыдущего клипа в этот. Клипы перекрываются на duration секунд. */
+export interface Transition {
+  type: string;
+  duration: number;
+  params: Record<string, number | number[]>;
+}
+
 export interface Clip {
   id: string;
   assetId: string;
   in: number; // время в исходнике
   out: number;
   grade: Grade;
+  transition: Transition | null;
+}
+
+/** Слой, видимый в момент времени: клип и где он начинается на таймлайне. */
+export interface Layer {
+  clip: Clip;
+  start: number;
+}
+
+export interface Frame {
+  layer: Layer;
+  /** Есть во время перехода: входящий клип и прогресс 0..1. */
+  next?: { layer: Layer; progress: number; transition: Transition };
 }
 
 let nextId = 1;
 export const uid = (p: string) => `${p}${nextId++}`;
+
+const cloneClip = (c: Clip): Clip => ({
+  ...c,
+  grade: cloneGrade(c.grade),
+  transition: c.transition && { ...c.transition, params: { ...c.transition.params } },
+});
 
 export class Project {
   assets = new Map<string, Asset>();
   clips: Clip[] = [];
   selected: string | null = null;
   private listeners = new Set<() => void>();
+  private undoStack: Clip[][] = [];
+  private redoStack: Clip[][] = [];
 
   onChange(fn: () => void) {
     this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
   }
   changed() {
     for (const fn of this.listeners) fn();
   }
 
-  get duration() {
-    return this.clips.reduce((s, c) => s + (c.out - c.in), 0);
+  /** Запоминает состояние перед изменением, чтобы его можно было отменить. */
+  checkpoint() {
+    this.undoStack.push(this.clips.map(cloneClip));
+    if (this.undoStack.length > 200) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  undo() {
+    const prev = this.undoStack.pop();
+    if (!prev) return false;
+    this.redoStack.push(this.clips);
+    this.restore(prev);
+    return true;
+  }
+
+  redo() {
+    const next = this.redoStack.pop();
+    if (!next) return false;
+    this.undoStack.push(this.clips);
+    this.restore(next);
+    return true;
+  }
+
+  private restore(clips: Clip[]) {
+    this.clips = clips;
+    if (!clips.some((c) => c.id === this.selected)) this.selected = clips[0]?.id ?? null;
+    this.changed();
   }
 
   get fps() {
@@ -56,49 +110,100 @@ export class Project {
     return first ? { width: first.width, height: first.height } : { width: 1920, height: 1080 };
   }
 
-  /** Клипы на таймлайне стоят встык, без дыр. */
-  startOf(clip: Clip) {
-    let t = 0;
-    for (const c of this.clips) {
-      if (c === clip) return t;
-      t += c.out - c.in;
-    }
-    return t;
+  /** Длина перехода с учётом длин обоих клипов. */
+  transitionLength(index: number) {
+    const clip = this.clips[index];
+    const prev = this.clips[index - 1];
+    if (!clip?.transition || !prev) return 0;
+    const max = Math.min(prev.out - prev.in, clip.out - clip.in) * 0.9;
+    return Math.max(0, Math.min(clip.transition.duration, max));
   }
 
-  clipAt(time: number): { clip: Clip; start: number } | null {
+  /** Раскладка: клипы встык, а с переходом входящий клип наезжает на предыдущий. */
+  layout(): Layer[] {
+    const out: Layer[] = [];
     let t = 0;
-    for (const clip of this.clips) {
-      const d = clip.out - clip.in;
-      if (time < t + d) return { clip, start: t };
-      t += d;
+    this.clips.forEach((clip, i) => {
+      t -= this.transitionLength(i);
+      out.push({ clip, start: t });
+      t += clip.out - clip.in;
+    });
+    return out;
+  }
+
+  get duration() {
+    const l = this.layout().at(-1);
+    return l ? l.start + l.clip.out - l.clip.in : 0;
+  }
+
+  startOf(clip: Clip) {
+    return this.layout().find((l) => l.clip === clip)?.start ?? 0;
+  }
+
+  frameAt(time: number): Frame | null {
+    const layers = this.layout();
+    for (let i = 0; i < layers.length; i++) {
+      const l = layers[i];
+      const end = l.start + l.clip.out - l.clip.in;
+      if (time < l.start || time >= end) continue;
+      const n = layers[i + 1];
+      if (n && time >= n.start && n.clip.transition) {
+        const d = end - n.start;
+        return { layer: l, next: { layer: n, progress: (time - n.start) / d, transition: n.clip.transition } };
+      }
+      return { layer: l };
     }
     return null;
-  }
-
-  addClip(asset: Asset) {
-    const clip: Clip = { id: uid('c'), assetId: asset.id, in: asset.start, out: asset.end, grade: defaultGrade() };
-    this.clips.push(clip);
-    this.selected = clip.id;
-    this.changed();
-    return clip;
   }
 
   get selectedClip() {
     return this.clips.find((c) => c.id === this.selected) ?? null;
   }
 
+  clip(id: string) {
+    const c = this.clips.find((x) => x.id === id);
+    if (!c) throw new Error(`Нет клипа ${id}`);
+    return c;
+  }
+
+  addClip(asset: Asset, range?: { in?: number; out?: number; index?: number }) {
+    const clip: Clip = {
+      id: uid('c'),
+      assetId: asset.id,
+      in: Math.max(asset.start, range?.in ?? asset.start),
+      out: Math.min(asset.end, range?.out ?? asset.end),
+      grade: defaultGrade(),
+      transition: null,
+    };
+    if (clip.out <= clip.in) throw new Error('Пустой диапазон клипа');
+    const index = range?.index ?? this.clips.length;
+    this.clips.splice(index, 0, clip);
+    this.selected = clip.id;
+    this.changed();
+    return clip;
+  }
+
   split(time: number) {
-    const hit = this.clipAt(time);
-    if (!hit) return;
-    const { clip, start } = hit;
+    const frame = this.frameAt(time);
+    if (!frame) return null;
+    const { clip, start } = frame.next && frame.next.progress >= 0.5 ? frame.next.layer : frame.layer;
     const cut = clip.in + (time - start);
     const minLen = 1 / this.fps;
-    if (cut - clip.in < minLen || clip.out - cut < minLen) return;
-    const right: Clip = { ...clip, id: uid('c'), in: cut, grade: structuredClone(clip.grade) };
+    if (cut - clip.in < minLen || clip.out - cut < minLen) return null;
+    const right: Clip = { ...cloneClip(clip), id: uid('c'), in: cut, transition: null };
     clip.out = cut;
     this.clips.splice(this.clips.indexOf(clip) + 1, 0, right);
     this.selected = right.id;
+    this.changed();
+    return right;
+  }
+
+  trim(id: string, range: { in?: number; out?: number }) {
+    const clip = this.clip(id);
+    const asset = this.assets.get(clip.assetId)!;
+    const min = 1 / this.fps;
+    if (range.in !== undefined) clip.in = Math.min(Math.max(asset.start, range.in), clip.out - min);
+    if (range.out !== undefined) clip.out = Math.max(Math.min(asset.end, range.out), clip.in + min);
     this.changed();
   }
 

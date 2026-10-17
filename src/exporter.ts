@@ -4,36 +4,41 @@ import {
 } from 'mediabunny';
 import type { Project } from './project';
 import { Renderer } from './renderer';
+import { FrameFetcher, drawFrame } from './frames';
+import { mixAudio } from './audio';
 
 export interface ExportOptions {
-  height: number | null; // null = как в исходнике
-  quality: 'high' | 'medium';
-  onProgress: (fraction: number) => void;
-  signal: { canceled: boolean };
+  height?: number | null; // null = как в исходнике
+  quality?: 'high' | 'medium';
+  onProgress?: (fraction: number) => void;
+  signal?: { canceled: boolean };
 }
 
 const SAMPLE_RATE = 48000;
+const AUDIO_CHUNK = 5;
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 
-export async function exportProject(project: Project, opts: ExportOptions): Promise<Blob> {
+export async function exportProject(project: Project, opts: ExportOptions = {}): Promise<Blob> {
+  if (!project.clips.length) throw new Error('Таймлайн пуст.');
   const src = project.size;
-  const height = opts.height && opts.height < src.height ? opts.height : src.height;
+  const height = even(opts.height && opts.height < src.height ? opts.height : src.height);
   const width = even((src.width * height) / src.height);
   const fps = project.fps;
+  const signal = opts.signal ?? { canceled: false };
 
-  const videoCodec = await getFirstEncodableVideoCodec(['avc', 'hevc', 'vp9', 'av1'], { width, height: even(height) });
+  const videoCodec = await getFirstEncodableVideoCodec(['avc', 'hevc', 'vp9', 'av1'], { width, height });
   if (!videoCodec) throw new Error('Браузер не умеет кодировать видео в таком разрешении. Попробуйте 1080p или 720p.');
   const hasAudio = project.clips.some((c) => project.assets.get(c.assetId)?.sound);
   const audioCodec = hasAudio ? await getFirstEncodableAudioCodec(['aac', 'opus'], { numberOfChannels: 2, sampleRate: SAMPLE_RATE }) : null;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
-  canvas.height = even(height);
+  canvas.height = height;
   const renderer = new Renderer(canvas);
+  const fetcher = new FrameFetcher(project, renderer);
 
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target: new BufferTarget() });
-  const bitrate = opts.quality === 'high' ? QUALITY_HIGH : QUALITY_MEDIUM;
-  const video = new CanvasSource(canvas, { codec: videoCodec, bitrate });
+  const video = new CanvasSource(canvas, { codec: videoCodec, bitrate: opts.quality === 'medium' ? QUALITY_MEDIUM : QUALITY_HIGH });
   output.addVideoTrack(video, { frameRate: fps });
   const audio = audioCodec ? new AudioBufferSource({ codec: audioCodec, bitrate: QUALITY_HIGH }) : null;
   if (audio) output.addAudioTrack(audio);
@@ -41,33 +46,28 @@ export async function exportProject(project: Project, opts: ExportOptions): Prom
 
   const total = project.duration;
   const frameCount = Math.max(1, Math.round(total * fps));
-  let frame = 0;
+  let audioDone = 0;
 
   try {
-    for (const clip of project.clips) {
-      const asset = project.assets.get(clip.assetId)!;
-      const start = project.startOf(clip);
-      const first = Math.round(start * fps);
-      const last = Math.round((start + clip.out - clip.in) * fps);
-      const times = [];
-      for (let i = first; i < last; i++) times.push(clip.in + i / fps - start);
-
-      for await (const sample of asset.frames.samplesAtTimestamps(times)) {
-        if (opts.signal.canceled) {
-          sample?.close();
-          throw new DOMException('Экспорт отменён', 'AbortError');
-        }
-        if (sample) {
-          renderer.upload(sample.toCanvasImageSource(), sample.displayWidth, sample.displayHeight);
-          sample.close();
-        }
-        renderer.draw(clip.grade);
-        await video.add(frame / fps, 1 / fps);
-        frame++;
-        opts.onProgress(frame / frameCount);
+    for (let i = 0; i < frameCount; i++) {
+      if (signal.canceled) throw new DOMException('Экспорт отменён', 'AbortError');
+      const t = i / fps;
+      const frame = project.frameAt(t);
+      if (frame) await fetcher.load(frame, t);
+      drawFrame(renderer, frame);
+      await video.add(t, 1 / fps);
+      // Звук пишем кусками, не отставая от видео.
+      while (audio && audioDone < Math.min(total, t + 1)) {
+        const end = Math.min(total, audioDone + AUDIO_CHUNK);
+        await audio.add(await mixAudio(project, audioDone, end, SAMPLE_RATE));
+        audioDone = end;
       }
-
-      if (audio) await audio.add(await renderClipAudio(project, clip.id));
+      opts.onProgress?.((i + 1) / frameCount);
+    }
+    while (audio && audioDone < total) {
+      const end = Math.min(total, audioDone + AUDIO_CHUNK);
+      await audio.add(await mixAudio(project, audioDone, end, SAMPLE_RATE));
+      audioDone = end;
     }
     video.close();
     audio?.close();
@@ -75,29 +75,9 @@ export async function exportProject(project: Project, opts: ExportOptions): Prom
   } catch (e) {
     await output.cancel();
     throw e;
+  } finally {
+    fetcher.close();
   }
 
-  const buffer = (output.target as BufferTarget).buffer!;
-  return new Blob([buffer], { type: 'video/mp4' });
-}
-
-/** Звук одного клипа, ровно его длины; тишина, если у клипа нет звука. */
-async function renderClipAudio(project: Project, clipId: string) {
-  const clip = project.clips.find((c) => c.id === clipId)!;
-  const asset = project.assets.get(clip.assetId)!;
-  const length = Math.max(1, Math.round((clip.out - clip.in) * SAMPLE_RATE));
-  const ctx = new OfflineAudioContext(2, length, SAMPLE_RATE);
-  if (asset.sound) {
-    for await (const { buffer, timestamp, duration } of asset.sound.buffers(clip.in, clip.out)) {
-      const offset = Math.max(0, clip.in - timestamp);
-      const when = Math.max(0, timestamp - clip.in);
-      const dur = Math.min(timestamp + duration, clip.out) - (timestamp + offset);
-      if (dur <= 0) continue;
-      const node = ctx.createBufferSource();
-      node.buffer = buffer;
-      node.connect(ctx.destination);
-      node.start(when, offset, dur);
-    }
-  }
-  return ctx.startRendering();
+  return new Blob([output.target.buffer!], { type: 'video/mp4' });
 }

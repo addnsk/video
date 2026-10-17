@@ -16,6 +16,7 @@
   --clip: #2b3a4a;
   --clip-sel: #34495e;
   --clip-band: #22303d;
+  --transition: rgb(233 162 59 / 0.18);
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -165,3 +166,16 @@ progress { width: 100%; accent-color: var(--accent); height: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+textarea {
+  width: 100%; min-height: 160px; resize: vertical;
+  font: 12px/1.5 var(--font-mono); color: var(--fg);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+  tab-size: 2; white-space: pre; overflow-x: auto;
+}
+textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.log {
+  margin: 0; max-height: 180px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 12px/1.5 var(--font-mono); background: var(--bg); border-radius: 6px; padding: 8px 10px; color: var(--muted);
+}
+code { font: 12px var(--font-mono); color: var(--fg); }

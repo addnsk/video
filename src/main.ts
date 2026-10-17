@@ -6,6 +6,9 @@ import { Timeline, formatTime } from './timeline';
 import { loadAsset } from './media';
 import { exportProject } from './exporter';
 import { type Grade, type Wheel, defaultGrade, cloneGrade, parseCube, wheelToRgb } from './grade';
+import { createApi, runScript } from './api';
+import { listTransitions, getTransition, onTransitionsChange } from './transitions';
+import { EXAMPLES } from './examples';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
 
@@ -41,6 +44,12 @@ document.querySelector('#app')!.innerHTML = `
   </section>
   <section class="timeline"><canvas id="timeline"></canvas></section>
   <aside class="inspector">
+    <div class="group" id="trans">
+      <h2>Переход в клип</h2>
+      <p class="hint" id="trans-hint">Выберите второй или следующий клип.</p>
+      <select id="trans-type" aria-label="Тип перехода"></select>
+      <div id="trans-params" class="group"></div>
+    </div>
     <div class="group" id="color">
       <h2>Цвет клипа</h2>
       <p class="hint" id="color-hint">Выберите клип на таймлайне.</p>
@@ -68,6 +77,16 @@ document.querySelector('#app')!.innerHTML = `
       <h2>Медиа</h2>
       <div class="media" id="media"><p class="hint">Пока пусто.</p></div>
     </div>
+    <div class="group" id="script">
+      <h2>Скрипт</h2>
+      <select id="script-example" aria-label="Примеры скриптов"></select>
+      <textarea id="script-code" spellcheck="false" rows="10" aria-label="Код скрипта"></textarea>
+      <div class="row">
+        <button class="btn primary" id="script-run">Выполнить</button>
+      </div>
+      <pre class="log" id="script-log" hidden></pre>
+      <p class="hint">Тот же API доступен в консоли браузера как <code>montage</code>. Ctrl+Enter — выполнить.</p>
+    </div>
   </aside>
 `;
 
@@ -76,6 +95,9 @@ const previewCanvas = $<HTMLCanvasElement>('#preview');
 const renderer = new Renderer(previewCanvas);
 const player = new Player(project, renderer, onTime);
 const timeline = new Timeline($<HTMLCanvasElement>('#timeline'), project, player);
+const api = createApi(project, player);
+(window as unknown as { montage: typeof api }).montage = api;
+renderer.onError = (m) => toast(m, true);
 
 function onTime(t: number) {
   const fps = project.fps;
@@ -114,6 +136,7 @@ async function importFiles(files: FileList | File[]) {
       const asset = await loadAsset(file);
       project.assets.set(asset.id, asset);
       const first = project.clips.length === 0;
+      project.checkpoint();
       project.addClip(asset);
       if (first) {
         timeline.fit();
@@ -141,8 +164,8 @@ document.addEventListener('drop', (e) => {
 
 // ---------- транспорт ----------
 $('#play').onclick = () => player.toggle();
-$('#split').onclick = () => project.split(player.time);
-$('#delete').onclick = () => project.selected && project.remove(project.selected);
+$('#split').onclick = () => api.split(player.time);
+$('#delete').onclick = () => project.selected && api.remove(project.selected);
 $('#zoom-in').onclick = () => timeline.zoom(1.5);
 $('#zoom-out').onclick = () => timeline.zoom(1 / 1.5);
 $('#zoom-fit').onclick = () => timeline.fit();
@@ -158,17 +181,26 @@ function toggleBypass() {
 document.addEventListener('keydown', (e) => {
   if ((e.target as HTMLElement).closest('input, select, textarea')) return;
   const frame = 1 / project.fps;
-  if (e.code === 'Space') player.toggle();
-  else if (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы') project.split(player.time);
-  else if (e.key === 'Delete' || e.key === 'Backspace') project.selected && project.remove(project.selected);
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.code === 'KeyZ') (e.shiftKey ? project.redo() : project.undo());
+  else if (mod && e.code === 'KeyY') project.redo();
+  else if (mod) return;
+  else if (e.code === 'Space') player.toggle();
+  else if (e.code === 'KeyS') api.split(player.time);
+  else if (e.key === 'Delete' || e.key === 'Backspace') project.selected && api.remove(project.selected);
   else if (e.key === 'ArrowLeft') player.seek(player.time - frame);
   else if (e.key === 'ArrowRight') player.seek(player.time + frame);
-  else if (e.key === 'b' || e.key === 'B' || e.key === 'и' || e.key === 'И') toggleBypass();
+  else if (e.code === 'KeyB') toggleBypass();
   else return;
   e.preventDefault();
 });
 
 // ---------- покраска ----------
+// Каждое касание панели — отдельный шаг отмены.
+for (const id of ['#color', '#trans']) {
+  $(id).addEventListener('pointerdown', () => project.checkpoint(), true);
+  $(id).addEventListener('keydown', (e) => !e.repeat && project.checkpoint(), true);
+}
 const selectedGrade = (): Grade | null => project.selectedClip?.grade ?? null;
 
 function gradeChanged() {
@@ -381,6 +413,113 @@ function syncInspector() {
   $('output', lutMixRow).textContent = `${Math.round(v.lutMix * 100)}%`;
 }
 
+// ---------- переходы ----------
+function fillTransitionTypes() {
+  const sel = $<HTMLSelectElement>('#trans-type');
+  sel.replaceChildren(new Option('Нет, склейка', ''), ...listTransitions().map((d) => new Option(d.name, d.id)));
+}
+fillTransitionTypes();
+onTransitionsChange(fillTransitionTypes);
+
+$<HTMLSelectElement>('#trans-type').onchange = (e) => {
+  const clip = project.selectedClip;
+  if (!clip) return;
+  const type = (e.target as HTMLSelectElement).value;
+  clip.transition = type ? { type, duration: clip.transition?.duration ?? 1, params: {} } : null;
+  project.changed();
+  const start = project.startOf(clip);
+  player.seek(start + project.transitionLength(project.clips.indexOf(clip)) / 2);
+};
+
+function syncTransition() {
+  const clip = project.selectedClip;
+  const index = clip ? project.clips.indexOf(clip) : -1;
+  const enabled = index > 0;
+  $('#trans-hint').hidden = enabled;
+  const sel = $<HTMLSelectElement>('#trans-type');
+  sel.disabled = !enabled;
+  sel.value = enabled ? (clip!.transition?.type ?? '') : '';
+  const box = $('#trans-params');
+  box.replaceChildren();
+  if (!enabled || !clip!.transition) return;
+  const tr = clip!.transition;
+  const def = getTransition(tr.type);
+  const rows: { label: string; min: number; max: number; step: number; get: () => number; set: (v: number) => void; fmt: (v: number) => string }[] = [
+    {
+      label: 'Длина', min: 0.1, max: 3, step: 0.05,
+      get: () => tr.duration,
+      set: (v) => (tr.duration = v),
+      fmt: (v) => `${v.toFixed(2)} с`,
+    },
+  ];
+  for (const p of def?.params ?? []) {
+    if (p.type !== 'float') continue;
+    const d = p.default as number;
+    const max = d > 1 ? d * 2 : 1;
+    rows.push({
+      label: p.name, min: Math.min(0, d), max, step: max / 100,
+      get: () => (tr.params[p.name] as number | undefined) ?? d,
+      set: (v) => (tr.params[p.name] = v),
+      fmt: (v) => v.toFixed(2),
+    });
+  }
+  for (const r of rows) {
+    const row = document.createElement('label');
+    row.className = 'slider';
+    row.innerHTML = `<span></span><input type="range" min="${r.min}" max="${r.max}" step="${r.step}"><output></output>`;
+    $('span', row).textContent = r.label;
+    const input = $<HTMLInputElement>('input', row);
+    input.value = String(r.get());
+    $('output', row).textContent = r.fmt(r.get());
+    input.oninput = () => {
+      r.set(+input.value);
+      $('output', row).textContent = r.fmt(+input.value);
+      timeline.draw();
+      onTime(player.time);
+      void player.showFrame(player.time);
+    };
+    box.append(row);
+  }
+}
+
+// ---------- скрипты ----------
+const exampleSel = $<HTMLSelectElement>('#script-example');
+exampleSel.replaceChildren(new Option('Примеры…', ''), ...EXAMPLES.map((ex, i) => new Option(ex.name, String(i))));
+exampleSel.onchange = () => {
+  const ex = EXAMPLES[+exampleSel.value];
+  if (ex) $<HTMLTextAreaElement>('#script-code').value = ex.code;
+  exampleSel.value = '';
+};
+$<HTMLTextAreaElement>('#script-code').value = EXAMPLES[0].code;
+
+async function runUserScript() {
+  const out = $('#script-log');
+  out.hidden = false;
+  out.textContent = '';
+  const log = (...args: unknown[]) => {
+    out.textContent += args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a, null, 1))).join(' ') + '\n';
+  };
+  const btn = $<HTMLButtonElement>('#script-run');
+  btn.disabled = true;
+  try {
+    const result = await runScript($<HTMLTextAreaElement>('#script-code').value, api, log);
+    if (result !== undefined) log('→', result);
+    if (!out.textContent) log('Готово.');
+  } catch (e) {
+    log(`Ошибка: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+$('#script-run').onclick = runUserScript;
+$('#script-code').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    void runUserScript();
+  }
+});
+
 // ---------- медиа ----------
 function renderMedia() {
   const list = $('#media');
@@ -392,7 +531,7 @@ function renderMedia() {
       item.innerHTML = `<b></b><small>${a.codec} · ${a.width}×${a.height} · ${+a.fps.toFixed(3)} к/с · ${formatTime(a.end - a.start)}</small><button class="btn">На таймлайн</button>`;
       $('b', item).textContent = a.name;
       $('b', item).title = a.name;
-      $('button', item).onclick = () => project.addClip(a);
+      $('button', item).onclick = () => api.add(a.id);
       return item;
     }),
   );
@@ -496,6 +635,7 @@ project.onChange(() => {
   const asset = clip && project.assets.get(clip.assetId);
   $('#info').textContent = asset ? `${asset.codec} · ${asset.width}×${asset.height} · ${+asset.fps.toFixed(3)} к/с` : '';
   syncInspector();
+  syncTransition();
   renderMedia();
   if (player.time > project.duration) player.time = project.duration;
   onTime(player.time);
