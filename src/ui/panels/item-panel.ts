@@ -1,5 +1,5 @@
 import { PROPERTY, keyAt, valueAt } from '../../core/animation';
-import { MAX_SPEED, MIN_SPEED, type Item, type PresetPhase, type TextStyle } from '../../core/model';
+import { MAX_SPEED, carriesAudio, MIN_SPEED, type Item, type PresetPhase, type TextStyle } from '../../core/model';
 import { ANIMATION_PRESETS } from '../../core/presets';
 import { clearAnimation, deleteKeyframe, setItemProps, setKeyframe, setPreset, setSpeed, setTextStyle, type ItemProps } from '../../core/operations';
 import { findPlacement, type Placement } from '../../core/timeline';
@@ -28,7 +28,7 @@ interface PropertyDef {
 
 const percent = (v: number) => `${Math.round(v * 100)}%`;
 const isVisual = (p: Placement) => p.track.kind === 'video';
-const hasAudio = (p: Placement, s: EditorSession) => p.item.kind === 'media' && !!s.store.project.assets[p.item.source.assetId]?.hasAudio;
+const hasAudio = (p: Placement, s: EditorSession) => carriesAudio(p.item, s.store.project.assets);
 
 const PROPERTIES: PropertyDef[] = [
   { path: PROPERTY.volume, label: 'volume', min: 0, max: 2, step: 0.01, neutral: 1, read: (i) => i.volume, write: (volume) => ({ volume }), format: percent, visible: hasAudio },

@@ -1,6 +1,7 @@
 import {
   GraphError,
   OUTPUT_ID,
+  SOURCE_ID,
   connect,
   graphWithNode,
   graphWithoutNode,
@@ -22,10 +23,13 @@ export const enableGraph = (itemId: string, context: GraphContext): Operation =>
     if (item.graph) return item;
     const { parkedGraph, ...rest } = item;
     if (!parkedGraph) return { ...rest, graph: toItemGraph(materialize(item.effects, undefined, context)) };
-    const known = new Set(Object.keys(parkedGraph.positions));
+    const present = new Set([SOURCE_ID, OUTPUT_ID, ...item.effects.map((e) => e.id)]);
+    const stale = [...new Set([...Object.keys(parkedGraph.positions), ...parkedGraph.links.flatMap((l) => [l.from, l.to])])].filter((id) => !present.has(id));
+    const pruned = stale.reduce((graph, id) => graphWithoutNode(graph, id), parkedGraph);
+    const known = new Set([...Object.keys(pruned.positions), ...pruned.links.flatMap((l) => [l.from, l.to])]);
     const restored = item.effects
       .filter((e) => context.isVisual(e.type) && context.chainable(e.type) && e.enabled && !known.has(e.id))
-      .reduce((graph, e) => graphWithNode(graph, e.id), parkedGraph);
+      .reduce((graph, e) => graphWithNode(graph, e.id), pruned);
     return { ...rest, graph: restored };
   });
 

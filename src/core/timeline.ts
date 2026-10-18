@@ -39,7 +39,7 @@ const MAX_TRANSITION_SHARE = 0.9;
 export function transitionLength(track: Track, index: number): number {
   const item = track.items[index];
   const prev = track.items[index - 1];
-  if (!track.magnetic || !item?.transitionIn || !prev) return 0;
+  if (!track.magnetic || !item?.transitionIn || !prev || item.gap) return 0;
   const limit = Math.min(itemLength(prev), itemLength(item)) * MAX_TRANSITION_SHARE;
   return Math.max(0, Math.min(item.transitionIn.duration, limit));
 }
@@ -53,7 +53,7 @@ export function placeTrack(track: Track): readonly Placement[] {
   let cursor = 0;
   track.items.forEach((item, index) => {
     const fadeIn = transitionLength(track, index);
-    const start = track.magnetic ? cursor - fadeIn : item.start;
+    const start = track.magnetic ? cursor + (item.gap ?? 0) - fadeIn : item.start;
     const end = start + itemLength(item);
     out.push({ item, track, index, start, end, fadeIn, fadeOut: transitionLength(track, index + 1) });
     cursor = end;

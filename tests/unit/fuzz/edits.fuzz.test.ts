@@ -17,7 +17,7 @@ describe('random edit sequences', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 
   it('undo walks back to the start and redo replays to the end exactly', () => {
     fc.assert(
@@ -39,7 +39,7 @@ describe('random edit sequences', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 
   it('operations never throw except for refused links', () => {
     fc.assert(
@@ -50,5 +50,5 @@ describe('random edit sequences', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 });

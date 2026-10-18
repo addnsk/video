@@ -52,6 +52,7 @@ export interface EngineMethods {
   init(options: EngineInit): Promise<MemoryBudget>;
   resize(width: number, height: number): void;
   setProject(project: Project): void;
+  setSource(project: Project | null): void;
   setEffects(defs: EffectDef[]): void;
   setLut(id: string, lut: Lut3D | null): void;
   probe(assetId: string, file: File): Promise<AssetMeta>;

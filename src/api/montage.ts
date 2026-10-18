@@ -59,6 +59,7 @@ import {
 import type { ExportSettings } from '../engine/export/exporter';
 import type { LogSource } from '../core/log';
 import type { EditorSession } from '../host/session';
+import { createEditApi } from './edit-api';
 import { createLoudnessApi, createMixerApi } from './mixer-api';
 import { pickQualifier } from '../host/qualifier-pick';
 
@@ -85,6 +86,8 @@ export interface ClipInfo {
   readonly presets: Item['presets'];
   readonly effects: readonly { type: string; params: ParamValues }[];
   readonly transition: { type: string; duration: number; params: ParamValues } | null;
+  readonly link: string | null;
+  readonly audio: boolean;
 }
 
 export interface WheelValue {
@@ -157,6 +160,8 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     presets: item.presets,
     effects: item.effects.map((e) => ({ type: e.type, params: e.params })),
     transition: item.transitionIn && { ...item.transitionIn, duration: fadeIn },
+    link: item.link ?? null,
+    audio: item.kind === 'media' && !item.videoOnly && !!store.project.assets[item.source.assetId]?.hasAudio,
   });
 
   const currentGrade = (item: Item): ParamValues => {
@@ -369,6 +374,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
 
     track: (ref: ItemRef, request: TrackRequest): Promise<FramePoint[]> => trackPoint(session, resolve(ref).item.id, request),
     mixer: createMixerApi(session),
+    ...createEditApi(session, (ref) => resolve(ref).item.id),
     ...createLoudnessApi(session),
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),

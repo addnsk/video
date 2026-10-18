@@ -1,5 +1,5 @@
 import { PROPERTY, valueAt } from '../../core/animation';
-import { sourceTimeAt, type MediaItem, type Project } from '../../core/model';
+import { carriesAudio, sourceTimeAt, type MediaItem, type Project } from '../../core/model';
 import { effectiveAnimations } from '../../core/presets';
 import { audibleAt, type Placement } from '../../core/timeline';
 import type { MediaPool } from '../media/media-pool';
@@ -151,7 +151,7 @@ export class AudioMixer {
     const longest = Math.max(0, ...tails.values()) + this.longestClipTail(project, rate);
     const placements = audibleAt(project, Math.max(0, s0 - longest), s1).filter((p) => {
       const item = p.item;
-      return item.kind === 'media' && project.assets[item.source.assetId]?.hasAudio && this.pool.has(item.source.assetId);
+      return carriesAudio(item, project.assets) && this.pool.has(item.source.assetId);
     });
     const tracks = new Map<string, Planar>();
     for (const p of placements) {

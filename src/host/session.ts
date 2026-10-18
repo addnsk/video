@@ -19,6 +19,7 @@ import type { PlatformReport } from './platform-report';
 import { LutLibrary } from './luts';
 import { TemplateLibrary } from './template-library';
 import { StillsController } from './stills';
+import { SourceMonitor, TimelineMarks } from './source-monitor';
 import { Transport } from './transport';
 
 export type ProxyState = EngineEvents['proxy']['state'];
@@ -55,6 +56,8 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly registry = new EffectRegistry();
   readonly luts = new LutLibrary();
   readonly transport: Transport;
+  readonly source: SourceMonitor;
+  readonly marks = new TimelineMarks();
   readonly files = new Map<string, File>();
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
   readonly log = new EventLog(200, localLogStore('montage.log'));
@@ -85,6 +88,7 @@ export class EditorSession extends Emitter<SessionEvents> {
       this.engine.budget.deviceClass === 'desktop' ? 48 : 12,
     );
     this.transport = new Transport(engine, this.store);
+    this.source = new SourceMonitor(engine, this.store, this.transport);
     this.store.on('change', ({ project }) => void engine.remote.setProject(project));
     this.registry.on('change', (def) => void engine.remote.setEffects([def]));
     this.luts.on('added', (entry) => void engine.remote.setLut(entry.id, entry.lut));

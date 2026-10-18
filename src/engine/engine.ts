@@ -92,7 +92,13 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private thumbnailQueue: Promise<unknown> = Promise.resolve();
   private gpu: GpuContext | null = null;
   private compositor: Compositor | null = null;
-  private project: Project = emptyProject();
+  private timeline: Project = emptyProject();
+  private source: Project | null = null;
+
+  private get project(): Project {
+    return this.source ?? this.timeline;
+  }
+
   private lastStill = { time: 0, bypass: false };
   private playback: { anchor: ClockAnchor; bypass: boolean; frames: SequentialFrames; generation: number; lastFrame: number | null } | null = null;
   private generation = 0;
@@ -157,8 +163,16 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   }
 
   setProject(project: Project): void {
-    this.project = project;
+    this.timeline = project;
+    if (this.source) return;
     this.compositor?.setProject(project);
+    this.redraw();
+  }
+
+  setSource(project: Project | null): void {
+    this.stop();
+    this.source = project;
+    this.compositor?.setProject(this.project);
     this.redraw();
   }
 
@@ -218,7 +232,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     const sink = target.kind === 'handle' ? await fileHandleSink(target.handle) : await storageSink(target.name);
     try {
       await exportProject(
-        this.project,
+        this.timeline,
         settings,
         sink,
         { pool: this.pool, registry: this.registry, luts: { lut: (lid) => this.luts.get(lid) }, budget: this.budget, text: this.text },
@@ -272,7 +286,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
 
   async measureLoudness(id: string, rate: number): Promise<LoudnessReading> {
     try {
-      return await scanLoudness(this.project, this.pool, rate, (fraction) => this.emit('progress', { task: 'loudness', id, fraction }), () => this.canceled.has(id));
+      return await scanLoudness(this.timeline, this.pool, rate, (fraction) => this.emit('progress', { task: 'loudness', id, fraction }), () => this.canceled.has(id));
     } finally {
       this.canceled.delete(id);
     }

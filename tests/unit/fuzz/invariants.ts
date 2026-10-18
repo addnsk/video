@@ -68,6 +68,7 @@ export function problemsOf(project: Project): string[] {
         else if (item.source.in < asset.start - EPS || item.source.out > asset.end + EPS || item.source.in >= item.source.out) problems.push(`${owner}: source range ${item.source.in}..${item.source.out} outside ${asset.start}..${asset.end}`);
         if (item.speed < MIN_SPEED - EPS || item.speed > MAX_SPEED + EPS) problems.push(`${owner}: speed ${item.speed}`);
       }
+      if (item.gap !== undefined && (!track.magnetic || !(item.gap > 0) || !Number.isFinite(item.gap))) problems.push(`${owner}: bad gap ${item.gap}`);
       if (item.opacity < 0 || item.opacity > 1) problems.push(`${owner}: opacity ${item.opacity}`);
       checkGraph(owner, item.effects, item.graph, problems);
       checkAnimations(owner, item, problems);
@@ -79,6 +80,11 @@ export function problemsOf(project: Project): string[] {
       }
     }
     for (const p of placements) if (p.index === 0 && p.fadeIn > 0) problems.push(`${track.id}: first item fades in`);
+  }
+  const markers = project.markers ?? [];
+  for (let i = 0; i < markers.length; i++) {
+    if (!(markers[i].time >= 0) || !Number.isFinite(markers[i].time)) problems.push(`marker ${markers[i].id} at ${markers[i].time}`);
+    if (i && markers[i].time < markers[i - 1].time) problems.push('markers out of order');
   }
   for (const still of project.stills ?? []) checkGraph(`still ${still.id}`, still.grade.effects, still.grade.graph, problems);
   const duration = projectDuration(project);

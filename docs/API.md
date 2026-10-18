@@ -36,6 +36,77 @@ montage.proxy(a.id);                             // build a proxy now
 montage.proxies();                               // { [assetId]: { state, fraction } }
 ```
 
+## Editing
+
+### Source viewer and marks
+
+```js
+montage.source.open(asset.id);               // show the clip in the viewer (the timeline keeps its own playhead)
+montage.source.seek(3); montage.source.play(); montage.source.pause();
+montage.source.mark({ in: 1, out: 4 });      // seconds from the start of the clip; null clears a mark
+montage.source.state();                      // { assetId, viewer: 'source' | 'timeline', marks, time }
+montage.source.show('timeline');             // switch the viewer back; marks are kept per clip
+montage.source.close();
+montage.marks({ in: 10, out: 12 });          // timeline In and Out; montage.marks() reads them
+```
+
+### Insert, overwrite, append
+
+Edits follow three-point rules. Source In and Out come from the source viewer marks (or `in`/`out` in media time); without a source In the source playhead is used, without an Out the end of the clip. Timeline In comes from `at`, the timeline In mark or the playhead; with a timeline Out (`until` or the Out mark) the edit is backtimed or its length set by the timeline range. With all four points the clip is retimed to fit (fit to fill, speed 0.1–16).
+
+```js
+const r = montage.edit.insert();                        // { video, audio, start, duration }: item ids
+montage.edit.overwrite({ asset: id, in: 0, out: 2, at: 5 });
+montage.edit.insert({ asset: id, at: 3, ripple: 'track' });   // ripple 'all' (default), 'track' or a list of track ids
+montage.edit.append({ asset: id });                     // after the last clip of the target tracks
+montage.edit.insert({ asset: id, video: 'v2', audio: null }); // target tracks; null leaves that part out
+```
+
+A file with picture and sound goes in as a video clip (`audio: false` in `montage.clip`) and a linked clip on the audio track (by default the first audio track, created if missing). Insert opens a gap on every rippled track and splits clips under the edit point; overwrite replaces the range on the target tracks only. An edit point inside a transition on `v1` cuts the transition.
+
+### Lift, extract, delete
+
+```js
+montage.edit.lift();                          // remove the marked range, leave a gap (every track; pass from, to, tracks)
+montage.edit.extract(2, 5, ['v1', 'a1']);     // remove and close the gap; markers after it move too
+montage.edit.delete([clipA, clipB]);          // linked clips go too; leaves a gap
+montage.edit.delete(clip, { ripple: true, tracks: 'all' });   // close the gap on the linked tracks ('linked'), all tracks or a list
+```
+
+`v1` can hold gaps: a lift or an overwrite past the end leaves empty time before the next clip (`gap` on the item). A clip after a gap has no transition.
+
+### Trim modes
+
+Every trim moves linked clips the same way and stops where the source media ends (text has no limit).
+
+```js
+montage.edit.ripple(clip, 'out', -0.5);       // shorten the tail; everything after moves (linked tracks, or 'all' / a list)
+montage.edit.ripple(clip, 'in', 1);           // the clip stays in place, its head is trimmed, later clips move
+montage.edit.roll(clip, 'out', 0.4);          // move the cut between this clip and the next; total length stays
+montage.edit.slip(clip, 1);                   // same place and length, different part of the source
+montage.edit.slide(clip, -0.5);               // move the clip; the neighbours give and take the time
+```
+
+### Linking
+
+```js
+montage.edit.link([video, audio]);
+montage.edit.unlink(video);                   // unlinks the whole group
+montage.edit.linked(video);                   // [video, audio]
+```
+
+### Markers
+
+```js
+const m = montage.markers.add({ time: 4, name: 'Cue', color: 'red', note: '', duration: 0 });   // time defaults to the playhead
+montage.markers.update(m, { time: 5 });
+montage.markers.list(); montage.markers.next(); montage.markers.previous();
+montage.markers.remove(m);
+montage.markers.colors();                     // blue, cyan, green, yellow, red, pink, purple, fuchsia, rose, lavender, sky, mint, lemon, sand, cocoa, cream
+```
+
+Markers ride with ripple edits: insert moves markers after the edit point, extract moves later ones back and drops those inside the range.
+
 ## Tracks, overlays and titles
 
 The main track `v1` is magnetic: clips sit back to back and can have transitions. Other tracks are free: items keep their own start time and may overlap. Video tracks stack bottom to top; audio tracks only carry sound.

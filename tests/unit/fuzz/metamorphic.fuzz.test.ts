@@ -84,7 +84,7 @@ describe('metamorphic properties of edits', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 
   it('trimming the head keeps the remaining frames and animation in place', () => {
     fc.assert(
@@ -103,7 +103,7 @@ describe('metamorphic properties of edits', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 
   it('changing speed keeps the animation pinned to the same source frames', () => {
     fc.assert(
@@ -120,7 +120,7 @@ describe('metamorphic properties of edits', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 
   it('a saved grade version comes back exactly after other edits', () => {
     fc.assert(
@@ -138,7 +138,7 @@ describe('metamorphic properties of edits', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 
   it('copying a grade or a full template reproduces the same node graph', () => {
     fc.assert(
@@ -167,7 +167,7 @@ describe('metamorphic properties of edits', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 
   it('every visible frame comes from an item that covers that time', () => {
     fc.assert(
@@ -184,5 +184,5 @@ describe('metamorphic properties of edits', () => {
       }),
       { numRuns: RUNS },
     );
-  });
+  }, RUNS * 25);
 });

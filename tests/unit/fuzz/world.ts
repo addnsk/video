@@ -5,7 +5,7 @@ import { OUTPUT_ID, SOURCE_ID, materialize, nodeProperty } from '../../../src/co
 import { addGraphNode, connectNodes, disableGraph, disconnectInput, enableGraph, moveGraphNode, removeGraphNode, setNodeEnabled, setNodeParams } from '../../../src/core/graph-operations';
 import { captureTemplate, placeTemplate } from '../../../src/core/graph-templates';
 import type { AssetMeta, Item, Project } from '../../../src/core/model';
-import { emptyProject, itemLength } from '../../../src/core/model';
+import { accepts, emptyProject, itemLength } from '../../../src/core/model';
 import {
   addAsset,
   addTrack,
@@ -34,6 +34,8 @@ import {
   upsertEffect,
   type Operation,
 } from '../../../src/core/operations';
+import { addMarker, deleteItems, insertEdit, linkItems, overwriteEdit, rippleTrim, rollEdit, slideEdit, slipEdit } from '../../../src/core/editing';
+import { createMediaItem } from '../../../src/core/operations';
 import { Store } from '../../../src/core/store';
 import { findPlacement, projectDuration } from '../../../src/core/timeline';
 import { registerBuiltins } from '../../../src/effects/builtin';
@@ -121,6 +123,11 @@ export const action = fc.oneof(
   { weight: 1, arbitrary: fc.record({ kind: fc.constant('still' as const), item: k }) },
   { weight: 1, arbitrary: fc.record({ kind: fc.constant('removeStill' as const), which: k }) },
   { weight: 1, arbitrary: fc.record({ kind: fc.constant('textStyle' as const), item: k, size: unit }) },
+  { weight: 4, arbitrary: fc.record({ kind: fc.constant('editInsert' as const), asset: k, track: k, at: unit, span: unit, overwrite: fc.boolean(), all: fc.boolean() }) },
+  { weight: 2, arbitrary: fc.record({ kind: fc.constant('editDelete' as const), item: k, ripple: fc.boolean() }) },
+  { weight: 3, arbitrary: fc.record({ kind: fc.constant('editTrim' as const), item: k, mode: fc.constantFrom('ripple' as const, 'roll' as const, 'slip' as const, 'slide' as const), out: fc.boolean(), d: unit }) },
+  { weight: 1, arbitrary: fc.record({ kind: fc.constant('link' as const), from: k, to: k }) },
+  { weight: 1, arbitrary: fc.record({ kind: fc.constant('marker' as const), at: unit }) },
   { weight: 3, arbitrary: fc.record({ kind: fc.constant('undo' as const) }) },
   { weight: 2, arbitrary: fc.record({ kind: fc.constant('redo' as const) }) },
 );
@@ -269,6 +276,30 @@ export function toOperation(project: Project, a: Action): Operation | 'undo' | '
       const still = pick(project.stills ?? [], a.which);
       return still ? removeStill(still.id) : null;
     }
+    case 'editInsert': {
+      const asset = pick(ASSETS, a.asset)!;
+      if (!track) return null;
+      const from = a.span * asset.end * 0.8;
+      const clip = createMediaItem(asset, { in: from, out: Math.min(asset.end, from + 0.2 + a.span * asset.end) });
+      if (!accepts(track, clip, project.assets)) return null;
+      const target = [{ trackId: track.id, item: clip }];
+      return a.overwrite ? overwriteEdit(target, a.at * duration) : insertEdit(target, a.at * duration, a.all ? 'all' : 'track');
+    }
+    case 'editDelete':
+      return item ? deleteItems([item.id], a.ripple) : null;
+    case 'editTrim': {
+      if (!item) return null;
+      const d = (a.d - 0.5) * 3;
+      if (a.mode === 'ripple') return rippleTrim(item.id, a.out ? 'out' : 'in', d);
+      if (a.mode === 'roll') return rollEdit(item.id, a.out ? 'out' : 'in', d);
+      return a.mode === 'slip' ? slipEdit(item.id, d) : slideEdit(item.id, d);
+    }
+    case 'link': {
+      const [from, to] = [pick(all, a.from), pick(all, a.to)];
+      return from && to ? linkItems([from.id, to.id]) : null;
+    }
+    case 'marker':
+      return addMarker({ time: a.at * duration });
     case 'textStyle':
       return item?.kind === 'text' ? setTextStyle(item.id, { size: 0.02 + a.size * 0.2 }) : null;
   }

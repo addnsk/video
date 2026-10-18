@@ -23,7 +23,7 @@ import { findPlacement, trackFrameAt } from './timeline';
 
 export type Operation = (project: Project) => Project;
 
-const MIN_LENGTH = 1 / 120;
+export const MIN_LENGTH = 1 / 120;
 
 function mapTracks(project: Project, fn: (track: Track) => Track): Project {
   let changed = false;
@@ -136,8 +136,10 @@ export const insertItem = (assetId: string, options: InsertOptions): Operation =
   return placeInto(project, requireTrack(project, options.trackId), createMediaItem(asset, options), options.index);
 };
 
-export const placeItem = (item: Item, trackId: string, position: { start?: number; index?: number } = {}): Operation => (project) =>
-  placeInto(project, requireTrack(project, trackId), { ...item, start: Math.max(0, position.start ?? item.start) }, position.index);
+export const placeItem = (item: Item, trackId: string, position: { start?: number; index?: number } = {}): Operation => (project) => {
+  const { gap: _gap, ...rest } = item;
+  return placeInto(project, requireTrack(project, trackId), { ...rest, start: Math.max(0, position.start ?? item.start) } as Item, position.index);
+};
 
 export const insertText = (
   trackId: string,
@@ -176,7 +178,8 @@ export const moveItem = (itemId: string, index: number): Operation => (project) 
 export const moveToTrack = (itemId: string, trackId: string, position: { start?: number; index?: number }): Operation => (project) => {
   const placement = requireItem(project, itemId);
   const target = requireTrack(project, trackId);
-  const moved: Item = { ...placement.item, start: Math.max(0, position.start ?? placement.start), transitionIn: target.magnetic ? placement.item.transitionIn : null };
+  const { gap: _gap, ...rest } = placement.item;
+  const moved = { ...rest, start: Math.max(0, position.start ?? placement.start), transitionIn: target.magnetic ? placement.item.transitionIn : null } as Item;
   if (!accepts(target, moved, project.assets)) return project;
   if (target.id === placement.track.id) {
     if (target.magnetic) return moveItem(itemId, position.index ?? placement.index)(project);
@@ -207,6 +210,27 @@ export const trimItem = (itemId: string, range: { in?: number; out?: number }): 
     };
   });
 
+export function splitItem(item: Item, start: number, local: number, rightId = createId('item')): [Item, Item] {
+  const length = itemLength(item);
+  const leftAnimations = shiftAnimations(item.animations, 0, local);
+  const rightAnimations = shiftAnimations(item.animations, local, length - local);
+  const { ids, ...copied } = copyEffectSet(item);
+  const { out: _out, ...leftPresets } = item.presets;
+  const { in: _in, ...rightPresets } = item.presets;
+  const { gap: _gap, ...rest } = item;
+  const head = { animations: leftAnimations, presets: leftPresets };
+  const tail = { id: rightId, start: start + local, transitionIn: null, ...copied, animations: remapNodeAnimations(rightAnimations, ids), presets: rightPresets };
+  return item.kind === 'media'
+    ? [
+        { ...item, ...head, source: { ...item.source, out: sourceTimeAt(item, local) } },
+        { ...(rest as MediaItem), ...tail, source: { ...item.source, in: sourceTimeAt(item, local) } },
+      ]
+    : [
+        { ...item, ...head, duration: local },
+        { ...(rest as TextItem), ...tail, duration: length - local },
+      ];
+}
+
 export const splitAt = (time: number, trackId: string, rightId = createId('item')): Operation => (project) => {
   const track = requireTrack(project, trackId);
   const frame = trackFrameAt(track, time);
@@ -214,27 +238,9 @@ export const splitAt = (time: number, trackId: string, rightId = createId('item'
   const layer = frame.transition && frame.transition.progress >= 0.5 ? frame.transition.incoming : frame.base;
   const { item } = layer.placement;
   const local = layer.local;
-  const length = itemLength(item);
-  if (local < MIN_LENGTH || length - local < MIN_LENGTH) return project;
-  const leftAnimations = shiftAnimations(item.animations, 0, local);
-  const rightAnimations = shiftAnimations(item.animations, local, length - local);
-  const { ids, ...copied } = copyEffectSet(item);
-  const { out: _out, ...leftPresets } = item.presets;
-  const { in: _in, ...rightPresets } = item.presets;
-  const head = { animations: leftAnimations, presets: leftPresets };
-  const tail = { id: rightId, start: layer.placement.start + local, transitionIn: null, ...copied, animations: remapNodeAnimations(rightAnimations, ids), presets: rightPresets };
-  const [left, right]: [Item, Item] =
-    item.kind === 'media'
-      ? [
-          { ...item, ...head, source: { ...item.source, out: sourceTimeAt(item, local) } },
-          { ...item, ...tail, source: { ...item.source, in: sourceTimeAt(item, local) } },
-        ]
-      : [
-          { ...item, ...head, duration: local },
-          { ...item, ...tail, duration: length - local },
-        ];
+  if (local < MIN_LENGTH || itemLength(item) - local < MIN_LENGTH) return project;
   const items = track.items.slice();
-  items.splice(items.indexOf(item), 1, left, right);
+  items.splice(items.indexOf(item), 1, ...splitItem(item, layer.placement.start, local, rightId));
   return mapTracks(project, (t) => (t === track ? { ...t, items } : t));
 };
 

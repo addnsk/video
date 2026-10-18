@@ -92,6 +92,8 @@ interface ItemBase {
   readonly parkedGraph?: ItemGraph;
   readonly gradeVersions?: Readonly<Record<string, GradeSnapshot>>;
   readonly gradeVersion?: string;
+  readonly gap?: number;
+  readonly link?: string;
 }
 
 export interface MediaItem extends ItemBase {
@@ -99,6 +101,7 @@ export interface MediaItem extends ItemBase {
   readonly source: SourceRange;
   readonly speed: number;
   readonly colorSpace?: string;
+  readonly videoOnly?: boolean;
 }
 
 export const itemColorSpace = (item: Item, assets: Project['assets']): string | undefined =>
@@ -151,6 +154,15 @@ export interface ProjectSettings {
   readonly colorScience?: ColorScience;
 }
 
+export interface Marker {
+  readonly id: string;
+  readonly time: number;
+  readonly duration: number;
+  readonly name: string;
+  readonly color: string;
+  readonly note: string;
+}
+
 export interface Project {
   readonly version: 2;
   readonly settings: ProjectSettings | null;
@@ -158,6 +170,7 @@ export interface Project {
   readonly tracks: readonly Track[];
   readonly stills?: readonly Still[];
   readonly mix?: Mix;
+  readonly markers?: readonly Marker[];
 }
 
 export const IDENTITY_TRANSFORM: Transform = { x: 0, y: 0, scale: 1, rotation: 0 };
@@ -189,6 +202,9 @@ export const MAX_SPEED = 16;
 export const itemLength = (item: Item): number => (item.kind === 'media' ? (item.source.out - item.source.in) / item.speed : item.duration);
 
 export const sourceTimeAt = (item: MediaItem, local: number): number => item.source.in + local * item.speed;
+
+export const carriesAudio = (item: Item, assets: Project['assets']): item is MediaItem =>
+  item.kind === 'media' && !item.videoOnly && !!assets[item.source.assetId]?.hasAudio;
 
 export const isMedia = (item: Item): item is MediaItem => item.kind === 'media';
 
