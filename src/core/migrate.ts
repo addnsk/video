@@ -14,6 +14,7 @@ function migrateItem(raw: Loose<Item> & Record<string, unknown>): Item {
     transform: { ...IDENTITY_TRANSFORM, ...(raw.transform as object) },
     animations: (raw.animations as Item['animations']) ?? {},
     presets: (raw.presets as Item['presets']) ?? {},
+    ...(raw.graph ? { graph: raw.graph as Item['graph'] } : {}),
   };
   if (raw.kind === 'text') return { ...base, kind: 'text', duration: Number(raw.duration), text: raw.text as never };
   return { ...base, kind: 'media', source: raw.source as never, speed: Number(raw.speed ?? 1) };

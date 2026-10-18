@@ -16,6 +16,7 @@ import type {
   TransitionInstance,
 } from './model';
 import { DEFAULT_TEXT, IDENTITY_TRANSFORM, MAX_SPEED, MIN_SPEED, accepts, itemLength, sourceTimeAt } from './model';
+import { graphWithNode, graphWithoutNode, remapGraph } from './graph';
 import { findPlacement, trackFrameAt } from './timeline';
 
 export type Operation = (project: Project) => Project;
@@ -55,6 +56,19 @@ function requireTrack(project: Project, trackId: string): Track {
   if (!track) throw new Error(`Unknown track ${trackId}`);
   return track;
 }
+
+function copyEffectSet(item: Item): Pick<Item, 'effects' | 'graph'> {
+  const ids = new Map(item.effects.map((e) => [e.id, createId('fx')]));
+  const effects = item.effects.map((e) => ({ ...e, id: ids.get(e.id)! }));
+  return item.graph ? { effects, graph: remapGraph(item.graph, ids) } : { effects };
+}
+
+function withEffectSet(item: Item, set: Pick<Item, 'effects' | 'graph'>): Item {
+  const { graph: _graph, ...rest } = item;
+  return set.graph ? { ...rest, effects: set.effects, graph: set.graph } : { ...rest, effects: set.effects };
+}
+
+export const updateItem = (itemId: string, fn: (item: Item) => Item): Operation => (project) => mapItem(project, itemId, fn);
 
 const baseItem = (id: string, start: number) => ({
   id,
@@ -193,11 +207,11 @@ export const splitAt = (time: number, trackId: string, rightId = createId('item'
   if (local < MIN_LENGTH || length - local < MIN_LENGTH) return project;
   const leftAnimations = shiftAnimations(item.animations, 0, local);
   const rightAnimations = shiftAnimations(item.animations, local, length - local);
-  const effects = item.effects.map((e) => ({ ...e, id: createId('fx') }));
+  const copied = copyEffectSet(item);
   const { out: _out, ...leftPresets } = item.presets;
   const { in: _in, ...rightPresets } = item.presets;
   const head = { animations: leftAnimations, presets: leftPresets };
-  const tail = { id: rightId, start: layer.placement.start + local, transitionIn: null, effects, animations: rightAnimations, presets: rightPresets };
+  const tail = { id: rightId, start: layer.placement.start + local, transitionIn: null, ...copied, animations: rightAnimations, presets: rightPresets };
   const [left, right]: [Item, Item] =
     item.kind === 'media'
       ? [
@@ -274,25 +288,30 @@ export const upsertEffect = (itemId: string, type: string, params: ParamValues):
       return { ...item, effects: item.effects.map((e) => (e === existing ? { ...e, params: { ...e.params, ...params } } : e)) };
     }
     const effect: EffectInstance = { id: createId('fx'), type, enabled: true, params };
-    return { ...item, effects: [...item.effects, effect] };
+    return { ...item, effects: [...item.effects, effect], ...(item.graph ? { graph: graphWithNode(item.graph, effect.id) } : {}) };
   });
 
 export const replaceEffect = (itemId: string, type: string, params: ParamValues | null): Operation => (project) =>
   mapItem(project, itemId, (item) => {
     const rest = item.effects.filter((e) => e.type !== type);
-    if (!params) return rest.length === item.effects.length ? item : { ...item, effects: rest };
+    if (!params) {
+      if (rest.length === item.effects.length) return item;
+      const removed = item.effects.filter((e) => e.type === type);
+      const graph = item.graph && removed.reduce((g, e) => graphWithoutNode(g, e.id), item.graph);
+      return { ...item, effects: rest, ...(graph ? { graph } : {}) };
+    }
     const previous = item.effects.find((e) => e.type === type);
     const effect: EffectInstance = { id: previous?.id ?? createId('fx'), type, enabled: true, params };
     const index = previous ? item.effects.indexOf(previous) : rest.length;
     const effects = rest.slice();
     effects.splice(index, 0, effect);
-    return { ...item, effects };
+    return { ...item, effects, ...(item.graph && !previous ? { graph: graphWithNode(item.graph, effect.id) } : {}) };
   });
 
 export const copyEffects = (fromId: string, toIds: readonly string[]): Operation => (project) => {
   const { item: source } = requireItem(project, fromId);
   return toIds.reduce(
-    (p, id) => (id === fromId ? p : mapItem(p, id, (item) => ({ ...item, effects: source.effects.map((e) => ({ ...e, id: createId('fx') })) }))),
+    (p, id) => (id === fromId ? p : mapItem(p, id, (item) => withEffectSet(item, copyEffectSet(source)))),
     project,
   );
 };

@@ -51,6 +51,17 @@ export interface TextStyle {
   readonly background: string | null;
 }
 
+export interface ItemGraphLink {
+  readonly from: string;
+  readonly to: string;
+  readonly input: string;
+}
+
+export interface ItemGraph {
+  readonly links: readonly ItemGraphLink[];
+  readonly positions: Readonly<Record<string, readonly [number, number]>>;
+}
+
 interface ItemBase {
   readonly id: string;
   readonly start: number;
@@ -61,6 +72,7 @@ interface ItemBase {
   readonly transform: Transform;
   readonly animations: Animations;
   readonly presets: ItemPresets;
+  readonly graph?: ItemGraph;
 }
 
 export interface MediaItem extends ItemBase {

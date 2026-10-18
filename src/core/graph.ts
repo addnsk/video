@@ -1,4 +1,4 @@
-import type { EffectInstance, ParamValues } from './model';
+import type { EffectInstance, Item, ItemGraph, ParamValues } from './model';
 
 export const SOURCE_NODE = 'media.source';
 export const OUTPUT_NODE = 'graph.output';
@@ -158,3 +158,53 @@ export const updateNode = (graph: NodeGraph, id: string, patch: Partial<Omit<Gra
 });
 
 export const nodeProperty = (nodeId: string, param: string): string => `node.${nodeId}.${param}`;
+
+export const SOURCE_ID = 'source';
+export const OUTPUT_ID = 'output';
+
+export function materialize(effects: readonly EffectInstance[], graph: ItemGraph | undefined, stageOf: (type: string) => number, isVisual: (type: string) => boolean): NodeGraph {
+  const visual = effects.filter((e) => isVisual(e.type));
+  if (!graph) return chainGraph(visual.filter((e) => e.enabled), stageOf);
+  const at = (id: string, fallback: readonly [number, number]) => graph.positions[id] ?? fallback;
+  const nodes: GraphNode[] = [
+    { id: SOURCE_ID, type: SOURCE_NODE, params: {}, enabled: true, position: at(SOURCE_ID, [0, 0]) },
+    ...visual.map((e, i): GraphNode => ({ id: e.id, type: e.type, params: e.params, enabled: e.enabled, position: at(e.id, [(i + 1) * SPACING, 120]) })),
+    { id: OUTPUT_ID, type: OUTPUT_NODE, params: {}, enabled: true, position: at(OUTPUT_ID, [(visual.length + 1) * SPACING, 0]) },
+  ];
+  const ids = new Set(nodes.map((n) => n.id));
+  return { nodes, links: graph.links.filter((l) => ids.has(l.from) && ids.has(l.to)) };
+}
+
+export const toItemGraph = (graph: NodeGraph): ItemGraph => ({
+  links: graph.links,
+  positions: Object.fromEntries(graph.nodes.map((n) => [n.id, n.position])),
+});
+
+export const hasGraph = (item: Item): boolean => !!item.graph;
+
+export function graphWithNode(graph: ItemGraph, id: string, input = 'source'): ItemGraph {
+  const feed = graph.links.find((l) => l.to === OUTPUT_ID);
+  const links = graph.links.filter((l) => l !== feed);
+  return {
+    ...graph,
+    links: [...links, ...(feed ? [{ from: feed.from, to: id, input }] : []), { from: id, to: OUTPUT_ID, input: 'input' }],
+  };
+}
+
+export function graphWithoutNode(graph: ItemGraph, id: string): ItemGraph {
+  const incoming = graph.links.filter((l) => l.to === id);
+  const feed = (incoming.find((l) => l.input === 'source') ?? incoming[0])?.from;
+  const links = graph.links
+    .filter((l) => l.to !== id)
+    .flatMap((l) => (l.from !== id ? [l] : feed ? [{ ...l, from: feed }] : []));
+  const { [id]: _removed, ...positions } = graph.positions;
+  return { links, positions };
+}
+
+export function remapGraph(graph: ItemGraph, ids: ReadonlyMap<string, string>): ItemGraph {
+  const map = (id: string) => ids.get(id) ?? id;
+  return {
+    links: graph.links.map((l) => ({ ...l, from: map(l.from), to: map(l.to) })),
+    positions: Object.fromEntries(Object.entries(graph.positions).map(([id, p]) => [map(id), p])),
+  };
+}
