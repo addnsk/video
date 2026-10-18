@@ -4,10 +4,20 @@ A video editor that runs entirely in the browser. Media never leaves the device.
 
 - **ProRes**, including 10-bit footage from Blackmagic cameras, decoded with the `@mediabunny/prores` WASM decoder. H.264, HEVC, VP9 and AV1 use the browser's WebCodecs decoders.
 - **GPU color**: Blackmagic Film Gen 5 → Rec.709 with the Wide Gamut matrix, exposure, white balance, lift/gamma/gain wheels, contrast, saturation and `.cube` 3D LUTs, processed in half-float.
+- **Multitrack editing**: a magnetic main track, free video tracks for overlays and picture-in-picture, audio tracks for music, mute per track, snapping.
+- **Titles** with bundled Latin and Cyrillic fonts, background boxes and alignment.
+- **Keyframes** for opacity, position, scale, rotation, volume and any effect parameter.
+- **Curves** (master, RGB, hue vs saturation) and **scopes** (waveform, RGB parade, vectorscope, histogram).
+- **Audio waveforms** on the timeline, per-clip volume, crossfades on transitions, audio-only files.
+- **Projects** autosave in the browser, reconnect their media after a reload and save to or open from `.json` files.
 - **Transitions** in the [gl-transitions](https://gl-transitions.com) format, and custom GLSL filters. Both register at runtime.
 - **Scripting API** (`montage`) for everything the UI does. See [docs/API.md](docs/API.md).
 - **Undo/redo** for every edit, including scripts.
 - Works on phones: adaptive layout, touch gestures, automatic proxies.
+
+## Deploying
+
+`.github/workflows/deploy.yml` tests, builds and publishes to GitHub Pages on every push to `main`. Enable it once under **Settings → Pages → Source: GitHub Actions**. The page registers `coi-serviceworker` so it is cross-origin isolated, which lets the ProRes decoder use shared-memory threads.
 
 ## Running
 

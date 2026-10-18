@@ -1,6 +1,6 @@
 import { createMontageApi } from '../api/montage';
 import { removeItem, splitAt } from '../core/operations';
-import { projectDuration } from '../core/timeline';
+import { findPlacement, projectDuration } from '../core/timeline';
 import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
 import type { ProjectPersistence } from '../host/persistence/project-persistence';
 import type { EditorSession } from '../host/session';
@@ -13,6 +13,8 @@ import { openExportDialog } from './export-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
 import { ScopesPanel } from './panels/scopes-panel';
+import { ItemPanel } from './panels/item-panel';
+import { addTrack, insertText } from '../core/operations';
 import { ScriptPanel } from './panels/script-panel';
 import { TransitionPanel } from './panels/transition-panel';
 import { Selection } from './selection';
@@ -25,7 +27,7 @@ export interface AppHandle {
 export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session: EditorSession, persistence: ProjectPersistence): AppHandle {
   const { store, transport } = session;
   const selection = new Selection(store);
-  const api = createMontageApi(session);
+  const api = createMontageApi(session, (id) => selection.set(id));
   Object.assign(globalThis, { montage: api });
 
   const importFiles = async (picked: Iterable<PickedFile>) => {
@@ -53,7 +55,11 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
 
   const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => transport.toggle() }, '▶');
   const timecode = h('div', { class: 'tc', id: 'tc' });
-  const split = () => store.dispatch(splitAt(transport.time, session.videoTrackId));
+  const split = () => {
+    const placement = selection.id ? findPlacement(store.project, selection.id) : null;
+    const covers = placement && transport.time > placement.start && transport.time < placement.end;
+    store.dispatch(splitAt(transport.time, covers ? placement.track.id : session.videoTrackId));
+  };
   const remove = () => selection.id && store.dispatch(removeItem(selection.id));
   const compare = h('button', { class: 'btn', id: 'bypass', 'aria-pressed': 'false', onClick: () => toggleBypass() }, t('compare'));
   const editButtons = [
@@ -72,17 +78,32 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
 
   const timelineCanvas = h('canvas', { id: 'timeline' });
-  const timeline = new TimelineView(timelineCanvas, store, transport, selection);
+  const timeline = new TimelineView(timelineCanvas, session, selection);
+  const addTitle = () => {
+    const overlay = store.project.tracks.find((tr) => tr.kind === 'video' && !tr.magnetic);
+    if (!overlay) store.dispatch(addTrack('video'));
+    const trackId = store.project.tracks.find((tr) => tr.kind === 'video' && !tr.magnetic)!.id;
+    const before = new Set(store.project.tracks.flatMap((tr) => tr.items.map((i) => i.id)));
+    store.dispatch(insertText(trackId, transport.time, 3, { content: t('newTitle') }));
+    const created = store.project.tracks.flatMap((tr) => tr.items).find((i) => !before.has(i.id));
+    if (created) selection.set(created.id);
+  };
+  const timelineTools = h('div', { class: 'timeline-tools' },
+    h('button', { class: 'btn small', id: 'add-title', onClick: addTitle }, t('addTitle')),
+    h('button', { class: 'btn small', id: 'add-video-track', onClick: () => store.dispatch(addTrack('video')) }, t('addVideoTrack')),
+    h('button', { class: 'btn small', id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }, t('addAudioTrack')),
+  );
 
   const inspector = h('aside', { class: 'inspector' },
     new ScopesPanel(session).element,
+    new ItemPanel(session, selection).element,
     new TransitionPanel(session, selection).element,
     new ColorPanel(session, selection).element,
     new MediaPanel(session).element,
     new ScriptPanel(api).element,
   );
 
-  root.replaceChildren(bar, h('section', { class: 'viewer' }, screen, transportBar), h('section', { class: 'timeline' }, timelineCanvas), inspector);
+  root.replaceChildren(bar, h('section', { class: 'viewer' }, screen, transportBar), h('section', { class: 'timeline' }, timelineTools, timelineCanvas), inspector);
 
   function toggleBypass() {
     transport.bypass = !transport.bypass;

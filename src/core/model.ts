@@ -20,14 +20,53 @@ export interface SourceRange {
   readonly out: number;
 }
 
-export interface Item {
+export interface Transform {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+  readonly rotation: number;
+}
+
+export interface Keyframe {
+  readonly t: number;
+  readonly v: number;
+}
+
+export type Animations = Readonly<Record<string, readonly Keyframe[]>>;
+
+export interface TextStyle {
+  readonly content: string;
+  readonly font: string;
+  readonly weight: number;
+  readonly size: number;
+  readonly color: string;
+  readonly align: 'left' | 'center' | 'right';
+  readonly background: string | null;
+}
+
+interface ItemBase {
   readonly id: string;
-  readonly source: SourceRange;
   readonly start: number;
   readonly effects: readonly EffectInstance[];
   readonly transitionIn: TransitionInstance | null;
   readonly volume: number;
+  readonly opacity: number;
+  readonly transform: Transform;
+  readonly animations: Animations;
 }
+
+export interface MediaItem extends ItemBase {
+  readonly kind: 'media';
+  readonly source: SourceRange;
+}
+
+export interface TextItem extends ItemBase {
+  readonly kind: 'text';
+  readonly duration: number;
+  readonly text: TextStyle;
+}
+
+export type Item = MediaItem | TextItem;
 
 export type TrackKind = 'video' | 'audio';
 
@@ -50,6 +89,7 @@ export interface AssetMeta {
   readonly fps: number;
   readonly start: number;
   readonly end: number;
+  readonly hasVideo: boolean;
   readonly hasAudio: boolean;
   readonly sampleRate: number;
   readonly channels: number;
@@ -63,20 +103,42 @@ export interface ProjectSettings {
 }
 
 export interface Project {
-  readonly version: 1;
+  readonly version: 2;
   readonly settings: ProjectSettings | null;
   readonly assets: Readonly<Record<string, AssetMeta>>;
   readonly tracks: readonly Track[];
 }
 
+export const IDENTITY_TRANSFORM: Transform = { x: 0, y: 0, scale: 1, rotation: 0 };
+
+export const DEFAULT_TEXT: TextStyle = {
+  content: 'Title',
+  font: 'IBM Plex Sans',
+  weight: 600,
+  size: 0.08,
+  color: '#ffffff',
+  align: 'center',
+  background: null,
+};
+
 export const emptyProject = (): Project => ({
-  version: 1,
+  version: 2,
   settings: null,
   assets: {},
   tracks: [
     { id: 'v1', kind: 'video', magnetic: true, muted: false, items: [] },
+    { id: 'v2', kind: 'video', magnetic: false, muted: false, items: [] },
     { id: 'a1', kind: 'audio', magnetic: false, muted: false, items: [] },
   ],
 });
 
-export const itemLength = (item: Item): number => item.source.out - item.source.in;
+export const itemLength = (item: Item): number => (item.kind === 'media' ? item.source.out - item.source.in : item.duration);
+
+export const isMedia = (item: Item): item is MediaItem => item.kind === 'media';
+
+export const assetOf = (item: Item): string | null => (item.kind === 'media' ? item.source.assetId : null);
+
+export const accepts = (track: Track, item: Item, assets: Project['assets']): boolean => {
+  if (track.kind === 'audio') return item.kind === 'media' && !!assets[item.source.assetId]?.hasAudio;
+  return item.kind === 'text' || !!assets[item.source.assetId]?.hasVideo;
+};

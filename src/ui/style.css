@@ -14,6 +14,10 @@
   --clip: #2b3a4a;
   --clip-selected: #34495e;
   --lane: #181b20;
+  --clip-audio: #27403a;
+  --clip-text: #4a3a5c;
+  --waveform: rgb(200 220 210 / 0.55);
+  --keyframe: #f2f3f5;
   --wheel-bg: #16191d;
   --clip-band: #22303d;
   --transition: rgb(233 162 59 / 0.18);
@@ -224,3 +228,14 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; 
 .scopes[open] summary::before { content: '▾'; }
 .scopes summary h2 { display: inline; }
 .scope { width: 100%; aspect-ratio: 2; background: #0b0c0e; border-radius: 6px; border: 1px solid var(--line); }
+
+.timeline-tools { display: flex; gap: 6px; padding: 6px 8px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.btn.small { min-height: 28px; padding: 0 10px; font-size: 12px; }
+.keyed { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 4px; align-items: center; }
+.key { width: 28px; height: 28px; border: 0; background: transparent; color: var(--muted); font-size: 15px; cursor: pointer; border-radius: 4px; }
+.key[data-state="animated"] { color: var(--fg); }
+.key[data-state="onKey"] { color: var(--accent); }
+.key:hover { background: var(--panel-2); }
+textarea.plain { min-height: 64px; white-space: pre-wrap; font-family: var(--font-ui); font-size: 13px; }
+input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: transparent; }
+.panel.disabled .keyed { opacity: 0.4; pointer-events: none; }

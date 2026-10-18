@@ -1,4 +1,5 @@
-import type { EffectInstance, ParamValue, ParamValues } from '../../core/model';
+import { resolveItem } from '../../core/animation';
+import type { EffectInstance, ParamValue, ParamValues, Transform } from '../../core/model';
 import type { CompositionFrame, LayerFrame, TrackFrame } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';
 import type { FilterDef, ParamSpec, TransitionDef } from '../../effects/types';
@@ -45,6 +46,10 @@ export class Compositor {
     this.curves = new CurveTextures(ctx);
   }
 
+  get size(): { width: number; height: number } {
+    return { width: this.ctx.surface.width, height: this.ctx.surface.height };
+  }
+
   render(frame: CompositionFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions = {}): void {
     const gl = this.ctx.gl;
     if (this.ctx.lost) return;
@@ -55,11 +60,16 @@ export class Compositor {
     for (const layer of frame.layers) {
       const result = this.renderTrack(layer, images, options);
       if (!result) continue;
-      if (!accumulator) {
+      const opacity = layer.transition ? 1 : resolveItem(layer.base.placement.item, layer.base.local).opacity;
+      if (!accumulator && opacity >= 1) {
         accumulator = result;
         continue;
       }
-      this.blend(result, accumulator);
+      if (!accumulator) {
+        accumulator = this.targets.acquire(this.width, this.height);
+        this.clearTarget(accumulator);
+      }
+      this.blend(result, accumulator, opacity);
       this.targets.release(result);
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -115,9 +125,10 @@ export class Compositor {
     let upload = this.uploads.get(item.id);
     if (!upload) this.uploads.set(item.id, (upload = new UploadTexture(this.ctx)));
     const texture = upload.upload(image.source, image.width, image.height, image.key);
-    let current = this.fit(texture, image.width, image.height);
+    const resolved = resolveItem(item, layer.local);
+    let current = this.fit(texture, image.width, image.height, resolved.transform);
     if (options.bypassFilters) return current;
-    for (const effect of this.ordered(item.effects)) {
+    for (const effect of this.ordered(resolved.effects)) {
       const next = this.applyFilter(effect, current);
       if (next !== current) {
         this.targets.release(current);
@@ -132,20 +143,32 @@ export class Compositor {
     return effects.filter((e) => e.enabled).sort((a, b) => stage(a) - stage(b));
   }
 
-  private fit(texture: WebGLTexture, width: number, height: number): RenderTarget {
+  private fit(texture: WebGLTexture, width: number, height: number, transform: Transform): RenderTarget {
     const gl = this.ctx.gl;
     const out = this.targets.acquire(this.width, this.height);
-    const scale = Math.min(this.width / width, this.height / height);
-    const w = (width * scale) / this.width;
-    const h = (height * scale) / this.height;
+    const scale = Math.min(this.width / width, this.height / height) * Math.max(0.001, transform.scale);
+    const angle = (transform.rotation * Math.PI) / 180;
     const program = this.ctx.program(FIT);
     gl.bindFramebuffer(gl.FRAMEBUFFER, out.framebuffer);
     gl.viewport(0, 0, this.width, this.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(program);
     this.bindTexture(program, 'u_image', 0, texture);
-    gl.uniform4f(this.ctx.uniform(program, 'u_rect'), (1 - w) / 2, (1 - h) / 2, w, h);
+    gl.uniform2f(this.ctx.uniform(program, 'u_size'), this.width, this.height);
+    gl.uniform2f(this.ctx.uniform(program, 'u_center'), this.width * (0.5 + transform.x), this.height * (0.5 - transform.y));
+    gl.uniform2f(this.ctx.uniform(program, 'u_extent'), width * scale, height * scale);
+    gl.uniform2f(this.ctx.uniform(program, 'u_rotation'), Math.cos(angle), Math.sin(angle));
     this.ctx.drawQuad();
     return out;
+  }
+
+  private clearTarget(target: RenderTarget) {
+    const gl = this.ctx.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
+    gl.viewport(0, 0, this.width, this.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   private applyFilter(effect: EffectInstance, input: RenderTarget): RenderTarget {
@@ -170,14 +193,14 @@ export class Compositor {
     return out;
   }
 
-  private blend(source: RenderTarget, target: RenderTarget | null) {
+  private blend(source: RenderTarget, target: RenderTarget | null, opacity = 1) {
     const gl = this.ctx.gl;
     const program = this.ctx.program(COPY);
     gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer ?? null);
     gl.viewport(0, 0, this.width, this.height);
     gl.useProgram(program);
     this.bindTexture(program, 'u_image', 0, source.texture);
-    gl.uniform1f(this.ctx.uniform(program, 'u_opacity'), 1);
+    gl.uniform1f(this.ctx.uniform(program, 'u_opacity'), opacity);
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     this.ctx.drawQuad();

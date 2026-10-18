@@ -1,7 +1,8 @@
 import { Emitter } from '../core/emitter';
 import { createId } from '../core/ids';
 import type { AssetMeta } from '../core/model';
-import { addAsset, insertItem, sequence } from '../core/operations';
+import { addAsset, addTrack, insertItem, sequence } from '../core/operations';
+import { placeTrack } from '../core/timeline';
 import { Store } from '../core/store';
 import { registerBuiltins } from '../effects/builtin';
 import { EffectRegistry } from '../effects/registry';
@@ -18,6 +19,7 @@ export interface SessionEvents extends Record<string, unknown> {
   proxy: { assetId: string; state: ProxyState; fraction: number };
   media: { missing: readonly string[] };
   imported: { meta: AssetMeta; file: File; handle?: FileSystemFileHandle };
+  peaks: string;
   error: string;
 }
 
@@ -36,6 +38,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly transport: Transport;
   readonly files = new Map<string, File>();
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
+  private peakData = new Map<string, Float32Array | null>();
   private exportProgress = new Map<string, (fraction: number) => void>();
 
   constructor(readonly engine: EngineClient) {
@@ -90,13 +93,21 @@ export class EditorSession extends Emitter<SessionEvents> {
     for (const { file, handle } of picked) {
       try {
         const meta = await this.importFile(file, handle);
-        this.store.dispatch(sequence(insertItem(meta.id, { trackId: this.videoTrackId })));
+        this.store.dispatch(this.placement(meta));
         added.push(meta);
       } catch (e) {
         onError(file, e as Error);
       }
     }
     return added;
+  }
+
+  private placement(meta: AssetMeta) {
+    if (meta.hasVideo) return insertItem(meta.id, { trackId: this.videoTrackId });
+    const audio = this.store.project.tracks.find((t) => t.kind === 'audio');
+    const trackId = audio?.id ?? 'a1';
+    const end = audio ? placeTrack(audio).reduce((m, p) => Math.max(m, p.end), 0) : 0;
+    return sequence(...(audio ? [] : [addTrack('audio', trackId)]), insertItem(meta.id, { trackId, start: end }));
   }
 
   async exportVideo(settings: ExportSettings, onProgress: (fraction: number) => void, signal: { canceled: boolean }): Promise<ExportResult> {
@@ -121,6 +132,18 @@ export class EditorSession extends Emitter<SessionEvents> {
       clearInterval(poll);
       this.exportProgress.delete(id);
     }
+  }
+
+  peaks(assetId: string): Float32Array | null {
+    if (this.peakData.has(assetId)) return this.peakData.get(assetId)!;
+    this.peakData.set(assetId, null);
+    if (this.files.has(assetId) && this.store.project.assets[assetId]?.hasAudio) {
+      void this.engine.remote.peaks(assetId).then((data) => {
+        this.peakData.set(assetId, data as Float32Array);
+        this.emit('peaks', assetId);
+      });
+    } else this.peakData.delete(assetId);
+    return null;
   }
 
   requestProxy(assetId: string): void {

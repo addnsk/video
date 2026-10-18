@@ -20,6 +20,7 @@ import { GpuContext } from '../gpu/context';
 import { Compositor, type LutProvider } from '../gpu/compositor';
 import type { MediaPool } from '../media/media-pool';
 import type { ByteSink } from './sinks';
+import type { TextRenderer } from '../text';
 
 export interface ExportSettings {
   readonly height: number | null;
@@ -27,6 +28,7 @@ export interface ExportSettings {
 }
 
 export interface ExportContext {
+  readonly text: TextRenderer;
   readonly pool: MediaPool;
   readonly registry: EffectRegistry;
   readonly luts: LutProvider;
@@ -63,7 +65,7 @@ export async function exportProject(
   const canvas = new OffscreenCanvas(width, height);
   const gpu = new GpuContext(canvas);
   const compositor = new Compositor(gpu, context.registry, context.luts);
-  const frames = new SequentialFrames(context.pool, 'master');
+  const frames = new SequentialFrames(context.pool, context.text, 'master');
   const mixer = new AudioMixer(context.pool);
 
   const output = new Output({
@@ -100,8 +102,8 @@ export async function exportProject(
       if (isCanceled()) throw new ExportCanceled();
       const t = i / fps;
       const frame = compositionAt(project, t);
-      const images = await frames.load(project, frame);
-      compositor.render(frame, images);
+      const images = await frames.load(project, frame, { width, height });
+      compositor.render(frame, images ?? new Map());
       await video.add(t, 1 / fps);
       await writeAudioUntil(Math.min(duration, t + 1));
       onProgress((i + 1) / frameCount);

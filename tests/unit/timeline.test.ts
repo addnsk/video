@@ -36,13 +36,14 @@ describe('magnetic track', () => {
     const project = splitAt(1.5, 'v1', 'right')(build());
     const placements = placeTrack(project.tracks[0]);
     expect(placements.map((p) => p.item.id)).toEqual(['one', 'right', 'two']);
-    expect(placements[1].item.source.in).toBeCloseTo(1.5);
+    const right = placements[1].item;
+    expect(right.kind === 'media' && right.source.in).toBeCloseTo(1.5);
     expect(projectDuration(project)).toBe(7);
   });
 
   it('clamps trims to the source', () => {
     const project = trimItem('one', { in: -5, out: 99 })(build());
-    expect(placeTrack(project.tracks[0])[0].item.source).toMatchObject({ in: 0, out: 10 });
+    expect(placeTrack(project.tracks[0])[0].item).toMatchObject({ source: { in: 0, out: 10 } });
   });
 
   it('drops a dangling transition when the first item is removed', () => {

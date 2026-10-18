@@ -2,6 +2,7 @@ import { Emitter } from '../../core/emitter';
 import type { AssetMeta } from '../../core/model';
 import { BUILTIN_EFFECTS } from '../../effects/builtin';
 import type { EditorSession } from '../session';
+import { migrateProject } from '../../core/migrate';
 import { Database } from './database';
 import { isProjectDocument, type ProjectDocument } from './document';
 
@@ -100,7 +101,7 @@ export class ProjectPersistence extends Emitter<PersistenceEvents> {
       for (const lut of document.luts) session.luts.add(lut.name, { size: lut.size, data: Float32Array.from(lut.data) }, lut.id);
       const known = [...session.files.values()];
       session.files.clear();
-      session.store.reset(document.project);
+      session.store.reset(migrateProject(document.project));
       this.relink(known);
     } finally {
       this.restoring = false;

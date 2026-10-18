@@ -31,10 +31,17 @@ export class MediaPanel extends Panel {
     this.body.replaceChildren(
       ...assets.map((asset) => {
         const proxy = this.proxyLabel(asset);
-        const details = `${asset.codec} · ${asset.width}×${asset.height} · ${+asset.fps.toFixed(3)} ${t('fps')} · ${formatDuration(asset.end - asset.start)}`;
+        const details = asset.hasVideo
+          ? `${asset.codec} · ${asset.width}×${asset.height} · ${+asset.fps.toFixed(3)} ${t('fps')} · ${formatDuration(asset.end - asset.start)}`
+          : `${asset.codec} · ${asset.sampleRate / 1000} kHz · ${formatDuration(asset.end - asset.start)}`;
+        const audioTrack = this.session.store.project.tracks.find((tr) => tr.kind === 'audio');
         const actions = h('div', { class: 'row' },
-          h('button', { class: 'btn', onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: this.session.videoTrackId })) }, t('addToTimeline')),
-          !this.session.proxies.has(asset.id) && h('button', { class: 'btn', onClick: () => this.session.requestProxy(asset.id) }, t('makeProxy')),
+          asset.hasVideo && h('button', { class: 'btn', onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: this.session.videoTrackId })) }, t('addToTimeline')),
+          asset.hasAudio && audioTrack && h('button', {
+            class: 'btn',
+            onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: audioTrack.id, start: this.session.transport.time })),
+          }, t('addAudio')),
+          asset.hasVideo && !this.session.proxies.has(asset.id) && h('button', { class: 'btn', onClick: () => this.session.requestProxy(asset.id) }, t('makeProxy')),
         );
         return h('div', { class: 'media-item' },
           h('b', { title: asset.name }, asset.name),

@@ -21,6 +21,9 @@ import { buildProxy, findProxy } from './media/proxy';
 import type { ClockAnchor, EngineEvents, EngineInit, EngineMethods, EngineStats, ExportTarget } from './protocol';
 import { resources } from './resources';
 import { analyze } from './scopes';
+import { TextRenderer } from './text';
+import { loadFonts } from './fonts';
+import { computePeaks } from './audio/peaks';
 
 const SCOPE_INTERVAL_MS = 120;
 
@@ -64,6 +67,8 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private pool!: MediaPool;
   private mixer!: AudioMixer;
   private stills!: StillFrames;
+  private text = new TextRenderer();
+  private peakCache = new Map<string, Promise<Float32Array>>();
   private gpu: GpuContext | null = null;
   private compositor: Compositor | null = null;
   private project: Project = emptyProject();
@@ -82,11 +87,16 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     registerBuiltins(this.registry);
   }
 
-  async init({ surface, device }: EngineInit): Promise<MemoryBudget> {
+  async init({ surface, device, fonts }: EngineInit): Promise<MemoryBudget> {
     this.budget = budgetFor(device);
     this.pool = new MediaPool(this.budget);
     this.mixer = new AudioMixer(this.pool);
-    this.stills = new StillFrames(this.pool, this.budget);
+    this.stills = new StillFrames(this.pool, this.text, this.budget);
+    this.stills.isStale = () => this.stillQueue.latest !== null || !!this.playback;
+    void loadFonts(fonts).then(() => {
+      this.text.clear();
+      this.redraw();
+    });
     this.gpu = new GpuContext(surface);
     this.compositor = new Compositor(this.gpu, this.registry, { lut: (id) => this.luts.get(id) });
     this.compositor.onError = (message) => this.emit('error', { message });
@@ -146,7 +156,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   play(anchor: ClockAnchor, bypassFilters: boolean): void {
     this.stop();
     const generation = ++this.generation;
-    this.playback = { anchor, bypass: bypassFilters, frames: new SequentialFrames(this.pool, 'preview'), generation };
+    this.playback = { anchor, bypass: bypassFilters, frames: new SequentialFrames(this.pool, this.text, 'preview'), generation };
     this.loop(generation, false);
   }
 
@@ -169,7 +179,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
         this.project,
         settings,
         sink,
-        { pool: this.pool, registry: this.registry, luts: { lut: (lid) => this.luts.get(lid) }, budget: this.budget },
+        { pool: this.pool, registry: this.registry, luts: { lut: (lid) => this.luts.get(lid) }, budget: this.budget, text: this.text },
         (fraction) => this.emit('progress', { task: 'export', id, fraction }),
         () => this.canceled.has(id),
       );
@@ -193,6 +203,16 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.proxyQueue.push(assetId);
     this.emit('proxy', { assetId, state: 'queued' });
     void this.runProxies();
+  }
+
+  async peaks(assetId: string): Promise<unknown> {
+    let pending = this.peakCache.get(assetId);
+    if (!pending) {
+      pending = computePeaks(this.pool.acquire(assetId, 'master'));
+      this.peakCache.set(assetId, pending);
+    }
+    const peaks = await pending;
+    return peaks.slice();
   }
 
   setScopes(enabled: boolean): void {
@@ -230,7 +250,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     const existing = await findProxy(meta, this.budget.proxyHeight).catch(() => null);
     if (existing) {
       this.pool.setProxy(meta.id, existing.file, existing.offset);
-      this.stills.clear();
+      this.stills.close();
       this.emit('proxy', { assetId: meta.id, state: 'ready' });
       this.redraw();
       return;
@@ -255,7 +275,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
           () => this.canceled.has(assetId),
         );
         this.pool.setProxy(assetId, result.file, result.offset);
-        this.stills.clear();
+        this.stills.close();
         this.emit('proxy', { assetId, state: 'ready' });
         this.redraw();
       } catch (e) {
@@ -277,7 +297,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     if (!this.compositor || this.playback) return request.done(false);
     const time = Math.min(request.time, Math.max(0, projectDuration(this.project) - 1e-3));
     const frame = compositionAt(this.project, time);
-    const images = await this.stills.load(this.project, frame, () => this.stillQueue.latest !== null || !!this.playback);
+    const images = await this.stills.load(this.project, frame, this.compositor.size);
     if (!images) return request.done(false);
     this.compositor.render(frame, images, { bypassFilters: request.bypass, capture: this.captureOption(true) });
     request.done(true);
@@ -301,8 +321,8 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       const duration = projectDuration(this.project);
       if (time < anchor.time) return;
       const frame = compositionAt(this.project, Math.min(time, Math.max(0, duration - 1e-3)));
-      const images = await playback.frames.load(this.project, frame);
-      if (generation !== this.generation) return;
+      const images = await playback.frames.load(this.project, frame, this.compositor.size);
+      if (generation !== this.generation || !images) return;
       this.compositor.render(frame, images, { bypassFilters: playback.bypass, capture: this.captureOption(false) });
       this.lastStill = { time: Math.min(time, duration), bypass: playback.bypass };
     } finally {

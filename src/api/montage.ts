@@ -1,12 +1,23 @@
-import type { AssetMeta, Item, ParamValue, ParamValues } from '../core/model';
+import { PROPERTY, effectProperty } from '../core/animation';
+import type { AssetMeta, Item, ParamValue, ParamValues, TextStyle, TrackKind, Transform } from '../core/model';
 import { itemLength } from '../core/model';
 import {
+  addTrack,
+  clearAnimation,
   clearTrack,
   copyEffects,
+  deleteKeyframe,
   insertItem,
+  insertText,
   moveItem,
+  moveToTrack,
   removeItem,
+  removeTrack,
   replaceEffect,
+  setItemProps,
+  setKeyframe,
+  setTextStyle,
+  setTrackMuted,
   setTransition,
   setVolume,
   splitAt,
@@ -14,6 +25,7 @@ import {
   upsertEffect,
   type Operation,
 } from '../core/operations';
+import { findPlacement } from '../core/timeline';
 import { createId } from '../core/ids';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
 import { parseCube } from '../effects/cube';
@@ -27,14 +39,20 @@ export type ItemTarget = ItemRef | 'all';
 
 export interface ClipInfo {
   readonly id: string;
+  readonly kind: Item['kind'];
+  readonly track: string;
   readonly index: number;
-  readonly assetId: string;
+  readonly assetId: string | null;
   readonly name: string;
   readonly start: number;
   readonly duration: number;
   readonly in: number;
   readonly out: number;
   readonly volume: number;
+  readonly opacity: number;
+  readonly transform: Transform;
+  readonly text: TextStyle | null;
+  readonly animations: Item['animations'];
   readonly effects: readonly { type: string; params: ParamValues }[];
   readonly transition: { type: string; duration: number; params: ParamValues } | null;
 }
@@ -73,15 +91,14 @@ export interface FilterRegistration {
 
 const WHEELS = ['lift', 'gamma', 'gain'] as const;
 
-export function createMontageApi(session: EditorSession) {
+export function createMontageApi(session: EditorSession, onSelect: (id: string | null) => void = () => undefined) {
   const { store, registry, transport, luts } = session;
 
   const mainTrack = () => store.project.tracks.find((t) => t.id === session.videoTrackId)!;
   const placements = (): readonly Placement[] => placeTrack(mainTrack());
 
   const resolve = (ref: ItemRef): Placement => {
-    const list = placements();
-    const hit = typeof ref === 'number' ? list.at(ref) : list.find((p) => p.item.id === ref);
+    const hit = typeof ref === 'number' ? placements().at(ref) : findPlacement(store.project, ref);
     if (!hit) throw new Error(`No clip ${JSON.stringify(ref)}`);
     return hit;
   };
@@ -90,16 +107,22 @@ export function createMontageApi(session: EditorSession) {
 
   const apply = (op: Operation, coalesce?: string) => store.dispatch(op, { coalesce });
 
-  const describe = ({ item, index, start, fadeIn }: Placement): ClipInfo => ({
+  const describe = ({ item, index, start, fadeIn, track }: Placement): ClipInfo => ({
     id: item.id,
+    kind: item.kind,
+    track: track.id,
     index,
-    assetId: item.source.assetId,
-    name: store.project.assets[item.source.assetId]?.name ?? '',
+    assetId: item.kind === 'media' ? item.source.assetId : null,
+    name: item.kind === 'media' ? (store.project.assets[item.source.assetId]?.name ?? '') : item.text.content,
     start,
     duration: itemLength(item),
-    in: item.source.in,
-    out: item.source.out,
+    in: item.kind === 'media' ? item.source.in : 0,
+    out: item.kind === 'media' ? item.source.out : item.duration,
     volume: item.volume,
+    opacity: item.opacity,
+    transform: item.transform,
+    text: item.kind === 'text' ? item.text : null,
+    animations: item.animations,
     effects: item.effects.map((e) => ({ type: e.type, params: e.params })),
     transition: item.transitionIn && { ...item.transitionIn, duration: fadeIn },
   });
@@ -142,7 +165,20 @@ export function createMontageApi(session: EditorSession) {
     },
 
     assets: (): AssetMeta[] => Object.values(store.project.assets),
-    clips: (): ClipInfo[] => placements().map(describe),
+    clips: (trackId?: string): ClipInfo[] => {
+      const track = trackId ? store.project.tracks.find((t) => t.id === trackId) : mainTrack();
+      if (!track) throw new Error(`No track ${trackId}`);
+      return placeTrack(track).map(describe);
+    },
+    select: (ref: ItemRef | null) => onSelect(ref === null ? null : resolve(ref).item.id),
+    tracks: () => store.project.tracks.map((t) => ({ id: t.id, kind: t.kind, magnetic: t.magnetic, muted: t.muted, items: t.items.length })),
+    addTrack: (kind: TrackKind) => {
+      const before = new Set(store.project.tracks.map((t) => t.id));
+      apply(addTrack(kind));
+      return store.project.tracks.find((t) => !before.has(t.id))!.id;
+    },
+    removeTrack: (trackId: string) => void apply(removeTrack(trackId)),
+    muteTrack: (trackId: string, muted = true) => void apply(setTrackMuted(trackId, muted)),
     clip: (ref: ItemRef): ClipInfo => describe(resolve(ref)),
 
     async import(source: File | Blob | string, name?: string): Promise<AssetMeta> {
@@ -155,11 +191,34 @@ export function createMontageApi(session: EditorSession) {
       return session.importFile(file);
     },
 
-    add(assetId: string, options: { in?: number; out?: number; index?: number } = {}): ClipInfo {
+    add(assetId: string, options: { in?: number; out?: number; index?: number; track?: string; start?: number } = {}): ClipInfo {
       const id = createId('item');
-      apply(insertItem(assetId, { ...options, trackId: session.videoTrackId, id }));
+      apply(insertItem(assetId, { ...options, trackId: options.track ?? session.videoTrackId, id }));
       return describe(resolve(id));
     },
+    title(content: string, options: { start?: number; duration?: number; track?: string } & Partial<Omit<TextStyle, 'content'>> = {}): ClipInfo {
+      const { start, duration, track, ...style } = options;
+      const id = createId('item');
+      const trackId = track ?? store.project.tracks.find((t) => t.kind === 'video' && !t.magnetic)?.id ?? api.addTrack('video');
+      apply(insertText(trackId, start ?? transport.time, duration ?? 3, { ...style, content }, id));
+      return describe(resolve(id));
+    },
+    setText: (ref: ItemRef, style: Partial<TextStyle>) => void apply(setTextStyle(resolve(ref).item.id, style)),
+    place: (ref: ItemRef, trackId: string, start?: number) => void apply(moveToTrack(resolve(ref).item.id, trackId, { start })),
+    set: (target: ItemTarget, props: { volume?: number; opacity?: number; transform?: Partial<Transform> }) =>
+      void store.transaction(() => {
+        for (const id of targets(target)) apply(setItemProps(id, props));
+      }),
+    keyframe(ref: ItemRef, property: string, time: number, value: number) {
+      apply(setKeyframe(resolve(ref).item.id, PROPERTY[property as keyof typeof PROPERTY] ?? property, time, value));
+    },
+    removeKeyframe(ref: ItemRef, property: string, time: number) {
+      apply(deleteKeyframe(resolve(ref).item.id, PROPERTY[property as keyof typeof PROPERTY] ?? property, time));
+    },
+    clearKeyframes(ref: ItemRef, property: string) {
+      apply(clearAnimation(resolve(ref).item.id, PROPERTY[property as keyof typeof PROPERTY] ?? property));
+    },
+    effectProperty,
     split(time: number): ClipInfo | null {
       const id = createId('item');
       apply(splitAt(time, session.videoTrackId, id));

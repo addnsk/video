@@ -13,6 +13,7 @@ export interface Placement {
 
 export interface LayerFrame {
   readonly placement: Placement;
+  readonly local: number;
   readonly sourceTime: number;
 }
 
@@ -76,13 +77,21 @@ export function findPlacement(project: Project, itemId: string): Placement | nul
   return null;
 }
 
-const layerAt = (placement: Placement, time: number): LayerFrame => ({
-  placement,
-  sourceTime: placement.item.source.in + (time - placement.start),
-});
+const layerAt = (placement: Placement, time: number): LayerFrame => {
+  const local = time - placement.start;
+  const { item } = placement;
+  return { placement, local, sourceTime: item.kind === 'media' ? item.source.in + local : local };
+};
 
 export function trackFrameAt(track: Track, time: number): TrackFrame | null {
   const placements = placeTrack(track);
+  if (!track.magnetic) {
+    for (let i = placements.length - 1; i >= 0; i--) {
+      const p = placements[i];
+      if (time >= p.start && time < p.end) return { track, base: layerAt(p, time), transition: null };
+    }
+    return null;
+  }
   for (let i = 0; i < placements.length; i++) {
     const p = placements[i];
     if (time < p.start || time >= p.end) continue;
@@ -107,8 +116,13 @@ export function compositionAt(project: Project, time: number): CompositionFrame 
   const layers: TrackFrame[] = [];
   for (const track of project.tracks) {
     if (track.kind !== 'video' || track.muted) continue;
-    const frame = trackFrameAt(track, time);
-    if (frame) layers.push(frame);
+    if (track.magnetic) {
+      const frame = trackFrameAt(track, time);
+      if (frame) layers.push(frame);
+      continue;
+    }
+    for (const p of placeTrack(track))
+      if (time >= p.start && time < p.end) layers.push({ track, base: layerAt(p, time), transition: null });
   }
   return { time, layers };
 }

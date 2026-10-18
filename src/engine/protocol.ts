@@ -4,6 +4,7 @@ import type { Lut3D } from '../effects/cube';
 import type { DeviceInfo, MemoryBudget } from './device';
 import type { ExportSettings } from './export/exporter';
 import type { ScopeData } from './scopes';
+import type { FontSource } from './fonts';
 
 export interface ClockAnchor {
   readonly time: number;
@@ -32,6 +33,7 @@ export interface EngineEvents extends Record<string, unknown> {
 export interface EngineInit {
   readonly surface: OffscreenCanvas | HTMLCanvasElement;
   readonly device: DeviceInfo;
+  readonly fonts: readonly FontSource[];
 }
 
 export interface EngineMethods {
@@ -51,4 +53,5 @@ export interface EngineMethods {
   ensureProxy(assetId: string, force: boolean): void;
   stats(): EngineStats;
   setScopes(enabled: boolean): void;
+  peaks(assetId: string): Promise<unknown>;
 }

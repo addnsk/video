@@ -11,6 +11,7 @@ export const asset = (id: string, duration = 10): AssetMeta => ({
   fps: 25,
   start: 0,
   end: duration,
+  hasVideo: true,
   hasAudio: true,
   sampleRate: 48000,
   channels: 2,

@@ -13,9 +13,9 @@ Clips are referenced by id (`'item_x1'`) or by index on the main track (`0`, `1`
 
 | Call | Returns |
 |---|---|
-| `montage.clips()` | Clips on the main track: `id`, `index`, `name`, `start`, `duration`, `in`, `out`, `volume`, `effects`, `transition` |
+| `montage.clips(trackId?)` | Items on the main track or the given track: `id`, `kind`, `track`, `index`, `name`, `start`, `duration`, `in`, `out`, `volume`, `opacity`, `transform`, `text`, `animations`, `effects`, `transition` |
 | `montage.clip(ref)` | One clip |
-| `montage.assets()` | Imported media: `id`, `name`, `codec`, `width`, `height`, `fps`, `start`, `end`, `hasAudio` |
+| `montage.assets()` | Imported media: `id`, `name`, `codec`, `width`, `height`, `fps`, `start`, `end`, `hasVideo`, `hasAudio` |
 | `montage.duration`, `montage.fps`, `montage.size`, `montage.time` | Timeline length, frame rate, frame size, playhead |
 | `await montage.stats()` | Engine memory budget and live/peak resource counts |
 
@@ -34,6 +34,50 @@ montage.clear();
 montage.proxy(a.id);                             // build a proxy now
 montage.proxies();                               // { [assetId]: { state, fraction } }
 ```
+
+## Tracks, overlays and titles
+
+The main track `v1` is magnetic: clips sit back to back and can have transitions. Other tracks are free: items keep their own start time and may overlap. Video tracks stack bottom to top; audio tracks only carry sound.
+
+```js
+montage.tracks();                                          // [{ id, kind, magnetic, muted, items }]
+const v3 = montage.addTrack('video');
+montage.muteTrack('a1', true);
+montage.removeTrack(v3);
+
+const pip = montage.add(asset.id, { track: 'v2', start: 4, in: 0, out: 3 });
+montage.set(pip.id, { opacity: 0.9, transform: { x: 0.3, y: 0.25, scale: 0.35, rotation: 0 } });
+montage.place(pip.id, 'v3', 6);                            // move to another track and time
+
+const song = montage.add(music.id, { track: 'a1', start: 0 });
+montage.volume(song.id, 0.4);
+
+const title = montage.title('Hello', { start: 1, duration: 3, size: 0.08, color: '#ffffff', background: '#000000b3' });
+montage.setText(title.id, { content: 'Hello\nworld', align: 'left', font: 'IBM Plex Mono' });
+montage.clips('v2');                                       // items of any track
+montage.select(title.id);
+```
+
+`transform.x` and `transform.y` move by a fraction of the frame (−1…1), `scale` is relative to fitting the frame, `rotation` is in degrees.
+
+Title fonts: `IBM Plex Sans`, `IBM Plex Mono`, `serif`, `sans-serif`. `size` is a fraction of the frame height.
+
+## Keyframes
+
+Any numeric property can be animated. Times are relative to the start of the item.
+
+```js
+montage.keyframe(title.id, 'opacity', 0, 0);
+montage.keyframe(title.id, 'opacity', 0.5, 1);
+montage.keyframe(pip.id, 'scale', 0, 0.3);
+montage.keyframe(pip.id, 'scale', 2, 0.5);
+montage.keyframe(song.id, 'volume', 0, 0);
+montage.keyframe(0, montage.effectProperty('grade', 'exposure'), 0, -1);
+montage.removeKeyframe(pip.id, 'scale', 2);
+montage.clearKeyframes(pip.id, 'scale');
+```
+
+Properties: `opacity`, `volume`, `x`, `y`, `scale`, `rotation`, and `montage.effectProperty(effectType, param)` for any float parameter of an effect on the item.
 
 ## Color
 

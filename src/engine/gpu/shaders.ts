@@ -17,11 +17,16 @@ out vec4 outColor;
 
 export const FIT = `${HEADER}
 uniform sampler2D u_image;
-uniform vec4 u_rect;
+uniform vec2 u_size;
+uniform vec2 u_center;
+uniform vec2 u_extent;
+uniform vec2 u_rotation;
 void main() {
-  vec2 p = (v_uv - u_rect.xy) / u_rect.zw;
+  vec2 d = v_uv * u_size - u_center;
+  vec2 r = vec2(u_rotation.x * d.x + u_rotation.y * d.y, -u_rotation.y * d.x + u_rotation.x * d.y);
+  vec2 p = r / u_extent + 0.5;
   if (any(lessThan(p, vec2(0.0))) || any(greaterThan(p, vec2(1.0)))) {
-    outColor = vec4(0.0, 0.0, 0.0, 0.0);
+    outColor = vec4(0.0);
     return;
   }
   outColor = texture(u_image, vec2(p.x, 1.0 - p.y));
