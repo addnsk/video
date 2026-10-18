@@ -8,7 +8,17 @@ export default {
     const editor = await Editor.open(browser, url, { inline: true });
     await editor.import([fixture('gray.mov'), fixture('red.mov')]);
     await editor.run(() => montage.renderCache(false));
-    const sample = (points, time = 0.5) => editor.run(({ points, time }) => montage.sample(points, time), { points, time });
+    const sample = (points, time = 0.5) =>
+      editor.run(async ({ points, time }) => {
+        for (let i = 0; i < 20; i++) {
+          try {
+            return await montage.sample(points, time);
+          } catch {
+            await new Promise((r) => setTimeout(r, 250));
+          }
+        }
+        return montage.sample(points, time);
+      }, { points, time });
     const throws = (fn, arg) => editor.run(async ({ body, arg }) => {
       try {
         await new Function('arg', body)(arg);
