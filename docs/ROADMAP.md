@@ -78,6 +78,10 @@ Heavy CPU work moves out of plain JavaScript; everything else stays as is (decod
 - Done: live momentary and short-term loudness in the transport, true-peak measurement.
 - Done: sends (pre/post fader), bus-to-bus routing with loop checks, reverb and delay, latency compensation across clips, tracks and buses, effect tails after the last clip, warm-up after seeks, a true-peak look-ahead limiter and a trim stage that `normalize` uses.
 
+## Later (text)
+
+- Loading user fonts (font files and Google Fonts); today the text node offers IBM Plex Sans, IBM Plex Mono and the system serif and sans-serif.
+
 ## Later (tracking)
 
 - Planar tracking (rotation, scale and perspective) and multi-point trackers; today a tracker follows one point in translation.

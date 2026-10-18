@@ -1,13 +1,15 @@
 import type { ParamValues } from '../core/model';
-import { MAX_RASTER_GLYPHS } from '../effects/types';
 import type { RasterImage, Rasterizer } from './gpu/raster';
 import { resources } from './resources';
 
 const CACHE_SIZE = 6;
 
+const MAX_ATLAS_HEIGHT = 8192;
+
 interface Cached {
   readonly image: RasterImage;
   readonly bitmap: ImageBitmap;
+  readonly atlasBitmap: ImageBitmap;
   readonly bytes: number;
 }
 
@@ -56,6 +58,7 @@ export class TextRasterizer implements Rasterizer {
       if (this.cache.size <= CACHE_SIZE) break;
       this.cache.delete(k);
       old.bitmap.close();
+      old.atlasBitmap.close();
       resources.release('bitmap', old.bytes);
     }
     return entry.image;
@@ -64,19 +67,32 @@ export class TextRasterizer implements Rasterizer {
   private draw(layout: TextLayoutParams, width: number, height: number, key: string): Cached {
     const canvas = new OffscreenCanvas(width, height);
     const g = canvas.getContext('2d')!;
-    g.fillStyle = '#000';
-    g.fillRect(0, 0, width, height);
     const size = layout.size * height;
     const generic = layout.font.includes('Mono') ? 'monospace' : 'sans-serif';
-    g.font = `${layout.weight} ${size}px "${layout.font}", ${generic}`;
-    g.textBaseline = 'middle';
-    g.textAlign = 'left';
-    g.lineJoin = 'round';
-    g.globalCompositeOperation = 'lighter';
+    const font = `${layout.weight} ${size}px "${layout.font}", ${generic}`;
     const spacing = layout.tracking * size;
     const outline = layout.outlineWidth * size;
-    const margin = outline + 2;
+    const margin = Math.ceil(outline + 2);
     const lineHeight = size * layout.lineSpacing;
+    const prepare = (context: OffscreenCanvasRenderingContext2D) => {
+      context.font = font;
+      context.textBaseline = 'middle';
+      context.textAlign = 'left';
+      context.lineJoin = 'round';
+      context.globalCompositeOperation = 'lighter';
+    };
+    const ink = (context: OffscreenCanvasRenderingContext2D, char: string, x: number, y: number) => {
+      if (outline > 0) {
+        context.strokeStyle = '#0f0';
+        context.lineWidth = outline * 2;
+        context.strokeText(char, x, y);
+      }
+      context.fillStyle = '#ff0';
+      context.fillText(char, x, y);
+    };
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, width, height);
+    prepare(g);
     const lines = layout.text.split('\n').map((line) => {
       const chars = [...line];
       const offsets = chars.map((_, i) => g.measureText(chars.slice(0, i).join('')).width + spacing * i);
@@ -85,35 +101,75 @@ export class TextRasterizer implements Rasterizer {
     });
     const block = Math.max(0, ...lines.map((l) => l.advance));
     const top = height / 2 - (lineHeight * lines.length) / 2;
-    const glyphs = new Float32Array(MAX_RASTER_GLYPHS * 4);
-    let count = 0;
+    const placed: { char: string; x: number; y: number; w: number }[] = [];
     lines.forEach((line, row) => {
       const left = layout.align === 'left' ? (width - block) / 2 : layout.align === 'right' ? (width + block) / 2 - line.advance : (width - line.advance) / 2;
       const y = top + lineHeight * (row + 0.5);
       line.chars.forEach((char, i) => {
         if (!char.trim()) return;
         const x = left + line.offsets[i];
-        if (outline > 0) {
-          g.strokeStyle = '#0f0';
-          g.lineWidth = outline * 2;
-          g.strokeText(char, x, y);
-        }
-        g.fillStyle = '#ff0';
-        g.fillText(char, x, y);
-        if (count >= MAX_RASTER_GLYPHS) return;
-        const w = g.measureText(char).width;
-        glyphs.set([(x - margin) / width, 1 - (y + size * 0.75 + margin) / height, (x + w + margin) / width, 1 - (y - size * 0.75 - margin) / height], count * 4);
-        count++;
+        ink(g, char, x, y);
+        placed.push({ char, x, y, w: g.measureText(char).width });
       });
     });
+    const cellHeight = Math.ceil(size * 1.5) + margin * 2;
+    const cells: { x: number; y: number; w: number }[] = [];
+    let cx = 0;
+    let cy = 0;
+    for (const glyph of placed) {
+      const w = Math.ceil(glyph.w) + margin * 2 + 2;
+      if (cx + w > width && cx > 0) {
+        cx = 0;
+        cy += cellHeight;
+      }
+      cells.push({ x: cx, y: cy, w });
+      cx += w;
+    }
+    const atlasHeight = Math.min(MAX_ATLAS_HEIGHT, Math.max(1, cy + cellHeight));
+    const atlas = new OffscreenCanvas(width, atlasHeight);
+    const a = atlas.getContext('2d')!;
+    a.fillStyle = '#000';
+    a.fillRect(0, 0, width, atlasHeight);
+    prepare(a);
+    const glyphs = new Float32Array(placed.length * 8);
+    let count = 0;
+    placed.forEach((glyph, i) => {
+      const cell = cells[i];
+      if (cell.y + cellHeight > atlasHeight) return;
+      const frac = glyph.x - Math.floor(glyph.x);
+      const fracY = glyph.y - Math.floor(glyph.y);
+      const ox = cell.x + margin + 1 + frac;
+      const oy = cell.y + cellHeight / 2 + fracY;
+      a.save();
+      a.beginPath();
+      a.rect(cell.x, cell.y, cell.w, cellHeight);
+      a.clip();
+      ink(a, glyph.char, ox, oy);
+      a.restore();
+      const x0 = glyph.x - (ox - cell.x);
+      const y0 = glyph.y - (oy - cell.y);
+      glyphs.set([
+        x0 / width, 1 - (y0 + cellHeight) / height, (x0 + cell.w) / width, 1 - y0 / height,
+        cell.x / width, 1 - (cell.y + cellHeight) / atlasHeight, (cell.x + cell.w) / width, 1 - cell.y / atlasHeight,
+      ], count * 8);
+      count++;
+    });
     const bitmap = canvas.transferToImageBitmap();
-    return { bitmap, bytes: width * height * 4, image: { source: bitmap, width, height, key, glyphs, count } };
+    const atlasBitmap = atlas.transferToImageBitmap();
+    const bytes = width * height * 4 + width * atlasHeight * 4;
+    return {
+      bitmap,
+      atlasBitmap,
+      bytes,
+      image: { source: bitmap, width, height, key, glyphs, count, atlas: { source: atlasBitmap, width, height: atlasHeight, key: `${key}:atlas` } },
+    };
   }
 
   clear(): void {
     this.generation++;
     for (const entry of this.cache.values()) {
       entry.bitmap.close();
+      entry.atlasBitmap.close();
       resources.release('bitmap', entry.bytes);
     }
     this.cache.clear();

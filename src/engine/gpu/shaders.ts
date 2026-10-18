@@ -1,4 +1,5 @@
-import { MAX_RASTER_GLYPHS, type FilterDef, type NodeDef, type ParamSpec, type TransitionDef } from '../../effects/types';
+import { GLYPH_DATA_WIDTH } from './raster';
+import { type FilterDef, type NodeDef, type ParamSpec, type TransitionDef } from '../../effects/types';
 
 export const VERTEX = `#version 300 es
 layout(location = 0) in vec2 position;
@@ -112,14 +113,25 @@ vec4 input_${name}(vec2 uv) {
     .join('\n');
   const raster = def.raster
     ? `uniform sampler2D u_raster;
-uniform vec4 u_glyphs[${MAX_RASTER_GLYPHS}];
+uniform sampler2D u_atlas;
+uniform highp sampler2D u_glyph_data;
 uniform int u_glyph_count;
 vec4 raster(vec2 uv) {
   if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
   return texture(u_raster, vec2(uv.x, 1.0 - uv.y));
 }
 int glyph_count() { return u_glyph_count; }
-vec4 glyph(int i) { return u_glyphs[i]; }`
+vec4 glyphTexel(int i) { return texelFetch(u_glyph_data, ivec2(i % ${GLYPH_DATA_WIDTH}, i / ${GLYPH_DATA_WIDTH}), 0); }
+vec4 glyph(int i) { return glyphTexel(i * 2); }
+vec4 glyphCell(int i) { return glyphTexel(i * 2 + 1); }
+vec4 glyphRaster(int i, vec2 uv) {
+  vec4 box = glyph(i);
+  vec4 cell = glyphCell(i);
+  vec2 f = (uv - box.xy) / max(box.zw - box.xy, vec2(1e-6));
+  if (any(lessThan(f, vec2(0.0))) || any(greaterThan(f, vec2(1.0)))) return vec4(0.0);
+  vec2 a = mix(cell.xy, cell.zw, f);
+  return texture(u_atlas, vec2(a.x, 1.0 - a.y));
+}`
     : '';
   const history = def.history
     ? `uniform sampler2D u_history;

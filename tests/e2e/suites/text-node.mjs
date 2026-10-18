@@ -41,6 +41,30 @@ export default {
     checks.check(isRed(await at(0.5, 0.2)), 'empty text renders nothing');
     await editor.run((id) => montage.graph.set(0, id, { text: '█████', center: [0, 0], outlineWidth: 0, progress: 1 }), text);
     await editor.run(() => montage.clearKeyframes(0, Object.keys(montage.clip(0).animations)[0]));
+    const many = await editor.run(async (id) => {
+      const text = Array.from({ length: 16 }, () => '█'.repeat(20)).join('\n');
+      montage.graph.set(0, id, { text, size: 0.05, lineSpacing: 1.1, progress: 0.6, stagger: 0, fromOpacity: 0.5, fromOffset: [0, 0] });
+      const [first, last] = await montage.sample([{ x: -0.1, y: -0.38 }, { x: 0.1, y: 0.38 }], 0.5);
+      return { first: first.map((v) => v * 255), last: last.map((v) => v * 255) };
+    }, text);
+    checks.check(!isRed(many.first) && !isRed(many.last), `all 320 glyphs animate, not only the first 128 (${fmt(many.first)} / ${fmt(many.last)})`);
+
+    const bleed = await editor.run(async (id) => {
+      const grid = [];
+      for (let y = -0.2; y <= 0.02; y += 0.02) for (let x = -0.45; x <= 0.1; x += 0.01) grid.push({ x, y });
+      const render = async (text) => {
+        montage.graph.set(0, id, { text, size: 0.25, align: 'left', tracking: -0.25, lineSpacing: 1.2, progress: 0.05, stagger: 0.9, order: 'forward', fromOpacity: 0, fromOffset: [0, 0], fromScale: 1 });
+        return montage.sample(grid, 0.5);
+      };
+      const withHidden = await render('r.\nWWWWWW');
+      const alone = await render('r\nWWWWWW');
+      const lit = alone.filter((c) => c[1] > 0.5).length;
+      let worst = 0;
+      withHidden.forEach((c, i) => (worst = Math.max(worst, Math.abs(c[1] - alone[i][1]))));
+      return { lit, worst };
+    }, text);
+    checks.check(bleed.lit > 3 && bleed.worst < 0.05, `an animating glyph does not carry pieces of a tightly kerned neighbour (${JSON.stringify(bleed)})`);
+    await editor.run((id) => montage.graph.set(0, id, { text: '█████', size: 0.3, tracking: 0, lineSpacing: 1.2, stagger: 0, fromOpacity: 0, progress: 1 }), text);
     await editor.import([fixture('blue.mov')], 2);
     const inserted = await editor.run((id) => {
       const merge = montage.graph.get(0).links.find((l) => l.from === id).to;

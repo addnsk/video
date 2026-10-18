@@ -94,8 +94,6 @@ export interface NodeDef {
   readonly history?: boolean;
 }
 
-export const MAX_RASTER_GLYPHS = 128;
-
 export type EffectDef = FilterDef | TransitionDef | NodeDef;
 
 export const defaultParams = (params: readonly ParamSpec[]): Record<string, ParamValue> =>

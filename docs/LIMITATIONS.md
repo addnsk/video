@@ -48,10 +48,7 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 
 ## Text node
 
-- Up to 128 glyphs animate individually; extra glyphs are hidden.
-- Fonts: IBM Plex Sans, IBM Plex Mono and the system serif and sans-serif.
-- Size or outline width animation re-rasterizes the text every frame (slower).
-- Glyph boxes may overlap with tight kerning; during strong per-glyph animation a neighbour's edge can show.
+- While a text animates, each glyph is drawn from its own cell in a glyph atlas; the atlas is one GPU texture up to 8192 px tall, so a very long text at a large size (thousands of glyphs) animates only the glyphs that fit, and the rest appear when the animation ends.
 
 ## Scopes
 

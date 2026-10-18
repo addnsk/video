@@ -7,7 +7,7 @@ describe('text node', () => {
   it('declares raster helpers and skips text uniforms', () => {
     const source = nodeSource(TEXT_NODE, 0);
     expect(source).toContain('vec4 raster(vec2 uv)');
-    expect(source).toContain('uniform vec4 u_glyphs[128]');
+    expect(source).toContain('uniform highp sampler2D u_glyph_data;');
     expect(source).not.toMatch(/uniform \w+ text;/);
     expect(nodeSource(TEXT_NODE, 1)).toContain('vec4 previous(vec2 uv) { return texture(u_previous, uv); }');
   });

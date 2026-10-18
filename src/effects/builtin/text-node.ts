@@ -1,4 +1,4 @@
-import { MAX_RASTER_GLYPHS, type NodeDef, type ParamSpec } from '../types';
+import type { NodeDef, ParamSpec } from '../types';
 
 const float = (name: string, label: string, value: number, min: number, max: number, step = 0.01): ParamSpec => ({ name, label, type: 'float', default: value, min, max, step });
 const vec2 = (name: string, label: string, value: [number, number]): ParamSpec => ({ name, label, type: 'vec2', default: value, step: 0.01 });
@@ -63,10 +63,10 @@ vec4 process(vec2 uv) {
   vec2 asp = vec2(aspect(), 1.0);
   vec2 p = rotateBy((uv - 0.5 - vec2(center.x, -center.y)) * asp, rotation) / asp + 0.5;
   int n = glyph_count();
+  if (progress >= 1.0 || n == 0) return vec4(raster(p).rg, 0.0, 1.0);
   float span = max(1.0 - stagger, 1e-3);
   vec2 cover = vec2(0.0);
-  for (int i = 0; i < ${MAX_RASTER_GLYPHS}; i++) {
-    if (i >= n) break;
+  for (int i = 0; i < n; i++) {
     float k = easeCurve(clamp((progress - glyphStart(i, n)) / span, 0.0, 1.0));
     float opacity = mix(fromOpacity, 1.0, k);
     if (opacity <= 0.0) continue;
@@ -76,7 +76,7 @@ vec4 process(vec2 uv) {
     float s = max(mix(fromScale, 1.0, k), 1e-3);
     vec2 q = rotateBy((p - c - offset) * asp, fromRotation * (1.0 - k)) / s / asp + c;
     if (any(lessThan(q, r.xy)) || any(greaterThan(q, r.zw))) continue;
-    cover = max(cover, raster(q).rg * opacity);
+    cover = max(cover, glyphRaster(i, q).rg * opacity);
   }
   return vec4(cover, 0.0, 1.0);
 }`,

@@ -439,16 +439,21 @@ export class Compositor {
     const rasterizer = this.rasterizers.get(id);
     if (!rasterizer) {
       this.bindTexture(program, 'u_raster', unit, this.emptyTexture(unit));
+      this.bindTexture(program, 'u_atlas', unit + 1, this.emptyTexture(unit + 1));
+      this.bindTexture(program, 'u_glyph_data', unit + 2, this.emptyTexture(unit + 2));
       gl.uniform1i(this.ctx.uniform(program, 'u_glyph_count'), 0);
-      return unit + 1;
+      return unit + 3;
     }
     const image = rasterizer.rasterize(params, this.width, this.height, this.pixelScale);
     gl.activeTexture(gl.TEXTURE0 + unit);
     this.bindTexture(program, 'u_raster', unit, this.rasterTextures.get(image));
+    gl.activeTexture(gl.TEXTURE0 + unit + 1);
+    this.bindTexture(program, 'u_atlas', unit + 1, image.atlas ? this.rasterTextures.get(image.atlas) : this.emptyTexture(unit + 1));
+    gl.activeTexture(gl.TEXTURE0 + unit + 2);
+    this.bindTexture(program, 'u_glyph_data', unit + 2, this.rasterTextures.glyphData(image, unit + 2));
     gl.useProgram(program);
-    gl.uniform4fv(this.ctx.uniform(program, 'u_glyphs[0]'), image.glyphs);
-    gl.uniform1i(this.ctx.uniform(program, 'u_glyph_count'), image.count);
-    return unit + 1;
+    gl.uniform1i(this.ctx.uniform(program, 'u_glyph_count'), image.atlas ? image.count : 0);
+    return unit + 3;
   }
 
   private empty: { texture: WebGLTexture; generation: number } | null = null;
