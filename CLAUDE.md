@@ -5,7 +5,7 @@
 - No comments in code. No Russian anywhere in the repository (code, docs, tests) except the UI translation `src/i18n/ru.ts`, which the owner approved. Talk to the owner in Russian.
 - Code must be abstract and layered; keep the layer boundaries below.
 - Commit and push each finished step to `main` with the session attribution lines.
-- Every scripting API addition or change is documented in `docs/API.md` (the source for the future user documentation) in the same commit.
+- Every scripting API addition or change is documented in `docs/API.md` (the source for the future user documentation) in the same commit. Every known limitation of a feature goes into `docs/LIMITATIONS.md` in the same commit.
 - The owner checks results only when a whole block is done; work autonomously, report at the end.
 
 ## Layers
