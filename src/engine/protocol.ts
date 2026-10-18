@@ -29,6 +29,7 @@ export interface EngineStats {
   readonly metrics: MetricsSnapshot;
   readonly memory: ReturnType<MemoryGovernor['report']> | null;
   readonly renderCache: { readonly bytes: number; readonly diskBytes: number; readonly memory: number; readonly disk: number } | null;
+  readonly proresMemoryBytes: number;
 }
 
 export type TaskKind = 'export' | 'proxy' | 'loudness';

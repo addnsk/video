@@ -49,7 +49,7 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 ## Known issues
 
-- None open. ProRes decoding used to be serialized across files to dodge a "memory access out of bounds" crash; that crash came from the copy of turbores bundled in `@mediabunny/prores`. Our own `engine/media/prores-decoder.ts` decodes concurrently and the stress, multitrack and random-project suites (seed 100 reproduced the crash before) pass repeatedly.
+- A rare "memory access out of bounds" page error was seen once in `persistence` (about 1 in 25 runs, right after a reload). Not reproduced since; e2e logs now print the full stack (`PAGE ERROR`). Findings so far: turbores 1.2.2 corrupts its shared WASM memory for every decoder when a decoder is closed with packets still queued or a `Frame` is reused while a decode is in flight (reproduced in Node); `engine/media/prores-decoder.ts` avoids both (per-instance queue, close waits for it, a new `Frame` per packet). Live ProRes decoders and their memory are now in `montage.stats()` (`resources.proresDecoder`, `proresMemoryBytes`) and `decoder-stress` fails if decoders pile up or the memory passes 1 GB; in-app numbers stay at peak 4 decoders and about 40 MB.
 
 ## Next (agreed with the owner)
 

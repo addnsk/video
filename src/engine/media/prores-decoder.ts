@@ -1,7 +1,12 @@
 import { CustomVideoDecoder, VideoSample, registerDecoder, type EncodedPacket, type VideoCodec } from 'mediabunny';
 import { Decoder, Frame, PIXEL_FORMATS, type PixelFormat } from 'turbores';
+import { resources } from '../resources';
 
 const QUEUE_LIMIT = 2;
+
+let runtimeBytes = 0;
+
+export const proresMemoryBytes = (): number => runtimeBytes;
 
 let supportedFormats: PixelFormat[] | null = null;
 
@@ -37,6 +42,7 @@ export class ProresDecoder extends CustomVideoDecoder {
     });
     if (decoder instanceof Error) throw decoder;
     this.decoder = decoder;
+    resources.acquire('proresDecoder');
   }
 
   private queued = 0;
@@ -54,6 +60,7 @@ export class ProresDecoder extends CustomVideoDecoder {
     try {
       const result = await this.decoder.decode(packet.data, frame);
       if (result instanceof Error) throw result;
+      runtimeBytes = Math.max(runtimeBytes, result.frameData.buffer.byteLength);
       const ratio = result.pixelAspectRatio;
       const displayWidth = ratio.num > ratio.den ? Math.round((result.visibleWidth * ratio.num) / ratio.den) : result.visibleWidth;
       const displayHeight = ratio.num > ratio.den ? result.visibleHeight : Math.round((result.visibleHeight * ratio.den) / ratio.num);
@@ -93,7 +100,9 @@ export class ProresDecoder extends CustomVideoDecoder {
     await this.pending;
     const decoder = this.decoder;
     this.decoder = null;
-    if (decoder) await decoder.close();
+    if (!decoder) return;
+    resources.release('proresDecoder');
+    await decoder.close();
   }
 }
 

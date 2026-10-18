@@ -1,4 +1,4 @@
-import { registerProresDecoder } from './media/prores-decoder';
+import { proresMemoryBytes, registerProresDecoder } from './media/prores-decoder';
 import { Emitter } from '../core/emitter';
 import type { AssetMeta, Project } from '../core/model';
 import { emptyProject } from '../core/model';
@@ -337,6 +337,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       previewSize: this.compositor?.size ?? null,
       metrics: metrics.snapshot(),
       memory: this.governor?.report() ?? null,
+      proresMemoryBytes: proresMemoryBytes(),
       renderCache: this.renderCache ? { bytes: this.renderCache.bytes, diskBytes: this.renderCache.diskUsage, ...this.renderCache.entries } : null,
     };
   }

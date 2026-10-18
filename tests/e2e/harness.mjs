@@ -103,7 +103,7 @@ export class Editor {
     this.errors = [];
     page.on('pageerror', (e) => {
       this.errors.push(e.message);
-      if (process.env.ERROR_STACKS) console.log('PAGE ERROR STACK', e.stack);
+      console.log('PAGE ERROR', e.stack ?? e.message);
     });
   }
 

@@ -1,4 +1,4 @@
-export type ResourceKind = 'videoSample' | 'bitmap' | 'texture' | 'framebuffer' | 'decoder' | 'audioSample';
+export type ResourceKind = 'videoSample' | 'bitmap' | 'texture' | 'framebuffer' | 'decoder' | 'proresDecoder' | 'audioSample';
 
 export class ResourceTracker {
   private live = new Map<ResourceKind, number>();

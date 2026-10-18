@@ -33,6 +33,10 @@ export default {
       await editor.settle(1500);
       const stats = await editor.stats();
       if ((stats.resources.videoSample?.live ?? 0) !== 0) errors.push(`round ${rounds}: ${stats.resources.videoSample.live} decoded frames held`);
+      const prores = stats.resources.proresDecoder ?? { live: 0, peak: 0 };
+      console.log(`round ${rounds}: ProRes decoders live ${prores.live}, peak ${prores.peak}, decoder memory ${(stats.proresMemoryBytes / 1048576).toFixed(0)} MB`);
+      if (prores.live > stats.budget.maxOpenSources * 2) errors.push(`round ${rounds}: ${prores.live} ProRes decoders left open`);
+      if (stats.proresMemoryBytes > 1024 * 1048576) errors.push(`round ${rounds}: ProRes decoder memory ${(stats.proresMemoryBytes / 1048576).toFixed(0)} MB`);
       errors.push(...editor.errors.map((e) => `round ${rounds}: ${e}`));
       await editor.close();
       rounds++;
