@@ -60,7 +60,7 @@ const GLSL_TYPES: Record<string, string> = {
 
 function uniformDeclaration(spec: ParamSpec): string {
   if (spec.type === 'text') return '';
-  if (spec.type === 'points') return `uniform vec2 ${spec.name}[${spec.max}];\nuniform int ${spec.name}_count;`;
+  if (spec.type === 'points') return `uniform highp sampler2D ${spec.name}_data;\nuniform int ${spec.name}_count;\nvec2 ${spec.name}_at(int i) { return texelFetch(${spec.name}_data, ivec2(i % 1024, i / 1024), 0).xy; }`;
   if (spec.type === 'resource') return `uniform sampler3D ${spec.name};`;
   if (spec.type === 'curve') return `uniform sampler2D ${spec.name};`;
   return `uniform ${GLSL_TYPES[spec.type]} ${spec.name};`;

@@ -274,7 +274,7 @@ montage.effect(0, 'curves', { hueHue: [0, 0.5, 0.33, 0.45, 1, 0.5] });
 - Look: `fill`, `outline` and `shadow` colors as `[r, g, b, a]`, `outlineWidth` (em), `shadowOffset` (frame units), `shadowSoftness`.
 - Per-character animation (any number of glyphs; each glyph is drawn on its own, so tight kerning never drags a neighbour along; animating `size` or `outlineWidth` re-rasterizes the text every frame): every glyph moves from a start state to its resting place as `progress` goes from 0 to 1. The start state is `fromOffset` (frame units), `fromScale`, `fromRotation` and `fromOpacity`. `stagger` (0 to 0.99) spreads the glyphs in time, `order` is `forward`, `backward` or `center`, `ease` is `linear`, `out`, `inOut` or `back`. Keyframe `progress` to animate.
 
-Up to 128 glyphs animate individually; longer text still renders but the extra glyphs stay hidden.
+Every glyph animates individually, whatever the length of the text.
 
 ```js
 const title = montage.graph.add(0, 'text', {
@@ -297,6 +297,8 @@ montage.graph.keyframe(0, title, 'progress', 1.5, 1);
 ```
 
 Useful start states: typewriter (`fromOpacity: 0, stagger: 0.95, ease: 'linear'`), drop in (`fromOffset: [0, -0.1], ease: 'back'`), zoom (`fromScale: 3, fromOpacity: 0`), spin (`fromRotation: 180, fromScale: 0`).
+
+Custom node params of type `points` reach GLSL as `<name>_count` and `<name>_at(i)` (a vec2 per point, frame units, y down); masks use up to 1024 vertices, and smooth or Bezier outlines are sampled into up to 4096 points.
 
 Custom nodes can rasterize text too: a node definition with `raster: 'text'` receives `raster(uv)` (fill coverage in red, outline coverage in green), `glyph_count()`, `glyph(i)` (each glyph's box in uv, y up) and `glyphRaster(i, uv)` (that glyph alone, sampled at a uv inside its box, so neighbours never leak in). There is no glyph limit; loop with `for (int i = 0; i < glyph_count(); i++)`.
 

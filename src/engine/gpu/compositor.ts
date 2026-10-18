@@ -41,6 +41,9 @@ export interface RenderOptions {
 }
 
 const CAPTURE_WIDTH = 320;
+const POINT_TEXTURES = 8;
+export const POINT_TEXTURE_WIDTH = 1024;
+export const MAX_PATH_SAMPLES = 4096;
 const NODE_CACHE_ENTRIES = 12;
 
 const sources = new WeakMap<FilterDef | TransitionDef, string>();
@@ -554,6 +557,32 @@ export class Compositor {
     gl.uniform1i(this.ctx.uniform(program, name), unit);
   }
 
+  private pointTextures: { textures: WebGLTexture[]; next: number; generation: number } = { textures: [], next: 0, generation: -1 };
+
+  private pointTexture(points: readonly number[]): WebGLTexture {
+    const gl = this.ctx.gl;
+    const pool = this.pointTextures;
+    if (pool.generation !== this.ctx.generation) this.pointTextures = { textures: [], next: 0, generation: this.ctx.generation };
+    const state = this.pointTextures;
+    if (state.textures.length < POINT_TEXTURES) {
+      const created = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, created);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      state.textures.push(created);
+    }
+    const texture = state.textures[state.next % state.textures.length];
+    state.next++;
+    const count = Math.max(1, points.length / 2);
+    const width = Math.min(POINT_TEXTURE_WIDTH, count);
+    const height = Math.ceil(count / POINT_TEXTURE_WIDTH);
+    const data = new Float32Array(width * height * 2);
+    data.set(points);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, width, height, 0, gl.RG, gl.FLOAT, data);
+    return texture;
+  }
+
   private applyParams(program: WebGLProgram, specs: readonly ParamSpec[], values: ParamValues, firstUnit: number) {
     const gl = this.ctx.gl;
     let unit = firstUnit;
@@ -582,10 +611,9 @@ export class Compositor {
         case 'points': {
           const raw = (Array.isArray(value) ? value : spec.default) as number[];
           const spline = values.spline ?? specs.find((s) => s.name === 'spline')?.default;
-          const points = spec.bezier ? bezierPath(raw, true, 8, spec.max) : spline === true ? catmullRom(raw, true, 8, spec.max) : raw.slice(0, spec.max * 2);
-          const data = new Float32Array(spec.max * 2);
-          data.set(points);
-          gl.uniform2fv(this.ctx.uniform(program, `${spec.name}[0]`), data);
+          const points = spec.bezier ? bezierPath(raw, true, 8, MAX_PATH_SAMPLES) : spline === true ? catmullRom(raw, true, 8, MAX_PATH_SAMPLES) : raw.slice(0, MAX_PATH_SAMPLES * 2);
+          gl.activeTexture(gl.TEXTURE0 + unit);
+          this.bindTexture(program, `${spec.name}_data`, unit++, this.pointTexture(points));
           gl.uniform1i(this.ctx.uniform(program, `${spec.name}_count`), points.length / 2);
           break;
         }

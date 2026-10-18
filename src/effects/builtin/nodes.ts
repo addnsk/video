@@ -285,7 +285,7 @@ vec4 process(vec2 uv) {
   ],
 };
 
-export const MAX_MASK_POINTS = 128;
+export const MAX_MASK_POINTS = 1024;
 
 const POLYGON_GLSL = `
 float segmentDistance(vec2 p, vec2 a, vec2 b) {
@@ -297,11 +297,12 @@ vec4 process(vec2 uv) {
   vec2 p = vec2((uv.x - 0.5) * aspect(), 0.5 - uv.y);
   float d = 1e9;
   bool inside = false;
-  for (int i = 0; i < ${MAX_MASK_POINTS}; i++) {
-    if (i >= points_count) break;
+  for (int i = 0; i < points_count; i++) {
     int j = i == 0 ? points_count - 1 : i - 1;
-    vec2 a = vec2(points[i].x * aspect(), points[i].y);
-    vec2 b = vec2(points[j].x * aspect(), points[j].y);
+    vec2 pa = points_at(i);
+    vec2 pb = points_at(j);
+    vec2 a = vec2(pa.x * aspect(), pa.y);
+    vec2 b = vec2(pb.x * aspect(), pb.y);
     d = min(d, segmentDistance(p, a, b));
     if ((a.y > p.y) != (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
   }

@@ -26,7 +26,7 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 
 - Nodes render in project frame space at preview resolution; there is no per-node resolution or region of interest yet.
 - No 3D scenes, cameras or lights.
-- Masks are closed shapes; open strokes and paint are not supported. Bezier and polygon masks are flattened to at most 128 points.
+- Polygon and Bezier masks take up to 1024 vertices: the shader tests every outline segment for every pixel, so each vertex costs GPU time on every frame (a 1024-vertex Bezier mask samples 4096 segments).
 - Node templates are stored in the browser (localStorage), not in the project file; export them as JSON with `montage.templates.get` to move them.
 
 ## Color

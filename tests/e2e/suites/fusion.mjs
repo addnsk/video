@@ -198,6 +198,20 @@ export default {
     await editor.page.locator('#mask-overlay .mask-add').first().click();
     const added = await editor.run((id) => montage.graph.get(0).nodes.find((n) => n.id === id).params.points.length, maskId);
     checks.check(added === 10, `clicking an edge handle inserts a point (${added / 2} points)`);
+    const ring = await editor.run(async (id) => {
+      const n = 300;
+      const points = [];
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const r = i > 200 ? 0.15 : 0.3;
+        points.push(Math.cos(a) * r * (9 / 16), Math.sin(a) * r);
+      }
+      montage.graph.set(0, id, { points, spline: false, feather: 0 });
+      const at = (a, r) => ({ x: Math.cos(a) * r * (9 / 16), y: Math.sin(a) * r });
+      const [early, late, outsideLate] = await montage.sample([at(1, 0.25), at(5.5, 0.12), at(5.5, 0.25)], 0.5);
+      return { early, late, outsideLate };
+    }, maskId);
+    checks.check(ring.early[0] > 0.8 && ring.late[0] > 0.8 && ring.outsideLate[2] > 0.8, `a 300-vertex mask uses every vertex (${JSON.stringify(ring)})`);
     await editor.page.click('#view-timeline');
 
     const cachedBytes = await editor.run(async () => (await montage.stats()).memory.consumers.nodeCache);
