@@ -186,6 +186,19 @@ montage.graph.disable(0);                                // back to the plain ef
 
 Built-in nodes: `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `blur`, `glow`, `crop`, `invert`, `background`, `gradient`, `ellipse-mask`, `rectangle-mask`, plus every color filter.
 
+### Tracking
+
+`track` follows a point through a media clip with normalized cross-correlation on a reduced-size luma copy of each frame. The point is in frame units centered on the frame with y up (the convention of `center` and `offset` node params). It returns `[{ t, x, y }]` in clip time; frames with a weak match are dropped. `apply` writes keyframes: `{ node, param }` drives a vec2 node param (a mask, text or transform follows the point), `'stabilize'` animates the clip position against the motion. Clip rotation is not taken into account.
+
+```js
+await montage.track(0, { x: -0.27, y: 0, from: 0, to: 2 });
+const mask = montage.graph.add(0, 'ellipse-mask');
+await montage.track(0, { x: -0.27, y: 0, apply: { node: mask, param: 'center' } });
+await montage.track(0, { x: -0.27, y: 0, apply: 'stabilize', patch: 31, search: 24, height: 480 });
+```
+
+In the UI, the Stabilize button in the clip panel and the Track buttons of vec2 node params ask for a click on the viewer and track from the playhead to the clip end.
+
 Custom nodes are GLSL with any number of inputs and passes. Each pass defines `vec4 process(vec2 uv)` and can call `input_<name>(uv)`, `has_<name>()`, `previous(uv)` (the previous pass), `texel()` and `aspect()`. Values are not clamped, so highlights above 1.0 survive to HDR export.
 
 ```js

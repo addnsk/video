@@ -300,3 +300,6 @@ textarea.plain { min-height: 64px; white-space: pre-wrap; font-family: var(--fon
 input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: transparent; }
 .panel.disabled .keyed { opacity: 0.4; pointer-events: none; }
 .bar .language { width: auto; flex: 0 0 auto; padding-right: 28px; }
+.point-picker { position: absolute; inset: 0; cursor: crosshair; background: rgb(0 0 0 / 0.08); }
+.point-picker[hidden] { display: none; }
+.point-picker span { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 4px 10px; border-radius: 6px; background: var(--label-backdrop); color: var(--fg); font: 500 12px var(--font-ui); }

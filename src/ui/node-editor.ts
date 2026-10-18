@@ -1,3 +1,4 @@
+import type { TrackApply } from '../core/tracking';
 import { OUTPUT_ID, OUTPUT_NODE, SOURCE_NODE, materialize, nodeById, type NodeGraph } from '../core/graph';
 import {
   addGraphNode,
@@ -46,6 +47,7 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
   constructor(
     private session: EditorSession,
     private selection: Selection,
+    private onTrack: (itemId: string, apply: TrackApply) => void = () => undefined,
   ) {
     super();
     this.canvas = h('canvas', { id: 'node-canvas', tabindex: 0 });
@@ -290,6 +292,11 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
       new ParamControls(`node-${node.id}`, params, node.params, (name, value) =>
         this.edit((itemId) => [setNodeParams(itemId, node.id, { [name]: value })], `node:${node.id}:${name}`),
       ).element,
+      ...(item!.kind === 'media'
+        ? params
+            .filter((p) => p.type === 'vec2')
+            .map((p) => h('button', { class: 'btn small', dataset: { track: p.name }, onClick: () => this.onTrack(item!.id, { node: node.id, param: p.name }) }, t('trackPoint', { name: p.label ?? p.name })))
+        : []),
     );
   }
 

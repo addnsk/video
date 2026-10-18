@@ -56,12 +56,15 @@ export class ItemPanel extends Panel {
   private audioEffects: AudioEffectsSection;
   private presets = new Map<PresetPhase, HTMLSelectElement>();
   private presetBox: HTMLDivElement;
+  private stabilize: HTMLButtonElement;
 
   constructor(
     private session: EditorSession,
     private selection: Selection,
+    onStabilize: (itemId: string) => void = () => undefined,
   ) {
     super('item', t('itemTitle'));
+    this.stabilize = h('button', { class: 'btn small', id: 'item-stabilize', onClick: () => this.placement && onStabilize(this.placement.item.id) }, t('stabilize'));
     const properties = h('div', { class: 'group' });
     for (const def of PROPERTIES) {
       const slider = new KeyedSlider({
@@ -146,7 +149,7 @@ export class ItemPanel extends Panel {
         return h('label', { class: 'field' }, t(label), select);
       }),
     );
-    this.body.append(this.hint, this.textBox, this.speed.element, this.presetBox, properties, h('p', { class: 'hint' }, t('keyframeHint')), this.audioEffects.element);
+    this.body.append(this.hint, this.textBox, this.speed.element, this.stabilize, this.presetBox, properties, h('p', { class: 'hint' }, t('keyframeHint')), this.audioEffects.element);
     session.store.on('change', () => this.sync());
     selection.on('change', () => this.sync());
     let pending = false;
@@ -196,6 +199,7 @@ export class ItemPanel extends Panel {
     this.element.classList.toggle('disabled', !p);
     this.textBox.hidden = p?.item.kind !== 'text';
     this.speed.element.hidden = p?.item.kind !== 'media';
+    this.stabilize.hidden = p?.item.kind !== 'media' || !this.session.store.project.assets[p.item.source.assetId]?.hasVideo;
     if (p?.item.kind === 'media') this.speed.set(Math.log2(p.item.speed));
     this.audioEffects.element.hidden = !p || !hasAudio(p, this.session);
     this.presetBox.hidden = !p || !isVisual(p);

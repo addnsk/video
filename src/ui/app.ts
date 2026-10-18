@@ -1,12 +1,15 @@
 import { createMontageApi } from '../api/montage';
 import { removeItem, splitAt } from '../core/operations';
 import { findPlacement, projectDuration } from '../core/timeline';
+import type { TrackApply } from '../core/tracking';
 import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
 import type { ProjectPersistence } from '../host/persistence/project-persistence';
 import type { EditorSession } from '../host/session';
 import { LevelMeter } from './components/level-meter';
 import { MaskOverlay } from './mask-overlay';
 import { NodeEditor } from './node-editor';
+import { PointPicker } from './point-picker';
+import { trackFromViewer } from './track-action';
 import { languageSelect } from './components/language-select';
 import { offlineBanner } from './components/offline-banner';
 import { projectMenu } from './project-menu';
@@ -103,16 +106,21 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     h('button', { class: 'btn small', id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }, t('addAudioTrack')),
   );
 
+  const picker = new PointPicker(screen, () => {
+    const settings = store.project.settings;
+    return settings ? settings.width / settings.height : 16 / 9;
+  });
+  const track = (itemId: string, apply: TrackApply) => void trackFromViewer(session, picker, itemId, apply);
   const inspector = h('aside', { class: 'inspector' },
     new ScopesPanel(session).element,
-    new ItemPanel(session, selection).element,
+    new ItemPanel(session, selection, (itemId) => track(itemId, 'stabilize')).element,
     new TransitionPanel(session, selection).element,
     new ColorPanel(session, selection).element,
     new MediaPanel(session, timeline).element,
     new ScriptPanel(api).element,
   );
 
-  const nodeEditor = new NodeEditor(session, selection);
+  const nodeEditor = new NodeEditor(session, selection, track);
   const maskOverlay = new MaskOverlay(session, screen);
   nodeEditor.on('select', (target) => maskOverlay.show(target));
   const viewing = h('button', { class: 'viewing', id: 'viewing-node', hidden: true, onClick: () => session.viewNode(null) });

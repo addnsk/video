@@ -35,8 +35,8 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 - Phase 2/3 (Fusion) in progress. Done: node graph core (`core/graph.ts`, `core/graph-operations.ts`; graph lives in `item.graph` as links + positions, node params stay in `item.effects`), GPU evaluation (`engine/gpu/graph-renderer.ts` with refcounted targets and a static-branch node cache), built-in nodes (`effects/builtin/nodes.ts`: merge, transform, blur, glow, crop, invert, background, gradient, ellipse/rectangle/polygon masks, keyer), `color` and `points` param types, per-node keyframes (`node.<id>.<param>`, array components as `param.<index>`), node editor tab (`ui/node-editor.ts`, `ui/node-layout.ts`), node view in viewer, polygon point editing on the viewer (`ui/mask-overlay.ts`), API `montage.graph.*` and `montage.nodes.register`.
 - Compositing now runs in project frame space (`Compositor.setFrame`, `px()` helper in node GLSL scales project pixels to preview).
-- Just started: point tracker. `src/engine/tracking/tracker.ts` (NCC template matching, `PointTracker`) with `tests/unit/tracker.test.ts` passing, NOT committed yet. Next: engine method that decodes frames at reduced size and runs the tracker over a time range, API `montage.track(...)` returning `[{t, x, y}]`, writing keyframes to a node vec2 param (follow) or inverted to the clip transform (stabilize), then a viewer pick UI.
-- After tracking: Text+ style text node, render cache spill to OPFS (phase 1), color page (phase 4).
+- Point tracker done: `engine/tracking/{tracker,track-media}.ts` (engine `track`), `core/tracking.ts` (frame/source mapping, follow and stabilize keyframes), `host/point-tracking.ts`, API `montage.track`, viewer pick (`ui/point-picker.ts`, `ui/track-action.ts`), e2e `tracking`.
+- Next: Text+ style text node, render cache spill to OPFS (phase 1), color page (phase 4).
 - GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
 
 ## Known issues

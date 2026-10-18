@@ -25,6 +25,21 @@ export default {
       return keys ? keys.at(-1).v : null;
     }, start);
     checks.check(stable !== null && Math.abs(stable + (expected - start.x)) < 0.01, `stabilize offsets the clip against the motion (${stable?.toFixed(3)})`);
+    await editor.run(() => {
+      montage.clearKeyframes(0, 'x');
+      montage.clearKeyframes(0, 'y');
+      montage.select(0);
+      montage.seek(0);
+    });
+    await editor.page.click('#item-stabilize');
+    await editor.page.waitForSelector('#point-picker:not([hidden])');
+    const box = await editor.page.locator('.screen').boundingBox();
+    const aspect = 640 / 360;
+    const w = box.width / box.height > aspect ? box.height * aspect : box.width;
+    const hgt = box.width / box.height > aspect ? box.height : box.width / aspect;
+    await editor.page.mouse.click(box.x + (box.width - w) / 2 + (150 / 640) * w, box.y + (box.height - hgt) / 2 + 0.5 * hgt);
+    const picked = await editor.until(() => montage.clip(0).animations['transform.x']?.length >= 20, null, 30000).then(() => true, () => false);
+    checks.check(picked, 'stabilize from the viewer pick writes keyframes');
     await editor.close();
   },
 };
