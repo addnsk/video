@@ -161,7 +161,7 @@ describe('montage api', () => {
     expect(result.file?.name).toBe('out.mp4');
     expect(result.savedToDisk).toBe(false);
     const [, settings, target] = engine.called('exportVideo')[0].args;
-    expect(settings).toEqual({ height: 720, quality: 'high' });
+    expect(settings).toEqual({ height: 720, quality: 'high', prores: null });
     expect(target).toMatchObject({ kind: 'storage' });
   });
 
