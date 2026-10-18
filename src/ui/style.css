@@ -275,7 +275,8 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; 
 .mask-overlay .mask-add { fill: var(--accent); opacity: 0.55; cursor: copy; pointer-events: all; }
 .mask-overlay .mask-add:hover { opacity: 1; }
 .viewing { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent); background: var(--label-backdrop); color: var(--fg); font: 500 12px var(--font-ui); cursor: pointer; }
-.view-tabs { display: flex; gap: 2px; padding: 4px 8px 0; background: var(--panel); }
+.view-tabs { display: flex; gap: 2px; padding: 4px 8px 0; background: var(--panel); align-items: center; flex-wrap: wrap; }
+.tab-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding-bottom: 4px; }
 .tab { border: 0; background: transparent; color: var(--muted); font: 500 12px var(--font-ui); padding: 6px 10px; border-radius: 6px 6px 0 0; cursor: pointer; }
 .tab[aria-selected="true"] { color: var(--fg); background: var(--panel-2); }
 .node-editor[hidden], .timeline-pane[hidden] { display: none; }
@@ -332,7 +333,7 @@ input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid v
 .marker-row { display: grid; grid-template-columns: 12px auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-bottom: 6px; }
 .marker-row .note { grid-column: 3 / 5; }
 .marker-row .swatch { width: 12px; height: 12px; border-radius: 3px; }
-.timeline-switcher { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.timeline-switcher { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
 .timeline-switcher select { min-height: 28px; max-width: 18ch; }
 .panel h3.sub { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 4px 0 6px; }
 details.menu { position: relative; }

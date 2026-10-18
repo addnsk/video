@@ -60,6 +60,10 @@ export default {
     checks.check(isRed(await editor.previewColor()), 'the compound clip still shows its content');
     checks.check((await editor.run(() => montage.timelines.list().length)) === 3, 'the compound clip is a timeline of its own');
 
+    const saved = await editor.run(() => montage.project());
+    checks.check(Object.keys(saved.timelines ?? {}).length === 2 && saved.timeline.id === main, 'the project file stores every timeline');
+    await page.keyboard.press('Control+z');
+    checks.check((await editor.run(() => montage.clips()[0].name)) === 'red.mov', 'undo takes the compound clip apart');
     const vertical = await editor.run(() => montage.timelines.create('Vertical', { width: 360, height: 640, fps: 25 }));
     checks.check(JSON.stringify(await editor.run(() => montage.size)) === '{"width":360,"height":640}', 'a new timeline can have its own frame size');
     await editor.run((main) => montage.edit.insert({ asset: montage.timelines.asset(main), in: 0, at: 0, audio: null }), main);
@@ -73,10 +77,6 @@ export default {
     checks.check((await editor.run(() => montage.size.width)) === 640, 'switching back restores the first frame size');
     await editor.run((id) => montage.timelines.remove(id), vertical);
 
-    const saved = await editor.run(() => montage.project());
-    checks.check(Object.keys(saved.timelines ?? {}).length === 2 && saved.timeline.id === main, 'the project file stores every timeline');
-    await page.keyboard.press('Control+z');
-    checks.check((await editor.run(() => montage.clips()[0].name)) === 'red.mov', 'undo takes the compound clip apart');
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);
     await editor.close();
   },

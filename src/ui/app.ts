@@ -114,11 +114,13 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     if (created) selection.set(created.id);
   };
   const switcher = new TimelineSwitcher(session, selection, api);
-  const timelineTools = h('div', { class: 'timeline-tools' },
+  const timelineActions = h('div', { class: 'tab-actions' },
     switcher.element,
     h('button', { class: 'btn small', id: 'add-title', onClick: addTitle }, t('addTitle')),
     h('button', { class: 'btn small', id: 'add-video-track', onClick: () => store.dispatch(addTrack('video')) }, t('addVideoTrack')),
     h('button', { class: 'btn small', id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }, t('addAudioTrack')),
+  );
+  const timelineTools = h('div', { class: 'timeline-tools' },
     controls.editBar,
     controls.toolBar,
     h('div', { class: 'spacer' }),
@@ -177,12 +179,14 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     timelinePane.hidden = view !== 'timeline';
     nodeEditor.show(view === 'nodes');
     maskOverlay.show(nodeEditor.selected);
-    for (const tab of viewTabs.children) tab.setAttribute('aria-selected', String((tab as HTMLElement).dataset.view === view));
+    timelineActions.hidden = view !== 'timeline';
+    for (const tab of viewTabs.querySelectorAll('.tab')) tab.setAttribute('aria-selected', String((tab as HTMLElement).dataset.view === view));
     if (view === 'timeline') timeline.draw();
   };
   viewTabs.append(
     h('button', { class: 'tab', role: 'tab', id: 'view-timeline', dataset: { view: 'timeline' }, onClick: () => showView('timeline') }, t('viewTimeline')),
     h('button', { class: 'tab', role: 'tab', id: 'view-nodes', dataset: { view: 'nodes' }, onClick: () => showView('nodes') }, t('viewNodes')),
+    timelineActions,
   );
   showView('timeline');
 
