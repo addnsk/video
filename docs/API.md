@@ -1,82 +1,101 @@
-# API редактора
+# Scripting API
 
-Всё, что делается мышью, можно сделать из кода. API доступен:
+Everything the UI does is available from code:
 
-- в панели **Скрипт** справа: код выполняется как тело `async`-функции, в области видимости есть `montage` и `log`;
-- в консоли браузера как глобальный объект `montage`.
+- in the **Script** panel, where code runs as the body of an `async` function with `montage` and `log` in scope;
+- in the browser console as the global `montage`.
 
-Каждый вызов, который меняет проект, — отдельный шаг отмены (Ctrl+Z). Скрипт из панели целиком — один шаг: его можно отменить одним нажатием.
+Each call that changes the project is one undo step. A script run from the panel is a single undo step.
 
-Клип можно указать по `id` (`'c3'`) или по индексу на таймлайне (`0`, `1`, `-1` — последний). Время везде в секундах.
+Clips are referenced by id (`'item_x1'`) or by index on the main track (`0`, `1`, `-1` for the last). Times are in seconds.
 
-## Состояние
+## State
 
-| Вызов | Что возвращает |
+| Call | Returns |
 |---|---|
-| `montage.clips()` | Массив клипов: `id`, `name`, `index`, `start` (на таймлайне), `duration`, `in`/`out` (в исходнике), `grade`, `transition` |
-| `montage.clip(ref)` | Один клип |
-| `montage.assets()` | Импортированные файлы: `id`, `name`, `codec`, `width`, `height`, `fps`, `start`, `end`, `hasAudio` |
-| `montage.duration`, `montage.fps`, `montage.size`, `montage.time`, `montage.selected` | Длина таймлайна, частота кадров, размер кадра, позиция плейхеда, выбранный клип |
+| `montage.clips()` | Clips on the main track: `id`, `index`, `name`, `start`, `duration`, `in`, `out`, `volume`, `effects`, `transition` |
+| `montage.clip(ref)` | One clip |
+| `montage.assets()` | Imported media: `id`, `name`, `codec`, `width`, `height`, `fps`, `start`, `end`, `hasAudio` |
+| `montage.duration`, `montage.fps`, `montage.size`, `montage.time` | Timeline length, frame rate, frame size, playhead |
+| `await montage.stats()` | Engine memory budget and live/peak resource counts |
 
-## Медиа и таймлайн
+## Media and timeline
 
 ```js
-const a = await montage.import(file);          // File, Blob или URL; на таймлайн не ставит
-montage.add(a.id, { in: 2, out: 6 });            // кусок исходника с 2 по 6 с в конец таймлайна
-montage.add(a.id, { index: 0 });                 // весь файл в начало
-const right = montage.split(10);                 // разрез в 10 с, возвращает правую часть
-montage.trim(0, { in: 1.5 });                    // новая точка входа первого клипа
-montage.move('c4', 0);                           // переставить клип
-montage.remove(-1);                              // удалить последний
-montage.select(0);
+const a = await montage.import(file);          // File, Blob or URL; not placed on the timeline
+montage.add(a.id, { in: 2, out: 6 });            // source range 2–6 s, appended
+montage.add(a.id, { index: 0 });                 // whole file at the start
+const right = montage.split(10);                 // returns the right half
+montage.trim(0, { in: 1.5 });
+montage.move('item_x4', 0);
+montage.remove(-1);
+montage.volume('all', 0.8);
 montage.clear();
+montage.proxy(a.id);                             // build a proxy now
+montage.proxies();                               // { [assetId]: { state, fraction } }
 ```
 
-## Цвет
+## Color
 
 ```js
-montage.grade(0, { exposure: 0.3, saturation: 1.1 });     // меняет только указанные поля
-montage.grade('all', { input: 'bmdFilmGen5' });            // Blackmagic Film Gen 5 → Rec.709
+montage.grade(0, { exposure: 0.3, saturation: 1.1 });
+montage.grade('all', { inputTransform: 'bmdFilmGen5' });
 montage.grade(1, { lift: { master: -0.03 }, gain: { x: 0.05, y: 0 } });
 montage.copyGrade(0, 'all');
 montage.resetGrade('all');
-await montage.lut('all', 'https://example.com/look.cube', 0.8);  // URL, File или текст .cube
+await montage.lut('all', 'https://example.com/look.cube', 0.8);
 ```
 
-Поля покраски:
-
-| Поле | Диапазон | Нейтрально |
+| Field | Range | Neutral |
 |---|---|---|
-| `input` | `'none'`, `'bmdFilmGen5'` | `'none'` |
-| `exposure` | стопы, −3…3 | 0 |
+| `inputTransform` | `'none'`, `'bmdFilmGen5'` | `'none'` |
+| `exposure` | stops, −3…3 | 0 |
 | `temperature`, `tint` | −1…1 | 0 |
 | `contrast` | 0.5…2 | 1 |
 | `pivot` | 0…1 | 0.435 |
 | `saturation` | 0…2 | 1 |
-| `lift`, `gamma`, `gain` | `{ x, y, master }`: `x`/`y` — смещение оттенка (−0.25…0.25), `master` — яркость (−0.5…0.5) | 0 |
-| `lutMix` | 0…1 | 1 |
+| `lift`, `gamma`, `gain` | `{ x, y, master }` or `[x, y, master]`; `x`/`y` hue offset −0.25…0.25, `master` −0.5…0.5 | 0 |
 
-## Переходы
+## Custom effects
 
-Переход ставится на клип и означает «переход в этот клип из предыдущего». Клипы при этом наезжают друг на друга на длину перехода, таймлайн становится короче.
+A filter is GLSL with an entry point `vec4 effect(vec4 color, vec2 uv)`. Parameters are declared as specs and become uniforms of the same name. `sampleSource(uv)` reads the input frame at any position.
+
+```js
+montage.effects.register({
+  id: 'vignette',
+  name: 'Vignette',
+  params: [{ name: 'amount', type: 'float', default: 0.5, min: 0, max: 1 }],
+  glsl: `
+vec4 effect(vec4 color, vec2 uv) {
+  float d = distance(uv, vec2(0.5));
+  return vec4(color.rgb * (1.0 - amount * smoothstep(0.3, 0.8, d)), color.a);
+}`,
+});
+montage.effect('all', 'vignette', { amount: 0.6 });
+montage.effect(0, 'vignette', null);
+```
+
+Parameter types: `float`, `int`, `bool`, `vec2`, `vec3`, `vec4`, `enum` (`options: [{ value, label }]`), `resource` (`resource: 'lut3d'`).
+
+## Transitions
+
+A transition belongs to a clip and means "transition into this clip from the previous one". Neighbouring clips overlap by its length.
 
 ```js
 montage.transition(1, { type: 'dissolve', duration: 0.5 });
 montage.transition(2, { type: 'wipe', duration: 1, params: { direction: [0, 1], smoothness: 0.2 } });
-montage.transition(2, null);                    // убрать
-montage.transitions.list();                     // [{ id, name, params }]
+montage.transition(2, null);
+montage.transitions.list();
 ```
 
-Встроенные: `dissolve`, `fade-color`, `wipe`, `slide`, `circle-open`, `zoom`.
+Built in: `dissolve`, `fade-color`, `wipe`, `slide`, `circle-open`, `zoom`.
 
-### Свой переход
-
-Формат — [gl-transitions](https://gl-transitions.com): GLSL-функция `vec4 transition(vec2 uv)`, которая читает кадры через `getFromColor(uv)` и `getToColor(uv)` и смешивает их по `progress` (0…1). Также доступна `ratio` (ширина / высота). Параметры объявляются как uniform, значение по умолчанию — в комментарии:
+Custom transitions use the [gl-transitions](https://gl-transitions.com) format: `vec4 transition(vec2 uv)` mixing `getFromColor(uv)` and `getToColor(uv)` by `progress`; `ratio` is width / height. Parameters are uniforms with a default after `// =`. Any transition from the gl-transitions collection works unchanged.
 
 ```js
 montage.transitions.register({
-  id: 'my-wipe',
-  name: 'Моя шторка',
+  id: 'soft-wipe',
+  name: 'Soft wipe',
   glsl: `
 uniform float smoothness; // = 0.05
 vec4 transition(vec2 uv) {
@@ -86,9 +105,7 @@ vec4 transition(vec2 uv) {
 });
 ```
 
-Любой переход из коллекции gl-transitions можно вставить без изменений. Параметры типа `float` появляются ползунками в панели «Переход в клип».
-
-## Воспроизведение, история, экспорт
+## Playback, history, export
 
 ```js
 montage.seek(12.5);
@@ -97,8 +114,8 @@ montage.pause();
 
 montage.undo();
 montage.redo();
-await montage.batch(async () => { /* несколько изменений = один шаг отмены */ });
+await montage.batch(async () => { /* several edits, one undo step */ });
 
-const blob = await montage.render({ height: 1080, quality: 'high', onProgress: (f) => log(f) });
-const off = montage.onChange(() => log('проект изменился'));
+const { file, name } = await montage.render({ height: 1080, quality: 'high', onProgress: (f) => log(f) });
+const off = montage.onChange(() => log('changed'));
 ```

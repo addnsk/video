@@ -1,0 +1,48 @@
+import type { AssetMeta } from '../../core/model';
+import { insertItem } from '../../core/operations';
+import type { EditorSession } from '../../host/session';
+import { t } from '../../i18n';
+import { formatDuration, h } from '../dom';
+import { Panel } from './panel';
+
+export class MediaPanel extends Panel {
+  constructor(private session: EditorSession) {
+    super('media', t('mediaTitle'));
+    session.store.on('change', ({ project, previous }) => {
+      if (project.assets !== previous.assets) this.render();
+    });
+    session.on('proxy', () => this.render());
+    this.render();
+  }
+
+  private proxyLabel(asset: AssetMeta): string {
+    const state = this.session.proxies.get(asset.id);
+    if (!state) return '';
+    if (state.state === 'building') return t('proxyBuilding', { percent: Math.round(state.fraction * 100) });
+    return t(({ queued: 'proxyQueued', ready: 'proxyReady', failed: 'proxyFailed', building: 'proxyBuilding' } as const)[state.state]);
+  }
+
+  private render() {
+    const assets = Object.values(this.session.store.project.assets);
+    if (!assets.length) {
+      this.body.replaceChildren(h('p', { class: 'hint' }, t('mediaEmpty')));
+      return;
+    }
+    this.body.replaceChildren(
+      ...assets.map((asset) => {
+        const proxy = this.proxyLabel(asset);
+        const details = `${asset.codec} · ${asset.width}×${asset.height} · ${+asset.fps.toFixed(3)} ${t('fps')} · ${formatDuration(asset.end - asset.start)}`;
+        const actions = h('div', { class: 'row' },
+          h('button', { class: 'btn', onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: this.session.videoTrackId })) }, t('addToTimeline')),
+          !this.session.proxies.has(asset.id) && h('button', { class: 'btn', onClick: () => this.session.requestProxy(asset.id) }, t('makeProxy')),
+        );
+        return h('div', { class: 'media-item' },
+          h('b', { title: asset.name }, asset.name),
+          h('small', {}, details),
+          proxy && h('small', { class: 'proxy' }, proxy),
+          actions,
+        );
+      }),
+    );
+  }
+}
