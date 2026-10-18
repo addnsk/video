@@ -11,8 +11,14 @@ export default {
   name: 'prores-export',
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
-    await editor.import([fixture('red.mov'), fixture('bars.mov')]);
-    await editor.run(() => montage.trim(1, { out: 1 }));
+    await editor.import([fixture('red.mov'), fixture('bars.mov'), fixture('blue.mov')]);
+    await editor.run(() => {
+      montage.trim(1, { out: 1 });
+      const blue = montage.clip(2);
+      montage.remove(2);
+      const pip = montage.add(blue.assetId, { track: 'v2', start: 0 });
+      montage.set(pip.id, { transform: { scale: 0.3, y: 0.3 } });
+    });
     const dir = mkdtempSync(join(tmpdir(), 'montage-prores-'));
     for (const profile of ['hq', 'proxy']) {
       const result = await editor.run(async (profile) => {
@@ -37,12 +43,16 @@ export default {
       checks.check(decode.trim() === '', `${profile}: ffmpeg decodes every frame without errors`);
       const red = execFileSync('ffmpeg', ['-v', 'error', '-ss', '0.5', '-i', path, '-frames:v', '1', '-vf', 'crop=10:10:315:175', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']);
       checks.check(red[0] > 200 && red[1] < 50 && red[2] < 50, `${profile}: picture content survives (${[...red.subarray(0, 3)]})`);
+      const top = execFileSync('ffmpeg', ['-v', 'error', '-ss', '0.5', '-i', path, '-frames:v', '1', '-vf', 'crop=10:10:315:60', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']);
+      const bottom = execFileSync('ffmpeg', ['-v', 'error', '-ss', '0.5', '-i', path, '-frames:v', '1', '-vf', 'crop=10:10:315:280', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']);
+      checks.check(top[0] > 200 && bottom[2] > 200 && bottom[0] < 60, `${profile}: overlay at the bottom stays at the bottom (top ${[...top.subarray(0, 3)]}, bottom ${[...bottom.subarray(0, 3)]})`);
     }
     await editor.run(() => montage.clear());
-    await editor.import([join(dir, 'hq.mov')], 3);
+    await editor.import([join(dir, 'hq.mov')], 4);
+    await editor.until(() => montage.clips().length === 1);
     const reimported = await editor.run(() => montage.clips().map((c) => [c.name, +c.duration.toFixed(2)]));
     checks.check(reimported.length === 1 && reimported[0][0] === 'hq.mov' && reimported[0][1] === 3, `exported ProRes imports back (${JSON.stringify(reimported)})`);
-    const [r, g, b] = await editor.previewColorAt(0.5);
+    const [r, g, b] = await editor.previewColorAt(0.5, { x: 0.5, y: 0.2, size: 0.05 });
     checks.check(r > 200 && g < 50 && b < 50, 'reimported ProRes decodes in the editor');
 
     await editor.page.click('#export');

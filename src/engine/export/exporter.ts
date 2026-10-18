@@ -1,4 +1,4 @@
-import { AudioSample, AudioSampleSource, CanvasSource, Output, StreamTarget } from 'mediabunny';
+import { AudioSample, AudioSampleSource, Output, StreamTarget } from 'mediabunny';
 import type { Project } from '../../core/model';
 import { compositionAt, projectDuration } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';
@@ -56,8 +56,7 @@ export async function exportProject(
     format: plan.output,
     target: new StreamTarget(sink.writable, { chunked: true, chunkSize: context.budget.exportChunkBytes }),
   });
-  const video = new CanvasSource(canvas, { codec: plan.videoCodec, bitrate: plan.videoBitrate });
-  output.addVideoTrack(video, { frameRate: fps });
+  const video = plan.video(output, canvas, fps);
   const audio = plan.audioCodec ? new AudioSampleSource({ codec: plan.audioCodec, bitrate: plan.audioBitrate }) : null;
   if (audio) output.addAudioTrack(audio);
   await output.start();
@@ -86,7 +85,7 @@ export async function exportProject(
       const t = i / fps;
       const frame = compositionAt(project, t);
       const images = await frames.load(project, frame, { width, height });
-      compositor.render(frame, images ?? new Map());
+      compositor.render(frame, images ?? new Map(), video.renderOptions);
       await video.add(t, 1 / fps);
       await writeAudioUntil(Math.min(duration, t + 1));
       onProgress((i + 1) / frameCount);

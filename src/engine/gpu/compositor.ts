@@ -13,9 +13,19 @@ export interface LutProvider {
   lut(id: string): { size: number; data: Float32Array } | undefined;
 }
 
+export interface FullFrame {
+  readonly data: Float32Array | Uint8Array;
+  readonly width: number;
+  readonly height: number;
+  readonly scale: number;
+  readonly bottomUp: true;
+  readonly overBlack: true;
+}
+
 export interface RenderOptions {
   readonly bypassFilters?: boolean;
   readonly capture?: (pixels: Uint8Array, width: number, height: number) => void;
+  readonly readback?: (frame: FullFrame) => void;
 }
 
 const CAPTURE_WIDTH = 320;
@@ -76,6 +86,7 @@ export class Compositor {
     gl.viewport(0, 0, this.width, this.height);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    if (options.readback) options.readback(this.readFull(accumulator));
     if (accumulator) {
       if (options.capture) this.capture(accumulator, options.capture);
       this.blend(accumulator, null);
@@ -303,7 +314,25 @@ export class Compositor {
     sink(pixels, width, height);
   }
 
+  private fullFrame: Float32Array | Uint8Array | null = null;
+
+  private readFull(source: RenderTarget | null): FullFrame {
+    const gl = this.ctx.gl;
+    const float = this.ctx.floatTargets;
+    const length = this.width * this.height * 4;
+    if (!this.fullFrame || this.fullFrame.length !== length || this.fullFrame instanceof Float32Array !== float)
+      this.fullFrame = float ? new Float32Array(length) : new Uint8Array(length);
+    const data = this.fullFrame;
+    if (source) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, source.framebuffer);
+      gl.readPixels(0, 0, this.width, this.height, gl.RGBA, float ? gl.FLOAT : gl.UNSIGNED_BYTE, data);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    } else data.fill(0);
+    return { data, width: this.width, height: this.height, scale: float ? 1 : 1 / 255, bottomUp: true, overBlack: true };
+  }
+
   dispose(): void {
+    this.fullFrame = null;
     for (const upload of this.uploads.values()) upload.dispose();
     this.uploads.clear();
     this.targets.trim();

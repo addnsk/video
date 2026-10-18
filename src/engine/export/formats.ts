@@ -6,12 +6,12 @@ import {
   getFirstEncodableAudioCodec,
   getFirstEncodableVideoCodec,
   type AudioCodec,
+  type Output,
   type OutputFormat,
   type Quality,
-  type VideoCodec,
 } from 'mediabunny';
 import type { ProresProfile } from './prores/tables';
-import { proresBitrate, registerProresEncoder } from './prores/video-encoder';
+import { canvasWriter, proresWriter, type VideoWriter } from './video-writers';
 
 export interface ExportSettings {
   readonly height: number | null;
@@ -21,10 +21,9 @@ export interface ExportSettings {
 
 export interface FormatPlan {
   readonly output: OutputFormat;
-  readonly videoCodec: VideoCodec;
-  readonly videoBitrate: number | Quality;
   readonly audioCodec: AudioCodec | null;
   readonly audioBitrate: number | Quality;
+  video(output: Output, canvas: OffscreenCanvas, frameRate: number): VideoWriter;
 }
 
 export const exportExtension = (settings: ExportSettings): 'mov' | 'mp4' => (settings.prores ? 'mov' : 'mp4');
@@ -41,23 +40,22 @@ interface Frame {
 
 export async function planFormat(settings: ExportSettings, frame: Frame): Promise<FormatPlan> {
   const audioConfig = { numberOfChannels: frame.channels, sampleRate: frame.sampleRate };
-  if (settings.prores) {
-    registerProresEncoder();
+  const profile = settings.prores;
+  if (profile) {
     return {
       output: new MovOutputFormat({ fastStart: false }),
-      videoCodec: 'prores',
-      videoBitrate: proresBitrate(settings.prores, frame.width, frame.height),
       audioCodec: frame.hasAudio ? await getFirstEncodableAudioCodec(['pcm-s24', 'pcm-s16'], audioConfig) : null,
       audioBitrate: QUALITY_HIGH,
+      video: (output, _canvas, frameRate) => proresWriter(output, profile, frameRate),
     };
   }
-  const videoCodec = await getFirstEncodableVideoCodec(['avc', 'hevc', 'vp9', 'av1'], { width: frame.width, height: frame.height });
-  if (!videoCodec) throw new Error(`No video encoder supports ${frame.width}×${frame.height} in this browser`);
+  const codec = await getFirstEncodableVideoCodec(['avc', 'hevc', 'vp9', 'av1'], { width: frame.width, height: frame.height });
+  if (!codec) throw new Error(`No video encoder supports ${frame.width}×${frame.height} in this browser`);
+  const bitrate = settings.quality === 'medium' ? QUALITY_MEDIUM : QUALITY_HIGH;
   return {
     output: new Mp4OutputFormat({ fastStart: false }),
-    videoCodec,
-    videoBitrate: settings.quality === 'medium' ? QUALITY_MEDIUM : QUALITY_HIGH,
     audioCodec: frame.hasAudio ? await getFirstEncodableAudioCodec(['aac', 'opus'], audioConfig) : null,
     audioBitrate: QUALITY_HIGH,
+    video: (output, canvas, frameRate) => canvasWriter(output, canvas, codec, bitrate, frameRate),
   };
 }

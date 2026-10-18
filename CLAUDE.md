@@ -26,7 +26,7 @@
 
 ## Status
 
-Done: ProRes 422 export (`engine/export/prores`, mediabunny `CustomVideoEncoder`, `export/formats.ts` plans), live animation presets (`core/presets`, `core/resolve`, keyframe easing), audio effects (`effects/audio`: low cut, EQ, compressor in the mixer) and level meters, clip speed (`setSpeed`, mixer resamples by speed), synchronous store transactions, media panel drag to timeline (`DropTarget`, `dragSource`), timeline thumbnails (engine `thumbnails`, host `AssetDataCache`), J/K/L shuttle (transport rate), unit, API integration (fake engine) and e2e suites; worker engine with memory budget, proxies, streaming export, project persistence, Pages deploy workflow with coi-serviceworker, curves, scopes, BMD Gen5 gamut, multitrack, titles, keyframes, waveforms, scripting API (`docs/API.md`).
+Done: ProRes 422 export (`engine/export/prores` encoder fed by a float readback of the composite through `export/video-writers.ts`, `export/formats.ts` plans), live animation presets (`core/presets`, `core/resolve`, keyframe easing), audio effects (`effects/audio`: low cut, EQ, compressor in the mixer) and level meters, clip speed (`setSpeed`, mixer resamples by speed), synchronous store transactions, media panel drag to timeline (`DropTarget`, `dragSource`), timeline thumbnails (engine `thumbnails`, host `AssetDataCache`), J/K/L shuttle (transport rate), unit, API integration (fake engine) and e2e suites; worker engine with memory budget, proxies, streaming export, project persistence, Pages deploy workflow with coi-serviceworker, curves, scopes, BMD Gen5 gamut, multitrack, titles, keyframes, waveforms, scripting API (`docs/API.md`).
 
 The owner must enable Settings → Pages → Source: GitHub Actions. Published preview: https://claude.ai/artifact/HGAVKmA9JAvLH71uheStDR (republish from a copy of `dist` with an `index.html` fragment that links the built css/js; drop the coi script there).
 
@@ -34,4 +34,4 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 1. The owner is uploading a real Blackmagic ProRes sample (about 100 MB) via a cloud link; download it, inspect with ffprobe, verify decode, BMD Film → Rec.709 look, proxy, playback and export, and add a short cut of it as a fixture if licensing allows (otherwise keep it out of git).
 2. Russian locale `src/i18n/ru.ts` with a language switch (UI text only, keys mirrored from `en.ts`).
-3. Then: error logging; HDR (needs a float readback path into the encoders); 10-bit ProRes input from the half-float compositor instead of the 8-bit canvas.
+3. Then: error logging; HDR (PQ/HLG tagging and a 10-bit HEVC path; the float readback `RenderOptions.readback` already exists).
