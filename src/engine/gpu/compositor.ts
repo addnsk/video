@@ -219,9 +219,23 @@ export class Compositor {
   }
 
   private nestedSource(layer: LayerFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions, transform: Transform): (() => RenderTarget) | null {
-    const inner = this.composite(layer.nested!, images, { ...options, isolate: undefined });
+    const item = layer.placement.item;
+    const asset = item.kind === 'media' ? this.assets[item.source.assetId] : undefined;
+    const outer = { width: this.width, height: this.height };
+    const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
+    const width = asset?.width ? even(asset.width * this.pixelScale) : outer.width;
+    const height = asset?.height ? even(asset.height * this.pixelScale) : outer.height;
+    this.width = width;
+    this.height = height;
+    let inner: RenderTarget | null;
+    try {
+      inner = this.composite(layer.nested!, images, { ...options, isolate: undefined });
+    } finally {
+      this.width = outer.width;
+      this.height = outer.height;
+    }
     if (!inner) return null;
-    const fitted = this.fit(inner.texture, this.width, this.height, transform);
+    const fitted = this.fit(inner.texture, width, height, transform);
     this.targets.release(inner);
     let used = false;
     return () => {

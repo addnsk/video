@@ -13,6 +13,7 @@ import {
   nestedAssetId,
   removeTimeline,
   renameTimeline,
+  setTimelineFormat,
   switchTimeline,
   timelineList,
 } from '../../src/core/timelines';
@@ -84,6 +85,20 @@ describe('timelines', () => {
     expect(p.timelines!.scene.tracks.find((t) => t.id === 'a1')!.items.map((i) => i.id)).toEqual(['snd']);
     expect(compositionAt(p, 1).layers[0].base.nested!.layers[0].base.placement.item.id).toBe('cc>one');
     expect(removeTimeline('scene')(p).tracks[0].items.map((i) => i.id)).toEqual(['two']);
+  });
+
+  it('keeps a frame size and rate per timeline and nests across sizes', () => {
+    let p = addTimeline('Vertical', 'vert', undefined, { width: 1080, height: 1920, fps: 30 })(base());
+    expect(p.settings).toMatchObject({ width: 1920, height: 1080, fps: 25 });
+    p = switchTimeline('vert')(p);
+    expect(p.settings).toMatchObject({ width: 1080, height: 1920, fps: 30 });
+    p = ensureNestedAsset('timeline_main')(p);
+    expect(p.assets[nestedAssetId('timeline_main')]).toMatchObject({ width: 1920, height: 1080, fps: 25 });
+    p = setTimelineFormat({ fps: 24 })(p);
+    p = switchTimeline('timeline_main')(p);
+    expect(p.timelines!.vert.settings).toMatchObject({ width: 1080, height: 1920, fps: 24 });
+    expect(p.settings).toMatchObject({ width: 1920, height: 1080, fps: 25 });
+    expect(() => setTimelineFormat({ width: 1081 })(p)).toThrow(/even/);
   });
 
   it('survives save and load', () => {

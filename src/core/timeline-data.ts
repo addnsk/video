@@ -11,7 +11,7 @@ export const nestedTimelineOf = (project: Project, assetId: string): string | nu
 
 export function snapshot(project: Project): TimelineData {
   const { id, name } = activeTimeline(project);
-  return { id, name, tracks: project.tracks, ...(project.markers ? { markers: project.markers } : {}), ...(project.mix ? { mix: project.mix } : {}) };
+  return { id, name, tracks: project.tracks, ...(project.settings ? { settings: project.settings } : {}), ...(project.markers ? { markers: project.markers } : {}), ...(project.mix ? { mix: project.mix } : {}) };
 }
 
 export function timelineData(project: Project, id: string): TimelineData | null {

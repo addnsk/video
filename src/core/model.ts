@@ -172,6 +172,7 @@ export interface TimelineData {
   readonly tracks: readonly Track[];
   readonly markers?: readonly Marker[];
   readonly mix?: Mix;
+  readonly settings?: ProjectSettings;
   readonly multicam?: { readonly angles: readonly { readonly name: string; readonly assetId: string }[] };
 }
 

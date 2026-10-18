@@ -272,6 +272,9 @@ export const en = {
   multicamCreated: 'Multicam clip with {count} angles, synced by sound',
   multicamView: 'Multiview',
   multicamCreatedPlain: 'Multicam clip with {count} angles, lined up at their starts',
+  timelineFormat: 'Frame size and rate',
+  timelineFormatPrompt: 'Width x height @ frames per second, e.g. 1080x1920@30',
+  timelineFormatInvalid: 'Use the form 1920x1080@25',
 };
 
 export type Strings = typeof en;

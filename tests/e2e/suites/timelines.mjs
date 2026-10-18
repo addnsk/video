@@ -59,6 +59,19 @@ export default {
     checks.check(isRed(await editor.previewColor()), 'the compound clip still shows its content');
     checks.check((await editor.run(() => montage.timelines.list().length)) === 3, 'the compound clip is a timeline of its own');
 
+    const vertical = await editor.run(() => montage.timelines.create('Vertical', { width: 360, height: 640, fps: 25 }));
+    checks.check(JSON.stringify(await editor.run(() => montage.size)) === '{"width":360,"height":640}', 'a new timeline can have its own frame size');
+    await editor.run((main) => montage.edit.insert({ asset: montage.timelines.asset(main), in: 0, at: 0, audio: null }), main);
+    await editor.run(() => montage.seek(1));
+    await editor.settle(1500);
+    const middle = await editor.previewColor({ x: 0.5, y: 0.5, size: 0.05 });
+    const top = await editor.previewColor({ x: 0.5, y: 0.1, size: 0.05 });
+    checks.check(middle[0] > 180 && top[0] < 30 && top[2] < 30, `a wide timeline nested in a tall one keeps its shape (middle ${middle.map(Math.round)}, top ${top.map(Math.round)})`);
+    await page.selectOption('#timeline-select', main);
+    await editor.until((main) => montage.timelines.active().id === main, main);
+    checks.check((await editor.run(() => montage.size.width)) === 640, 'switching back restores the first frame size');
+    await editor.run((id) => montage.timelines.remove(id), vertical);
+
     const saved = await editor.run(() => montage.project());
     checks.check(Object.keys(saved.timelines ?? {}).length === 2 && saved.timeline.id === main, 'the project file stores every timeline');
     await page.keyboard.press('Control+z');

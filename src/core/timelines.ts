@@ -1,6 +1,6 @@
 import { liftRange, overwriteEdit, spansOf, type EditTarget } from './editing';
 import { createId } from './ids';
-import type { AssetMeta, Item, Project, TimelineData, Track } from './model';
+import type { AssetMeta, Item, Project, ProjectSettings, TimelineData, Track } from './model';
 import { activeTimeline, nestedAssetId, nestedTimelineOf, snapshot, timelineData } from './timeline-data';
 export { MAIN_TIMELINE, DEFAULT_TIMELINE_NAME, activeTimeline, nestedAssetId, nestedTimelineOf, timelineData, nestedProject } from './timeline-data';
 import { emptyProject, itemLength } from './model';
@@ -33,9 +33,28 @@ const uniqueName = (project: Project, base: string) => {
   for (let i = 2; ; i++) if (!names.has(`${base} ${i}`)) return `${base} ${i}`;
 };
 
-export const addTimeline = (name: string | undefined, id = createId('timeline'), tracks: readonly Track[] = emptyTracks()): Operation => (project) => {
+export interface TimelineFormat {
+  readonly width?: number;
+  readonly height?: number;
+  readonly fps?: number;
+}
+
+function formatSettings(project: Project, format: TimelineFormat): ProjectSettings | undefined {
+  const base = project.settings;
+  if (!base && !format.width && !format.height && !format.fps) return undefined;
+  const width = Math.round(format.width ?? base?.width ?? 1920);
+  const height = Math.round(format.height ?? base?.height ?? 1080);
+  const fps = format.fps ?? base?.fps ?? 25;
+  if (!(width >= 16 && width <= 16384 && height >= 16 && height <= 16384)) throw new Error('Frame size must be 16–16384 pixels');
+  if (width % 2 || height % 2) throw new Error('Frame width and height must be even');
+  if (!(fps >= 1 && fps <= 240)) throw new Error('Frame rate must be 1–240');
+  return { sampleRate: 48000, ...base, width, height, fps };
+}
+
+export const addTimeline = (name: string | undefined, id = createId('timeline'), tracks: readonly Track[] = emptyTracks(), format: TimelineFormat = {}): Operation => (project) => {
   const count = timelineList(project).length;
-  const data: TimelineData = { id, name: uniqueName(project, name?.trim() || `Timeline ${count + 1}`), tracks };
+  const settings = formatSettings(project, format);
+  const data: TimelineData = { id, name: uniqueName(project, name?.trim() || `Timeline ${count + 1}`), tracks, ...(settings ? { settings } : {}) };
   return refreshNested({ ...project, timeline: activeTimeline(project), timelines: { ...project.timelines, [id]: data } });
 };
 
@@ -46,8 +65,10 @@ export const switchTimeline = (id: string): Operation => (project) => {
   if (!target) throw new Error(`Unknown timeline ${id}`);
   const { [id]: _taken, ...rest } = project.timelines ?? {};
   const { markers: _markers, mix: _mix, ...base } = project;
+  const settings = target.settings && project.settings ? { ...target.settings, colorScience: project.settings.colorScience } : (target.settings ?? project.settings);
   return refreshNested({
     ...base,
+    settings: settings ?? null,
     tracks: target.tracks,
     ...(target.markers ? { markers: target.markers } : {}),
     ...(target.mix ? { mix: target.mix } : {}),
@@ -111,8 +132,13 @@ function contains(project: Project, timelineId: string, target: string, seen = n
 
 export const canNest = (project: Project, timelineId: string): boolean => !contains(project, timelineId, activeTimeline(project).id);
 
+export const setTimelineFormat = (format: TimelineFormat): Operation => (project) => {
+  const settings = formatSettings(project, format);
+  return settings ? refreshNested({ ...project, settings }) : project;
+};
+
 function nestedMeta(project: Project, data: TimelineData): AssetMeta {
-  const settings = project.settings;
+  const settings = data.settings ?? project.settings;
   return {
     id: nestedAssetId(data.id),
     name: data.name,

@@ -274,4 +274,7 @@ export const ru: Strings = {
   multicamCreated: 'Мультикам-клип из {count} ракурсов, синхронизирован по звуку',
   multicamView: 'Все ракурсы',
   multicamCreatedPlain: 'Мультикам-клип из {count} ракурсов, выровнен по началу',
+  timelineFormat: 'Размер кадра и частота',
+  timelineFormatPrompt: 'Ширина x высота @ кадров в секунду, например 1080x1920@30',
+  timelineFormatInvalid: 'Формат: 1920x1080@25',
 };

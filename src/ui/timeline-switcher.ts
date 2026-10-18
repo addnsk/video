@@ -23,6 +23,14 @@ export class TimelineSwitcher {
         const name = prompt(t('timelineRenamePrompt'), active.name);
         if (name) this.api.timelines.rename(active.id, name);
       }),
+      button('timeline-format', t('timelineFormat'), () => {
+        const current = this.api.timelines.format();
+        const answer = prompt(t('timelineFormatPrompt'), current ? `${current.width}x${current.height}@${+current.fps.toFixed(3)}` : '1920x1080@25');
+        if (!answer) return;
+        const match = /^\s*(\d+)\s*[x×]\s*(\d+)\s*(?:@\s*([\d.]+))?\s*$/i.exec(answer);
+        if (!match) throw new Error(t('timelineFormatInvalid'));
+        this.api.timelines.format({ width: Number(match[1]), height: Number(match[2]), ...(match[3] ? { fps: Number(match[3]) } : {}) });
+      }),
       button('timeline-duplicate', t('timelineDuplicate'), () => this.api.timelines.open(this.api.timelines.duplicate())),
       button('timeline-delete', t('timelineDelete'), () => {
         const others = this.api.timelines.list().filter((x) => !x.active);
