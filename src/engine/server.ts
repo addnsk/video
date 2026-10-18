@@ -10,6 +10,6 @@ export function serveEngine(port: Port): Engine {
       return typeof value === 'function' ? value.bind(engine) : undefined;
     },
   });
-  serve<EngineMethods, EngineEvents>(port, methods, engine, ['progress', 'proxy', 'error', 'context']);
+  serve<EngineMethods, EngineEvents>(port, methods, engine, ['progress', 'proxy', 'error', 'context', 'scopes']);
   return engine;
 }

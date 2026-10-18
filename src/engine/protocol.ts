@@ -3,6 +3,7 @@ import type { EffectDef } from '../effects/types';
 import type { Lut3D } from '../effects/cube';
 import type { DeviceInfo, MemoryBudget } from './device';
 import type { ExportSettings } from './export/exporter';
+import type { ScopeData } from './scopes';
 
 export interface ClockAnchor {
   readonly time: number;
@@ -25,6 +26,7 @@ export interface EngineEvents extends Record<string, unknown> {
   proxy: { assetId: string; state: 'queued' | 'building' | 'ready' | 'failed'; message?: string };
   error: { message: string };
   context: { state: 'lost' | 'restored' };
+  scopes: ScopeData;
 }
 
 export interface EngineInit {
@@ -48,4 +50,5 @@ export interface EngineMethods {
   cancel(id: string): void;
   ensureProxy(assetId: string, force: boolean): void;
   stats(): EngineStats;
+  setScopes(enabled: boolean): void;
 }

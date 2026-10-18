@@ -47,6 +47,7 @@ const GLSL_TYPES: Record<string, string> = {
 
 function uniformDeclaration(spec: ParamSpec): string {
   if (spec.type === 'resource') return `uniform sampler3D ${spec.name};`;
+  if (spec.type === 'curve') return `uniform sampler2D ${spec.name};`;
   return `uniform ${GLSL_TYPES[spec.type]} ${spec.name};`;
 }
 
@@ -54,6 +55,7 @@ export function filterSource(def: FilterDef): string {
   return `${HEADER}
 uniform sampler2D u_source;
 vec4 sampleSource(vec2 uv) { return texture(u_source, uv); }
+float curve(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }
 ${def.params.map(uniformDeclaration).join('\n')}
 ${def.glsl}
 void main() {

@@ -5,7 +5,8 @@ import type { FilterDef, ParamSpec, TransitionDef } from '../../effects/types';
 import type { FrameImage } from '../media/frame';
 import type { GpuContext } from './context';
 import { COPY, FIT, filterSource, transitionSource } from './shaders';
-import { LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
+import { sampleCurve } from '../../effects/curves';
+import { CurveTextures, LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
 
 export interface LutProvider {
   lut(id: string): { size: number; data: Float32Array } | undefined;
@@ -13,7 +14,10 @@ export interface LutProvider {
 
 export interface RenderOptions {
   readonly bypassFilters?: boolean;
+  readonly capture?: (pixels: Uint8Array, width: number, height: number) => void;
 }
+
+const CAPTURE_WIDTH = 320;
 
 const sources = new WeakMap<FilterDef | TransitionDef, string>();
 const sourceOf = (def: FilterDef | TransitionDef) => {
@@ -26,6 +30,7 @@ export class Compositor {
   private targets: TargetPool;
   private uploads = new Map<string, UploadTexture>();
   private luts: LutTextures;
+  private curves: CurveTextures;
   private width = 0;
   private height = 0;
   onError: (message: string) => void = () => {};
@@ -37,6 +42,7 @@ export class Compositor {
   ) {
     this.targets = new TargetPool(ctx);
     this.luts = new LutTextures(ctx);
+    this.curves = new CurveTextures(ctx);
   }
 
   render(frame: CompositionFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions = {}): void {
@@ -61,6 +67,7 @@ export class Compositor {
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     if (accumulator) {
+      if (options.capture) this.capture(accumulator, options.capture);
       this.blend(accumulator, null);
       this.targets.release(accumulator);
     }
@@ -110,8 +117,7 @@ export class Compositor {
     const texture = upload.upload(image.source, image.width, image.height, image.key);
     let current = this.fit(texture, image.width, image.height);
     if (options.bypassFilters) return current;
-    for (const effect of item.effects) {
-      if (!effect.enabled) continue;
+    for (const effect of this.ordered(item.effects)) {
       const next = this.applyFilter(effect, current);
       if (next !== current) {
         this.targets.release(current);
@@ -119,6 +125,11 @@ export class Compositor {
       }
     }
     return current;
+  }
+
+  private ordered(effects: readonly EffectInstance[]): EffectInstance[] {
+    const stage = (e: EffectInstance) => this.registry.filter(e.type)?.stage ?? 50;
+    return effects.filter((e) => e.enabled).sort((a, b) => stage(a) - stage(b));
   }
 
   private fit(texture: WebGLTexture, width: number, height: number): RenderTarget {
@@ -192,6 +203,12 @@ export class Compositor {
           if (texture) this.bindTexture(program, spec.name, unit++, texture, gl.TEXTURE_3D);
           break;
         }
+        case 'curve': {
+          const points = (Array.isArray(value) ? value : spec.default) as number[];
+          const texture = this.curves.get(`${spec.periodic ? 'p' : 'l'}:${points.join(',')}`, () => sampleCurve(points, 256, spec.periodic));
+          this.bindTexture(program, spec.name, unit++, texture);
+          break;
+        }
         case 'enum':
           gl.uniform1i(loc, Math.max(0, spec.options.findIndex((o) => o.value === value)));
           break;
@@ -225,6 +242,42 @@ export class Compositor {
       upload.dispose();
       this.uploads.delete(id);
     }
+  }
+
+  private captureTarget: { texture: WebGLTexture; framebuffer: WebGLFramebuffer; width: number; height: number; generation: number } | null = null;
+
+  private capture(source: RenderTarget, sink: (pixels: Uint8Array, width: number, height: number) => void) {
+    const gl = this.ctx.gl;
+    const width = CAPTURE_WIDTH;
+    const height = Math.max(2, Math.round((CAPTURE_WIDTH * this.height) / this.width));
+    let target = this.captureTarget;
+    if (!target || target.width !== width || target.height !== height || target.generation !== this.ctx.generation) {
+      if (target && target.generation === this.ctx.generation) {
+        gl.deleteTexture(target.texture);
+        gl.deleteFramebuffer(target.framebuffer);
+      }
+      const texture = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, width, height);
+      const framebuffer = gl.createFramebuffer()!;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+      target = this.captureTarget = { texture, framebuffer, width, height, generation: this.ctx.generation };
+    }
+    const program = this.ctx.program(COPY);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
+    gl.viewport(0, 0, width, height);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(program);
+    this.bindTexture(program, 'u_image', 0, source.texture);
+    gl.uniform1f(this.ctx.uniform(program, 'u_opacity'), 1);
+    this.ctx.drawQuad();
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    sink(pixels, width, height);
   }
 
   dispose(): void {

@@ -211,3 +211,16 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; 
   .menu { order: 3; width: 100%; margin: 0; }
   .save-status { margin-left: auto; }
 }
+
+.curves { display: flex; flex-direction: column; gap: 8px; }
+.curves.disabled { opacity: 0.4; pointer-events: none; }
+.curve { width: 100%; aspect-ratio: 1; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; touch-action: none; cursor: crosshair; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { flex: 1; min-height: 28px; padding: 0 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; font-size: 12px; cursor: pointer; }
+.tab[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.scopes summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.scopes summary::before { content: '▸'; color: var(--muted); font-size: 11px; }
+.scopes[open] summary::before { content: '▾'; }
+.scopes summary h2 { display: inline; }
+.scope { width: 100%; aspect-ratio: 2; background: #0b0c0e; border-radius: 6px; border: 1px solid var(--line); }

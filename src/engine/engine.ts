@@ -20,6 +20,9 @@ import { probe } from './media/probe';
 import { buildProxy, findProxy } from './media/proxy';
 import type { ClockAnchor, EngineEvents, EngineInit, EngineMethods, EngineStats, ExportTarget } from './protocol';
 import { resources } from './resources';
+import { analyze } from './scopes';
+
+const SCOPE_INTERVAL_MS = 120;
 
 registerProresDecoder();
 
@@ -70,6 +73,8 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private canceled = new Set<string>();
   private proxyQueue: string[] = [];
   private proxyRunning = false;
+  private scopesEnabled = false;
+  private lastScope = 0;
   private stillQueue = new Coalescer<{ time: number; bypass: boolean; done: (ok: boolean) => void }>((r) => this.drawStill(r));
 
   constructor() {
@@ -190,6 +195,23 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     void this.runProxies();
   }
 
+  setScopes(enabled: boolean): void {
+    this.scopesEnabled = enabled;
+    this.lastScope = 0;
+    if (enabled) this.redraw();
+  }
+
+  private captureOption(force: boolean) {
+    if (!this.scopesEnabled) return undefined;
+    const now = performance.now();
+    if (!force && now - this.lastScope < SCOPE_INTERVAL_MS) return undefined;
+    this.lastScope = now;
+    return (pixels: Uint8Array, width: number, height: number) => {
+      const data = analyze(pixels, width, height);
+      this.emit('scopes', transfer(data, [data.waveform.buffer, data.vector.buffer, data.histogram.buffer]) as never);
+    };
+  }
+
   stats(): EngineStats {
     return {
       budget: this.budget,
@@ -257,7 +279,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     const frame = compositionAt(this.project, time);
     const images = await this.stills.load(this.project, frame, () => this.stillQueue.latest !== null || !!this.playback);
     if (!images) return request.done(false);
-    this.compositor.render(frame, images, { bypassFilters: request.bypass });
+    this.compositor.render(frame, images, { bypassFilters: request.bypass, capture: this.captureOption(true) });
     request.done(true);
   }
 
@@ -281,7 +303,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       const frame = compositionAt(this.project, Math.min(time, Math.max(0, duration - 1e-3)));
       const images = await playback.frames.load(this.project, frame);
       if (generation !== this.generation) return;
-      this.compositor.render(frame, images, { bypassFilters: playback.bypass });
+      this.compositor.render(frame, images, { bypassFilters: playback.bypass, capture: this.captureOption(false) });
       this.lastStill = { time: Math.min(time, duration), bypass: playback.bypass };
     } finally {
       this.ticking = false;

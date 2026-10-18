@@ -10,6 +10,7 @@ export const GRADE: FilterDef = {
   kind: 'filter',
   id: 'grade',
   name: 'Color',
+  stage: 10,
   params: [
     {
       name: 'inputTransform',
@@ -83,6 +84,7 @@ export const LUT: FilterDef = {
   kind: 'filter',
   id: 'lut',
   name: 'LUT',
+  stage: 30,
   params: [
     { name: 'table', label: 'LUT', type: 'resource', resource: 'lut3d', default: '' },
     { name: 'strength', label: 'Strength', type: 'float', default: 1, min: 0, max: 1, step: 0.01 },

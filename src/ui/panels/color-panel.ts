@@ -5,6 +5,8 @@ import { parseCube } from '../../effects/cube';
 import { defaultParams, type EnumParamSpec, type ScalarParamSpec } from '../../effects/types';
 import type { EditorSession } from '../../host/session';
 import { t } from '../../i18n';
+import { CurveEditor } from '../components/curve-editor';
+import type { CurvePoints } from '../../effects/curves';
 import { Slider } from '../components/slider';
 import { toast } from '../components/toast';
 import { ColorWheel, type WheelValue } from '../components/wheel';
@@ -26,6 +28,7 @@ export class ColorPanel extends Panel {
   private wheels = new Map<string, ColorWheel>();
   private lutName = h('div', { class: 'mono' });
   private lutStrength: Slider;
+  private curves: CurveEditor;
   private controls: HTMLElement[] = [];
 
   constructor(
@@ -62,6 +65,19 @@ export class ColorPanel extends Panel {
       sliderBox.append(slider.element);
     }
 
+    const curvesDef = session.registry.filter('curves')!;
+    const channelColors: Record<string, string> = { master: '', red: '#e5675a', green: '#5fbf6a', blue: '#5b8def', hueSat: '#e9a23b' };
+    this.curves = new CurveEditor(
+      curvesDef.params.map((p) => ({
+        name: p.name,
+        label: p.label ?? p.name,
+        color: channelColors[p.name] ?? '',
+        periodic: p.type === 'curve' && !!p.periodic,
+        neutral: p.default as CurvePoints,
+      })),
+      (name, points) => this.setCurve(name, points),
+    );
+
     const lutFile = h('input', { type: 'file', accept: '.cube', hidden: true, onChange: () => void this.loadLut(lutFile) });
     this.lutStrength = new Slider({
       id: 'lut-strength',
@@ -85,6 +101,9 @@ export class ColorPanel extends Panel {
       h('label', { class: 'field' }, inputSpec.label ?? '', this.input),
       wheelRow,
       sliderBox,
+      h('h2', {}, t('curvesTitle')),
+      this.curves.element,
+      h('p', { class: 'hint' }, t('curvesHint')),
       h('h2', {}, t('lutTitle')),
       this.lutName,
       h('div', { class: 'row' }, loadButton, removeButton, lutFile),
@@ -110,6 +129,12 @@ export class ColorPanel extends Panel {
     const item = this.item;
     if (!item) return;
     this.session.store.dispatch(upsertEffect(item.id, 'grade', { [name]: value as ParamValue }), { coalesce: `grade:${item.id}:${name}` });
+  }
+
+  private setCurve(name: string, points: CurvePoints) {
+    const item = this.item;
+    if (!item) return;
+    this.session.store.dispatch(upsertEffect(item.id, 'curves', { [name]: points }), { coalesce: `curves:${item.id}:${name}` });
   }
 
   private setLut(patch: Record<string, ParamValue>) {
@@ -140,6 +165,7 @@ export class ColorPanel extends Panel {
     if (!item) return;
     void this.session.store.transaction(() => {
       this.session.store.dispatch(replaceEffect(item.id, 'grade', null));
+      this.session.store.dispatch(replaceEffect(item.id, 'curves', null));
       this.session.store.dispatch(replaceEffect(item.id, 'lut', null));
     });
   }
@@ -168,6 +194,8 @@ export class ColorPanel extends Panel {
       wheel.disabled = !item;
       wheel.set(grade[name] as unknown as WheelValue);
     }
+    this.curves.disabled = !item;
+    this.curves.set(this.params('curves') as Record<string, CurvePoints>);
     const lut = item?.effects.find((e) => e.type === 'lut');
     const entry = lut ? this.session.luts.get(String(lut.params.table)) : undefined;
     this.lutName.textContent = entry ? `${entry.name} · ${entry.lut.size}³` : t('lutNone');

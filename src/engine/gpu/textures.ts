@@ -117,6 +117,39 @@ export class UploadTexture {
   }
 }
 
+export class CurveTextures {
+  private textures = new Map<string, { texture: WebGLTexture; generation: number; used: number }>();
+  private clock = 0;
+
+  constructor(private ctx: GpuContext) {}
+
+  get(key: string, samples: () => Float32Array): WebGLTexture {
+    const gl = this.ctx.gl;
+    const cached = this.textures.get(key);
+    if (cached && cached.generation === this.ctx.generation) {
+      cached.used = ++this.clock;
+      return cached.texture;
+    }
+    const data = samples();
+    const texture = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    configure(gl, gl.TEXTURE_2D);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, data.length, 1, 0, gl.RED, gl.FLOAT, data);
+    this.textures.set(key, { texture, generation: this.ctx.generation, used: ++this.clock });
+    this.evict();
+    return texture;
+  }
+
+  private evict() {
+    if (this.textures.size <= 64) return;
+    const oldest = [...this.textures.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, this.textures.size - 64);
+    for (const [key, entry] of oldest) {
+      if (entry.generation === this.ctx.generation) this.ctx.gl.deleteTexture(entry.texture);
+      this.textures.delete(key);
+    }
+  }
+}
+
 export class LutTextures {
   private textures = new Map<string, { texture: WebGLTexture; generation: number; data: Float32Array }>();
 

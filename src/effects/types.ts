@@ -28,12 +28,19 @@ export interface ResourceParamSpec extends ParamSpecBase {
   readonly default: '';
 }
 
-export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec;
+export interface CurveParamSpec extends ParamSpecBase {
+  readonly type: 'curve';
+  readonly default: readonly number[];
+  readonly periodic?: boolean;
+}
+
+export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec | CurveParamSpec;
 
 export interface FilterDef {
   readonly kind: 'filter';
   readonly id: string;
   readonly name: string;
+  readonly stage?: number;
   readonly params: readonly ParamSpec[];
   readonly glsl: string;
 }

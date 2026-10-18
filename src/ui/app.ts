@@ -12,6 +12,7 @@ import { formatTimecode, h } from './dom';
 import { openExportDialog } from './export-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
+import { ScopesPanel } from './panels/scopes-panel';
 import { ScriptPanel } from './panels/script-panel';
 import { TransitionPanel } from './panels/transition-panel';
 import { Selection } from './selection';
@@ -74,6 +75,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const timeline = new TimelineView(timelineCanvas, store, transport, selection);
 
   const inspector = h('aside', { class: 'inspector' },
+    new ScopesPanel(session).element,
     new TransitionPanel(session, selection).element,
     new ColorPanel(session, selection).element,
     new MediaPanel(session).element,
