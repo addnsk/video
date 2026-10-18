@@ -11,6 +11,7 @@ const filters: Record<string, FilterDef> = { grade: { kind: 'filter', id: 'grade
 const nodes: Record<string, NodeDef> = {
   merge: { kind: 'node', id: 'merge', name: 'Merge', category: 'composite', inputs: [{ name: 'background' }, { name: 'foreground' }], params: [], passes: [] },
   background: { kind: 'node', id: 'background', name: 'Bg', category: 'generator', inputs: [], params: [], passes: [] },
+  noise: { kind: 'node', id: 'noise', name: 'Noise', category: 'generator', inputs: [], params: [], passes: [{ glsl: 'vec4 run(vec2 uv) { return vec4(time()); }' }] },
 };
 const lookup = { filter: (t: string) => filters[t], node: (t: string) => nodes[t] };
 
@@ -112,5 +113,18 @@ describe('renderGraph', () => {
     const changed = renderGraph(connect(addNode(g, { id: 'bg2', type: 'background', params: { color: 2 }, enabled: true, position: [0, 0] }), { from: 'bg2', to: 'output', input: 'input' }), 'output', lookup, rt, cache);
     expect(changed?.label).toBe('copy(background())');
     expect(store.size).toBe(2);
+  });
+
+  it('never caches nodes whose shader reads the time', () => {
+    let g: NodeGraph = chainGraph([], { stageOf: () => 0, isVisual: () => true, chainable: () => true });
+    g = addNode(g, { id: 'n', type: 'noise', params: {}, enabled: true, position: [0, 0] });
+    g = connect(g, { from: 'n', to: 'output', input: 'input' });
+    const store = new Map<string, Image>();
+    const cache = { get: (k: string) => store.get(k), put: (k: string, v: Image) => void store.set(k, v) };
+    const rt = runtime();
+    renderGraph(g, 'output', lookup, rt, cache);
+    renderGraph(g, 'output', lookup, rt, cache);
+    expect(rt.calls.filter((c) => c === 'noise')).toHaveLength(2);
+    expect(store.size).toBe(0);
   });
 });

@@ -20,6 +20,15 @@ export interface NodeLookup {
   node(type: string): NodeDef | undefined;
 }
 
+const timeDependent = new WeakMap<object, boolean>();
+
+function usesTime(def: { passes: readonly { glsl: string }[] } | undefined): boolean {
+  if (!def) return false;
+  let known = timeDependent.get(def);
+  if (known === undefined) timeDependent.set(def, (known = def.passes.some((p) => /\btime\s*\(/.test(p.glsl))));
+  return known;
+}
+
 export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeLookup, runtime: GraphRuntime<T>, cache?: GraphCache<T>): T | null {
   const order = evaluationOrder(graph, outputId);
   const reachable = new Set(order);
@@ -53,7 +62,7 @@ export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeL
     const primary = read.get('source') ?? read.get('input') ?? read.values().next().value ?? null;
     const inputKeys = [...inputs].map(([name, from]) => [name, keys.get(from)] as const);
     const key =
-      node.type === SOURCE_NODE || lookup.node(node.type)?.temporal || lookup.node(node.type)?.history || inputKeys.some(([, k]) => k === null)
+      node.type === SOURCE_NODE || lookup.node(node.type)?.temporal || lookup.node(node.type)?.history || usesTime(lookup.node(node.type)) || inputKeys.some(([, k]) => k === null)
         ? null
         : `${node.type}:${node.enabled}:${JSON.stringify(node.params)}(${inputKeys.map(([n, k]) => `${n}=${k}`).join(',')})`;
     keys.set(id, key);
