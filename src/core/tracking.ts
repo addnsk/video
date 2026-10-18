@@ -1,6 +1,7 @@
 import { PROPERTY } from './animation';
 import { nodeProperty } from './graph';
-import type { AssetMeta, MediaItem, Project, ProjectSettings } from './model';
+import type { AssetMeta, MediaItem, Project, ProjectSettings, Transform } from './model';
+import { resolveItem } from './resolve';
 import { setKeyframe, type Operation } from './operations';
 
 export interface TrackPoint {
@@ -20,19 +21,36 @@ export type TrackApply = { readonly node: string; readonly param: string } | 'st
 
 export const MIN_TRACK_CONFIDENCE = 0.5;
 
-export function sourceToFrame(item: MediaItem, asset: AssetMeta, settings: ProjectSettings, point: { x: number; y: number }): { x: number; y: number } {
-  const scale = Math.min(settings.width / asset.width, settings.height / asset.height) * item.transform.scale;
+const transformAt = (item: MediaItem, local: number): Transform => resolveItem(item, local).transform;
+
+const extentOf = (item: MediaItem, asset: AssetMeta, settings: ProjectSettings, transform: Transform) => {
+  const scale = Math.min(settings.width / asset.width, settings.height / asset.height) * Math.max(0.001, transform.scale);
+  return { w: asset.width * scale, h: asset.height * scale };
+};
+
+export function sourceToFrame(item: MediaItem, asset: AssetMeta, settings: ProjectSettings, point: { x: number; y: number }, local = 0): { x: number; y: number } {
+  const transform = transformAt(item, local);
+  const { w, h } = extentOf(item, asset, settings, transform);
+  const angle = (transform.rotation * Math.PI) / 180;
+  const [c, s] = [Math.cos(angle), Math.sin(angle)];
+  const dx = (point.x - 0.5) * w;
+  const dy = (point.y - 0.5) * h;
   return {
-    x: item.transform.x + ((point.x - 0.5) * asset.width * scale) / settings.width,
-    y: item.transform.y + ((point.y - 0.5) * asset.height * scale) / settings.height,
+    x: transform.x + (c * dx + s * dy) / settings.width,
+    y: transform.y + (-s * dx + c * dy) / settings.height,
   };
 }
 
-export function frameToSource(item: MediaItem, asset: AssetMeta, settings: ProjectSettings, point: { x: number; y: number }): { x: number; y: number } {
-  const scale = Math.min(settings.width / asset.width, settings.height / asset.height) * item.transform.scale;
+export function frameToSource(item: MediaItem, asset: AssetMeta, settings: ProjectSettings, point: { x: number; y: number }, local = 0): { x: number; y: number } {
+  const transform = transformAt(item, local);
+  const { w, h } = extentOf(item, asset, settings, transform);
+  const angle = (transform.rotation * Math.PI) / 180;
+  const [c, s] = [Math.cos(angle), Math.sin(angle)];
+  const dx = (point.x - transform.x) * settings.width;
+  const dy = (point.y - transform.y) * settings.height;
   return {
-    x: 0.5 + ((point.x - item.transform.x) * settings.width) / (asset.width * scale),
-    y: 0.5 + ((point.y - item.transform.y) * settings.height) / (asset.height * scale),
+    x: 0.5 + (c * dx - s * dy) / w,
+    y: 0.5 + (s * dx + c * dy) / h,
   };
 }
 
@@ -42,7 +60,10 @@ export function trackPath(project: Project, item: MediaItem, samples: readonly T
   if (!asset || !settings) return [];
   return samples
     .filter((s) => s.confidence >= MIN_TRACK_CONFIDENCE)
-    .map((s) => ({ t: (s.time - item.source.in) / item.speed, ...sourceToFrame(item, asset, settings, s) }));
+    .map((s) => {
+      const t = (s.time - item.source.in) / item.speed;
+      return { t, ...sourceToFrame(item, asset, settings, s, t) };
+    });
 }
 
 export function applyTrack(itemId: string, path: readonly FramePoint[], target: TrackApply, base: { x: number; y: number }): Operation[] {

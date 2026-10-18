@@ -40,3 +40,26 @@ describe('tracking', () => {
     expect(stable['transform.y'][1].v).toBeCloseTo(0.15);
   });
 });
+
+describe('tracking with rotated and animated clips', () => {
+  const base = createMediaItem(asset, { in: 0, out: 4 });
+  it('round-trips through rotation', () => {
+    const item = { ...base, transform: { x: 0.1, y: -0.05, scale: 0.7, rotation: 37 } } as MediaItem;
+    for (const point of [{ x: 0.2, y: 0.8 }, { x: 0.9, y: 0.1 }]) {
+      const back = frameToSource(item, asset, settings, sourceToFrame(item, asset, settings, point));
+      expect(back.x).toBeCloseTo(point.x, 9);
+      expect(back.y).toBeCloseTo(point.y, 9);
+    }
+    const right = sourceToFrame({ ...item, transform: { x: 0, y: 0, scale: 1, rotation: 90 } } as MediaItem, asset, settings, { x: 1, y: 0.5 });
+    expect(right.x).toBeCloseTo(0, 9);
+    expect(right.y).toBeLessThan(0);
+  });
+
+  it('follows the clip position at each sample time', () => {
+    const item = { ...base, animations: { 'transform.x': [{ t: 0, v: 0 }, { t: 2, v: 0.2 }] } } as MediaItem;
+    expect(sourceToFrame(item, asset, settings, { x: 0.5, y: 0.5 }, 1).x).toBeCloseTo(0.1, 9);
+    const project: Project = { ...emptyProject(), settings, assets: { a: asset } };
+    const path = trackPath(project, item, [{ time: 2, x: 0.5, y: 0.5, confidence: 1 }]);
+    expect(path[0].x).toBeCloseTo(0.2, 9);
+  });
+});

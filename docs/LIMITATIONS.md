@@ -60,13 +60,6 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 
 - Scopes are computed from a 320 px wide copy of the viewer frame (8-bit, after the output transform) and arrive a frame or two after the picture.
 
-## Tracking
-
-- One point tracker (translation only); no planar, rotation or scale tracking.
-- Clip rotation is ignored when mapping tracked points to the frame.
-- Frames with a weak match (correlation below 0.5) are dropped; the path is interpolated between kept keyframes.
-- Tracking runs on a copy scaled to 360 lines by default (`height` option).
-
 ## Audio
 
 - No buses, automation, LUFS metering or noise reduction yet (phase 5).

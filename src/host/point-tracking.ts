@@ -29,7 +29,7 @@ export async function trackPoint(session: EditorSession, itemId: string, request
   const step = item.speed / (asset.fps || settings.fps);
   const times: number[] = [];
   for (let s = item.source.in + from * item.speed; s <= item.source.in + to * item.speed + 1e-6 && times.length < MAX_TRACK_FRAMES; s += step) times.push(s);
-  const samples = await session.engine.remote.track(asset.id, times, frameToSource(item, asset, settings, request), {
+  const samples = await session.engine.remote.track(asset.id, times, frameToSource(item, asset, settings, request, from), {
     patch: request.patch ?? 21,
     search: request.search ?? 16,
     height: request.height ?? 360,

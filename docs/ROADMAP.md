@@ -78,6 +78,10 @@ Heavy CPU work moves out of plain JavaScript; everything else stays as is (decod
 - Done: live momentary and short-term loudness in the transport, true-peak measurement.
 - Done: sends (pre/post fader), bus-to-bus routing with loop checks, reverb and delay, latency compensation across clips, tracks and buses, effect tails after the last clip, warm-up after seeks, a true-peak look-ahead limiter and a trim stage that `normalize` uses.
 
+## Later (tracking)
+
+- Planar tracking (rotation, scale and perspective) and multi-point trackers; today a tracker follows one point in translation.
+
 ## Later (audio)
 
 - Surround (5.1) buses and export; today the mix is stereo.
