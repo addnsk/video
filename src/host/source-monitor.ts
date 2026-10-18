@@ -1,5 +1,7 @@
 import { Emitter } from '../core/emitter';
 import { Store } from '../core/store';
+import { multiviewProject } from '../core/multicam';
+import { nestedTimelineOf, timelineData } from '../core/timeline-data';
 import { sourceProject, type MarkRange } from '../core/three-point';
 import type { EngineClient } from './engine-client';
 import { Transport } from './transport';
@@ -52,7 +54,9 @@ export class SourceMonitor extends Emitter<SourceMonitorEvents> {
   }
 
   open(assetId: string): void {
-    const project = sourceProject(this.timeline.project, assetId);
+    const timeline = this.timeline.project;
+    const nested = nestedTimelineOf(timeline, assetId);
+    const project = nested && timelineData(timeline, nested)?.multicam ? multiviewProject(timeline, assetId) : sourceProject(timeline, assetId);
     const changed = assetId !== this.asset;
     this.asset = assetId;
     this.store.dispatch(() => project, { history: false });

@@ -37,6 +37,8 @@ import {
 import { addMarker, deleteItems, insertEdit, linkItems, overwriteEdit, rippleTrim, rollEdit, slideEdit, slipEdit } from '../../../src/core/editing';
 import { createMediaItem } from '../../../src/core/operations';
 import { addTimeline, ensureNestedAsset, nestItems, nestedAssetId, switchTimeline, timelineList, canNest } from '../../../src/core/timelines';
+import { addBin, moveToBin, removeBin, setMetadata } from '../../../src/core/bins';
+import { createMulticam, switchAngle } from '../../../src/core/multicam';
 import { Store } from '../../../src/core/store';
 import { findPlacement, projectDuration } from '../../../src/core/timeline';
 import { registerBuiltins } from '../../../src/effects/builtin';
@@ -133,6 +135,10 @@ export const action = fc.oneof(
   { weight: 2, arbitrary: fc.record({ kind: fc.constant('switchTimeline' as const), which: k }) },
   { weight: 2, arbitrary: fc.record({ kind: fc.constant('nestTimeline' as const), which: k, track: k, at: unit }) },
   { weight: 1, arbitrary: fc.record({ kind: fc.constant('compound' as const), from: k, to: k }) },
+  { weight: 1, arbitrary: fc.record({ kind: fc.constant('bin' as const), which: k, remove: fc.boolean() }) },
+  { weight: 1, arbitrary: fc.record({ kind: fc.constant('metadata' as const), asset: k, v: unit }) },
+  { weight: 1, arbitrary: fc.record({ kind: fc.constant('multicam' as const), offset: unit }) },
+  { weight: 2, arbitrary: fc.record({ kind: fc.constant('angle' as const), track: k, at: unit, angle: fc.integer({ min: 0, max: 1 }) }) },
   { weight: 3, arbitrary: fc.record({ kind: fc.constant('undo' as const) }) },
   { weight: 2, arbitrary: fc.record({ kind: fc.constant('redo' as const) }) },
 );
@@ -321,6 +327,24 @@ export function toOperation(project: Project, a: Action): Operation | 'undo' | '
       const [from, to] = [pick(all, a.from), pick(all, a.to)];
       return from && to ? nestItems([...new Set([from.id, to.id])]) : null;
     }
+    case 'bin': {
+      const bins = (project.bins ?? []).filter((b) => !b.query);
+      const bin = pick(bins, a.which);
+      if (a.remove && bin) return removeBin(bin.id);
+      return bin ? moveToBin([pick(ASSETS, a.which)!.id], bin.id) : addBin(`bin ${a.which}`);
+    }
+    case 'metadata':
+      return setMetadata(pick(ASSETS, a.asset)!.id, { scene: String(Math.round(a.v * 9)), rating: Math.round(a.v * 5), keywords: a.v > 0.5 ? ['x'] : [] });
+    case 'multicam':
+      return createMulticam('M', [{ assetId: 'a' }, { assetId: 'c', offset: a.offset * 2 - 1 }]);
+    case 'angle':
+      return track ? (p: Project) => {
+        try {
+          return switchAngle(a.at * duration, track.id, { video: a.angle })(p);
+        } catch {
+          return p;
+        }
+      } : null;
     case 'textStyle':
       return item?.kind === 'text' ? setTextStyle(item.id, { size: 0.02 + a.size * 0.2 }) : null;
   }

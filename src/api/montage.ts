@@ -61,6 +61,8 @@ import type { LogSource } from '../core/log';
 import type { EditorSession } from '../host/session';
 import { createEditApi } from './edit-api';
 import { createTimelinesApi } from './timelines-api';
+import { createMediaApi } from './media-api';
+import { createMulticamApi } from './multicam-api';
 import { createLoudnessApi, createMixerApi } from './mixer-api';
 import { pickQualifier } from '../host/qualifier-pick';
 
@@ -377,6 +379,8 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     mixer: createMixerApi(session),
     ...createEditApi(session, (ref) => resolve(ref).item.id),
     timelines: createTimelinesApi(session, (ref) => resolve(ref).item.id),
+    media: createMediaApi(session),
+    multicam: createMulticamApi(session, (ref) => resolve(ref).item.id),
     ...createLoudnessApi(session),
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),

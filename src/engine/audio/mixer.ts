@@ -195,7 +195,7 @@ export class AudioMixer {
   private children = new Map<string, AudioMixer>();
 
   private async mixNested(project: Project, placement: Placement, item: MediaItem, out: Planar, t0: number, t1: number, rate: number) {
-    const inner = nestedProject(project, item.source.assetId, item.id);
+    const inner = nestedProject(project, item);
     if (!inner) return;
     let child = this.children.get(item.id);
     if (!child) this.children.set(item.id, (child = new AudioMixer(this.pool)));

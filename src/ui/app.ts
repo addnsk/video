@@ -147,7 +147,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
       } catch (error) {
         toast((error as Error).message, 'error');
       }
-    }).element,
+    }, api).element,
     new ScriptPanel(api).element,
   );
 

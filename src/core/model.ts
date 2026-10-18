@@ -102,6 +102,8 @@ export interface MediaItem extends ItemBase {
   readonly speed: number;
   readonly colorSpace?: string;
   readonly videoOnly?: boolean;
+  readonly angle?: number;
+  readonly audioAngle?: number;
 }
 
 export const itemColorSpace = (item: Item, assets: Project['assets']): string | undefined =>
@@ -170,6 +172,33 @@ export interface TimelineData {
   readonly tracks: readonly Track[];
   readonly markers?: readonly Marker[];
   readonly mix?: Mix;
+  readonly multicam?: { readonly angles: readonly { readonly name: string; readonly assetId: string }[] };
+}
+
+export interface MediaMetadata {
+  readonly scene?: string;
+  readonly shot?: string;
+  readonly take?: string;
+  readonly angle?: string;
+  readonly camera?: string;
+  readonly reel?: string;
+  readonly description?: string;
+  readonly comments?: string;
+  readonly keywords?: readonly string[];
+  readonly rating?: number;
+  readonly flagged?: boolean;
+}
+
+export interface MediaEntry {
+  readonly bin?: string;
+  readonly metadata?: MediaMetadata;
+}
+
+export interface Bin {
+  readonly id: string;
+  readonly name: string;
+  readonly parent: string | null;
+  readonly query?: string;
 }
 
 export interface Project {
@@ -182,6 +211,8 @@ export interface Project {
   readonly markers?: readonly Marker[];
   readonly timeline?: { readonly id: string; readonly name: string };
   readonly timelines?: Readonly<Record<string, TimelineData>>;
+  readonly bins?: readonly Bin[];
+  readonly media?: Readonly<Record<string, MediaEntry>>;
 }
 
 export const IDENTITY_TRANSFORM: Transform = { x: 0, y: 0, scale: 1, rotation: 0 };

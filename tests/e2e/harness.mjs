@@ -27,6 +27,10 @@ const FIXTURES = {
   'moving.mov': ['-f', 'lavfi', '-i', 'color=c=0x404040:size=640x360:rate=25', '-f', 'lavfi', '-i', 'testsrc2=size=100x100:rate=25',
     '-filter_complex', "[1]trim=end_frame=1,loop=-1:1,setpts=N/25/TB[p];[0][p]overlay=x='100+t*100':y=130", '-t', '1', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
   'noisy.mov': ['-f', 'lavfi', '-i', 'color=c=0x808080:size=640x360:rate=25', '-vf', 'noise=alls=30:allf=t+u', '-t', '2', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
+  'cam1.mov': ['-f', 'lavfi', '-i', 'color=c=red:size=640x360:rate=25', '-f', 'lavfi', '-i', "aevalsrc='0.8*sin(2*PI*600*t)*lt(mod(t*t*0.7,1),0.25)':s=48000",
+    '-t', '6', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le', '-c:a', 'pcm_s16le'],
+  'cam2.mov': ['-f', 'lavfi', '-i', 'color=c=blue:size=640x360:rate=25', '-f', 'lavfi', '-i', "aevalsrc='0.8*sin(2*PI*600*(t+1.3))*lt(mod((t+1.3)*(t+1.3)*0.7,1),0.25)':s=48000",
+    '-t', '4.7', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le', '-c:a', 'pcm_s16le'],
   'music.wav': ['-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=44100', '-t', '6', '-c:a', 'pcm_s16le'],
 };
 

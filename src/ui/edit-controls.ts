@@ -157,13 +157,19 @@ export class EditControls extends Emitter<{ tool: TrimTool }> {
     });
   }
 
+  cutAngle(angle: number, videoOnly: boolean) {
+    this.attempt(() => this.api.multicam.cut(angle, videoOnly ? { only: 'video' } : {}));
+  }
+
   handleKey(e: KeyboardEvent): boolean {
     if (e.ctrlKey || e.metaKey) {
       if (e.altKey && e.code === 'KeyL') this.toggleLink();
       else return false;
       return true;
     }
-    if (e.altKey && e.code === 'KeyX') this.clearMarks();
+    const digit = /^Digit([1-9])$/.exec(e.code);
+    if (digit && !e.shiftKey && this.session.source.viewer === 'timeline') this.cutAngle(Number(digit[1]) - 1, e.altKey);
+    else if (e.altKey && e.code === 'KeyX') this.clearMarks();
     else if (e.altKey) return false;
     else if (e.code === 'KeyI') this.mark('in');
     else if (e.code === 'KeyO') this.mark('out');

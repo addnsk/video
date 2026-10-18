@@ -1,4 +1,4 @@
-import type { Project, TimelineData, Track } from './model';
+import type { MediaItem, Project, TimelineData, Track } from './model';
 
 export const MAIN_TIMELINE = 'timeline_main';
 export const DEFAULT_TIMELINE_NAME = 'Timeline 1';
@@ -21,22 +21,35 @@ export function timelineData(project: Project, id: string): TimelineData | null 
 
 const prefixCache = new WeakMap<readonly Track[], Map<string, Project>>();
 
-export function nestedProject(project: Project, assetId: string, prefix: string): Project | null {
-  const timelineId = nestedTimelineOf(project, assetId);
+export const angleTrack = (angle: number) => `cam${angle}`;
+export const angleAudioTrack = (angle: number) => `cam${angle}a`;
+
+function angleTracks(data: TimelineData, item: MediaItem): readonly Track[] {
+  if (!data.multicam) return data.tracks;
+  const count = data.multicam.angles.length;
+  const video = Math.min(count - 1, Math.max(0, item.angle ?? 0));
+  const audio = Math.min(count - 1, Math.max(0, item.audioAngle ?? video));
+  return data.tracks.filter((t) => t.id === angleTrack(video) || t.id === angleAudioTrack(audio));
+}
+
+export function nestedProject(project: Project, item: MediaItem): Project | null {
+  const prefix = item.id;
+  const timelineId = nestedTimelineOf(project, item.source.assetId);
   if (!timelineId) return null;
   const data = timelineData(project, timelineId);
   if (!data) return null;
   let byPrefix = prefixCache.get(data.tracks);
   if (!byPrefix) prefixCache.set(data.tracks, (byPrefix = new Map()));
-  const cached = byPrefix.get(prefix);
+  const key = `${prefix}|${item.angle ?? ''}|${item.audioAngle ?? ''}`;
+  const cached = byPrefix.get(key);
   if (cached && cached.assets === project.assets && cached.timelines === project.timelines) return cached;
   const rename = (id: string) => `${prefix}>${id}`;
-  const tracks = data.tracks.map((t) => ({ ...t, id: rename(t.id), items: t.items.map((i) => ({ ...i, id: rename(i.id), ...(i.link ? { link: rename(i.link) } : {}) })) }));
+  const tracks = angleTracks(data, item).map((t) => ({ ...t, id: rename(t.id), items: t.items.map((i) => ({ ...i, id: rename(i.id), ...(i.link ? { link: rename(i.link) } : {}) })) }));
   const mix = data.mix && {
     ...data.mix,
     tracks: Object.fromEntries(Object.entries(data.mix.tracks).map(([k, v]) => [rename(k), v])),
   };
   const nested: Project = { ...project, tracks, ...(mix ? { mix } : { mix: undefined }), markers: data.markers };
-  byPrefix.set(prefix, nested);
+  byPrefix.set(key, nested);
   return nested;
 }

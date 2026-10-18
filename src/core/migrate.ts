@@ -25,7 +25,7 @@ function migrateAsset(raw: AssetMeta & { hasVideo?: boolean }): AssetMeta {
 }
 
 export function migrateProject(raw: unknown): Project {
-  const p = raw as { version?: number; settings?: Project['settings']; assets?: Record<string, AssetMeta>; tracks?: Track[]; stills?: Project['stills']; mix?: Project['mix']; markers?: Project['markers']; timeline?: Project['timeline']; timelines?: Record<string, { id: string; name: string; tracks: Track[]; markers?: Project['markers']; mix?: Project['mix'] }> };
+  const p = raw as { version?: number; settings?: Project['settings']; assets?: Record<string, AssetMeta>; tracks?: Track[]; stills?: Project['stills']; mix?: Project['mix']; markers?: Project['markers']; timeline?: Project['timeline']; bins?: Project['bins']; media?: Project['media']; timelines?: Record<string, { id: string; name: string; tracks: Track[]; markers?: Project['markers']; mix?: Project['mix'] }> };
   const migrateTracks = (list: Track[]) =>
     list.map((t) => ({
       id: t.id,
@@ -46,6 +46,8 @@ export function migrateProject(raw: unknown): Project {
     ...(p.mix ? { mix: p.mix } : {}),
     ...(p.markers?.length ? { markers: p.markers } : {}),
     ...(p.timeline ? { timeline: p.timeline } : {}),
+    ...(p.bins?.length ? { bins: p.bins } : {}),
+    ...(p.media && Object.keys(p.media).length ? { media: p.media } : {}),
     ...(timelines && Object.keys(timelines).length ? { timelines } : {}),
   };
 }

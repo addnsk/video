@@ -117,7 +117,7 @@ export function trackFrameAt(track: Track, time: number): TrackFrame | null {
 function withNested(project: Project, layer: LayerFrame): LayerFrame {
   const { item } = layer.placement;
   if (item.kind !== 'media' || !project.assets[item.source.assetId]?.timeline) return layer;
-  const inner = nestedProject(project, item.source.assetId, item.id);
+  const inner = nestedProject(project, item);
   return inner ? { ...layer, nested: compositionAt(inner, layer.sourceTime) } : layer;
 }
 

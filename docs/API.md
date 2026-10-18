@@ -126,6 +126,44 @@ montage.markers.colors();                     // blue, cyan, green, yellow, red,
 
 Markers ride with ripple edits: insert moves markers after the edit point, extract moves later ones back and drops those inside the range.
 
+## Media pool: bins, search, metadata
+
+```js
+const day1 = montage.media.addBin('Day 1');                 // { parent } nests it
+const best = montage.media.addBin('Best', { query: 'rating>=4 -kind:audio' });   // smart bin: filled by its search
+montage.media.move([a.id, b.id], day1);                     // null moves back to the top level
+montage.media.list(day1);                                   // [{ ...asset, kind, bin, metadata }]; no argument lists everything
+montage.media.bins();                                       // [{ id, name, parent, query, count }]
+montage.media.updateBin(day1, { name: 'Day one', parent: null });
+montage.media.removeBin(day1);                              // its media and sub-bins move up one level
+
+montage.media.metadata(a.id, { scene: '12', shot: 'B', take: '3', angle: 'wide', camera: 'A', reel: 'A001',
+  description: '', comments: '', keywords: ['interview'], rating: 4, flagged: true });   // null or '' clears a field
+montage.media.metadata(a.id);                               // read
+montage.media.fields();
+montage.media.rename(a.id, 'Interview wide');
+montage.media.remove(a.id);                                 // only media no timeline uses
+
+montage.media.search('interview scene:12 rating>=3 -flagged:yes');
+```
+
+Search terms: plain words match the name, codec, kind and text metadata; `field:value` matches part of a field, `field=value` the whole field, `rating>=3` (also `>`, `<`, `<=`) compares numbers, a leading `-` negates. Fields: `name`, `codec`, `kind` (`video`, `audio`, `timeline`), `bin`, and the metadata fields. Quote values with spaces: `bin:"Day 1"`.
+
+## Multicam
+
+```js
+const offsets = await montage.multicam.sync([camA, camB, camC]);      // [{ assetId, offset, confidence }] from the sound
+const mc = await montage.multicam.create('Interview', [camA, camB, { assetId: camC, offset: 2.5, name: 'Wide' }], { sync: 'audio' });
+montage.multicam.view(mc.asset);              // all angles side by side in the viewer
+montage.edit.insert({ asset: mc.asset });     // a multicam clip edits like any clip
+montage.multicam.cut(1);                      // cut to angle 2 at the playhead (picture and sound)
+montage.multicam.cut(2, { only: 'video', time: 12 });
+montage.multicam.angle(clip, { video: 0, audio: 1 });   // audio: null follows the picture
+montage.multicam.angles(clip);                // { names, video, audio }
+```
+
+A multicam clip is a timeline with one picture track and one sound track per angle, lined up by the offsets (seconds on the shared clock, so a later camera has a larger offset). Sync compares the onsets of each angle's sound against the first angle with sound; angles without sound keep their given offset. In the timeline viewer the keys 1–9 cut to that angle at the playhead, Alt+1–9 cuts the picture only.
+
 ## Tracks, overlays and titles
 
 The main track `v1` is magnetic: clips sit back to back and can have transitions. Other tracks are free: items keep their own start time and may overlap. Video tracks stack bottom to top; audio tracks only carry sound.
