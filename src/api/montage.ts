@@ -29,6 +29,7 @@ import {
   type Operation,
 } from '../core/operations';
 import { findPlacement } from '../core/timeline';
+import { applyTrack, frameToSource, trackPath, type FramePoint, type TrackApply } from '../core/tracking';
 import { createId } from '../core/ids';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
 import { AUDIO_EFFECTS, audioEffect } from '../effects/audio/builtin';
@@ -74,6 +75,17 @@ export interface ClipInfo {
   readonly presets: Item['presets'];
   readonly effects: readonly { type: string; params: ParamValues }[];
   readonly transition: { type: string; duration: number; params: ParamValues } | null;
+}
+
+export interface TrackRequest {
+  readonly x: number;
+  readonly y: number;
+  readonly from?: number;
+  readonly to?: number;
+  readonly apply?: TrackApply;
+  readonly patch?: number;
+  readonly search?: number;
+  readonly height?: number;
 }
 
 export interface WheelValue {
@@ -322,6 +334,34 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       list: () => registry.filters().map(({ id, name, params }) => ({ id, name, params })),
     },
 
+    async track(ref: ItemRef, request: TrackRequest): Promise<FramePoint[]> {
+      const { item } = resolve(ref);
+      if (item.kind !== 'media') throw new Error('Only media clips can be tracked');
+      const asset = store.project.assets[item.source.assetId];
+      const settings = store.project.settings;
+      if (!asset?.hasVideo || !settings) throw new Error('The clip has no video');
+      const length = itemLength(item);
+      const from = Math.max(0, Math.min(length, request.from ?? 0));
+      const to = Math.max(from, Math.min(length, request.to ?? length));
+      const fps = asset.fps || settings.fps;
+      const step = item.speed / fps;
+      const times: number[] = [];
+      for (let s = item.source.in + from * item.speed; s <= item.source.in + to * item.speed + 1e-6 && times.length < 100000; s += step) times.push(s);
+      const start = frameToSource(item, asset, settings, request);
+      const samples = await session.engine.remote.track(asset.id, times, start, {
+        patch: request.patch ?? 21,
+        search: request.search ?? 16,
+        height: request.height ?? 360,
+      });
+      const current = resolve(item.id).item;
+      if (current.kind !== 'media') return [];
+      const path = trackPath(store.project, current, samples);
+      if (request.apply) {
+        const ops = applyTrack(item.id, path, request.apply, current.transform);
+        await store.transaction(() => ops.forEach((op) => apply(op)));
+      }
+      return path;
+    },
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),
       disable: (ref: ItemRef) => void apply(disableGraph(resolve(ref).item.id)),

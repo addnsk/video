@@ -1,3 +1,4 @@
+import type { MediaTrackOptions, TrackSample } from './tracking/track-media';
 import type { AssetMeta, Project } from '../core/model';
 import type { EffectDef } from '../effects/types';
 import type { Lut3D } from '../effects/cube';
@@ -66,4 +67,5 @@ export interface EngineMethods {
   setScopes(enabled: boolean): void;
   peaks(assetId: string): Promise<unknown>;
   thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;
+  track(assetId: string, times: number[], start: { x: number; y: number }, options: MediaTrackOptions): Promise<TrackSample[]>;
 }

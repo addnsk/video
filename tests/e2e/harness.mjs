@@ -24,6 +24,8 @@ const FIXTURES = {
   'vp9-1080-10s.webm': ['-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=25', '-t', '10', '-c:v', 'libvpx-vp9', '-b:v', '8M', '-deadline', 'realtime', '-cpu-used', '8'],
   'greenscreen.mov': ['-f', 'lavfi', '-i', 'color=c=0x10d020:size=640x360:rate=25', '-f', 'lavfi', '-i', 'color=c=0xd03030:size=200x200:rate=25',
     '-filter_complex', '[0][1]overlay=220:80', '-t', '1', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
+  'moving.mov': ['-f', 'lavfi', '-i', 'color=c=0x404040:size=640x360:rate=25', '-f', 'lavfi', '-i', 'testsrc2=size=100x100:rate=25',
+    '-filter_complex', "[1]trim=end_frame=1,loop=-1:1,setpts=N/25/TB[p];[0][p]overlay=x='100+t*100':y=130", '-t', '1', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
   'music.wav': ['-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=44100', '-t', '6', '-c:a', 'pcm_s16le'],
 };
 

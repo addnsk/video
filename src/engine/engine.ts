@@ -28,6 +28,7 @@ import { TextRenderer } from './text';
 import { loadFonts } from './fonts';
 import { computePeaks } from './audio/peaks';
 import { decodeThumbnails } from './media/thumbnails';
+import { trackMedia, type MediaTrackOptions, type TrackSample } from './tracking/track-media';
 
 const SCOPE_INTERVAL_MS = 120;
 
@@ -237,6 +238,12 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.thumbnailQueue = run.catch(() => undefined);
     const bitmaps = await run;
     return transfer(bitmaps, bitmaps.filter((b): b is ImageBitmap => !!b));
+  }
+
+  async track(assetId: string, times: number[], start: { x: number; y: number }, options: MediaTrackOptions): Promise<TrackSample[]> {
+    const run = this.thumbnailQueue.then(() => trackMedia(this.pool.acquire(assetId, 'master'), times, start, options));
+    this.thumbnailQueue = run.catch(() => undefined);
+    return run;
   }
 
   private viewNode: ViewNode | null = null;
