@@ -68,5 +68,7 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 
 ## Platform
 
+- Right after importing, the first playback of 4K ProRes can wait about two seconds while decoders, thumbnails and proxies start (measured with software rendering in CI).
+
 - Browser tabs have a memory ceiling of roughly 2–4 GB (less on iOS); the memory governor lowers preview resolution under pressure.
 - Needs cross-origin isolation for worker threads; on hosts without it the engine runs slower on the main thread.

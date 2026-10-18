@@ -46,7 +46,7 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 - Color management done: `effects/color-management.ts` (input spaces, `input-transform`/`output-transform` filters), `ProjectSettings.colorScience`, `AssetMeta.colorSpace`, applied in `Compositor.setProject`/`inputTransform`/`outputTransform`; filters and nodes get `toWorkingLinear`/`fromWorkingLinear`.
 - Noise reduction done: `denoise`, `temporal-denoise` nodes; `history: true` node defs keep their last output per item and node in the compositor (`histories`, governor consumer `nodeHistory`); e2e `denoise` (fixture `noisy.mov`).
 - Stills and versions done: `core/grades.ts` (capture/apply grade, versions, stills in `Project.stills`), `host/stills.ts`, engine `grabFrame`/`setCompare` (`Compositor.drawCompare`), `ui/panels/stills-panel.ts`, API `montage.stills`/`montage.versions`, e2e `stills`.
-- Phases 1 (except long-timeline stress), 2, 3 and 4 are done. Next: phase 5 (audio).
+- Phases 1–4 are done (e2e `long-timeline` covers a 3-minute 4K timeline). Next: phase 5 (audio).
 - GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
 
 ## Known issues
