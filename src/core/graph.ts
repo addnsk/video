@@ -159,6 +159,15 @@ export const updateNode = (graph: NodeGraph, id: string, patch: Partial<Omit<Gra
 
 export const nodeProperty = (nodeId: string, param: string): string => `node.${nodeId}.${param}`;
 
+export function remapNodeAnimations<T>(animations: Readonly<Record<string, T>>, ids: ReadonlyMap<string, string>): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(animations).map(([path, keys]) => {
+      const [kind, id, ...rest] = path.split('.');
+      return [kind === 'node' && ids.has(id) ? nodeProperty(ids.get(id)!, rest.join('.')) : path, keys];
+    }),
+  );
+}
+
 export const SOURCE_ID = 'source';
 export const OUTPUT_ID = 'output';
 

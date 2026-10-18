@@ -212,3 +212,29 @@ describe('tracks', () => {
     expect(track(setTrackMuted('a1', true)(base()), 'a1').muted).toBe(true);
   });
 });
+
+describe('node keyframes follow copies', () => {
+  it('split and copied grades keep node keyframes on the new node ids', async () => {
+    const { splitAt, copyEffects } = await import('../../src/core/operations');
+    const { emptyProject } = await import('../../src/core/model');
+    const base = emptyProject();
+    const item = {
+      id: 'left', kind: 'media' as const, start: 0, source: { assetId: 'x', in: 0, out: 4 }, speed: 1,
+      effects: [{ id: 'n1', type: 'blur', enabled: true, params: {} }],
+      transitionIn: null, volume: 1, opacity: 1, transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+      animations: { 'node.n1.radius': [{ t: 1, v: 0 }, { t: 3, v: 8 }], opacity: [{ t: 3, v: 1 }] },
+      presets: {}, graph: { links: [{ from: 'source', to: 'n1', input: 'source' }, { from: 'n1', to: 'output', input: 'input' }], positions: {} },
+    };
+    const other = { ...item, id: 'other', start: 4, effects: [], graph: undefined, animations: { 'node.old.radius': [{ t: 0, v: 1 }] } };
+    const project = { ...base, tracks: [{ ...base.tracks[0], items: [item, other] }, ...base.tracks.slice(1)] };
+    const split = splitAt(2, 'v1', 'right')(project);
+    const right = split.tracks[0].items.find((i) => i.id === 'right')!;
+    const rightNode = right.effects[0].id;
+    expect(rightNode).not.toBe('n1');
+    expect(Object.keys(right.animations)).toContain(`node.${rightNode}.radius`);
+    expect(right.animations[`node.${rightNode}.radius`]).toEqual([{ t: 0, v: 4 }, { t: 1, v: 8 }]);
+    const copied = copyEffects('left', ['other'])(project).tracks[0].items[1];
+    const copiedNode = copied.effects[0].id;
+    expect(Object.keys(copied.animations)).toEqual([`node.${copiedNode}.radius`]);
+  });
+});

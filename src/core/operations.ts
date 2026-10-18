@@ -17,7 +17,7 @@ import type {
   TransitionInstance,
 } from './model';
 import { DEFAULT_TEXT, IDENTITY_TRANSFORM, MAX_SPEED, MIN_SPEED, accepts, itemLength, sourceTimeAt } from './model';
-import { graphWithNode, graphWithoutNode, remapGraph } from './graph';
+import { graphWithNode, graphWithoutNode, remapGraph, remapNodeAnimations } from './graph';
 import { findPlacement, trackFrameAt } from './timeline';
 
 export type Operation = (project: Project) => Project;
@@ -58,15 +58,24 @@ function requireTrack(project: Project, trackId: string): Track {
   return track;
 }
 
-function copyEffectSet(item: Item): Pick<Item, 'effects' | 'graph'> {
+function copyEffectSet(item: Item): Pick<Item, 'effects' | 'graph'> & { ids: ReadonlyMap<string, string> } {
   const ids = new Map(item.effects.map((e) => [e.id, createId('fx')]));
   const effects = item.effects.map((e) => ({ ...e, id: ids.get(e.id)! }));
-  return item.graph ? { effects, graph: remapGraph(item.graph, ids) } : { effects };
+  return item.graph ? { effects, graph: remapGraph(item.graph, ids), ids } : { effects, ids };
 }
+
+const isNodePath = (path: string) => path.startsWith('node.');
 
 function withEffectSet(item: Item, set: Pick<Item, 'effects' | 'graph'>): Item {
   const { graph: _graph, ...rest } = item;
   return set.graph ? { ...rest, effects: set.effects, graph: set.graph } : { ...rest, effects: set.effects };
+}
+
+function copyGradeOnto(item: Item, source: Item): Item {
+  const { ids, ...set } = copyEffectSet(source);
+  const own = Object.fromEntries(Object.entries(item.animations).filter(([path]) => !isNodePath(path)));
+  const copied = remapNodeAnimations(Object.fromEntries(Object.entries(source.animations).filter(([path]) => isNodePath(path))), ids);
+  return { ...withEffectSet(item, set), animations: { ...own, ...copied } };
 }
 
 export const updateItem = (itemId: string, fn: (item: Item) => Item): Operation => (project) => mapItem(project, itemId, fn);
@@ -208,11 +217,11 @@ export const splitAt = (time: number, trackId: string, rightId = createId('item'
   if (local < MIN_LENGTH || length - local < MIN_LENGTH) return project;
   const leftAnimations = shiftAnimations(item.animations, 0, local);
   const rightAnimations = shiftAnimations(item.animations, local, length - local);
-  const copied = copyEffectSet(item);
+  const { ids, ...copied } = copyEffectSet(item);
   const { out: _out, ...leftPresets } = item.presets;
   const { in: _in, ...rightPresets } = item.presets;
   const head = { animations: leftAnimations, presets: leftPresets };
-  const tail = { id: rightId, start: layer.placement.start + local, transitionIn: null, ...copied, animations: rightAnimations, presets: rightPresets };
+  const tail = { id: rightId, start: layer.placement.start + local, transitionIn: null, ...copied, animations: remapNodeAnimations(rightAnimations, ids), presets: rightPresets };
   const [left, right]: [Item, Item] =
     item.kind === 'media'
       ? [
@@ -312,7 +321,7 @@ export const replaceEffect = (itemId: string, type: string, params: ParamValues 
 export const copyEffects = (fromId: string, toIds: readonly string[]): Operation => (project) => {
   const { item: source } = requireItem(project, fromId);
   return toIds.reduce(
-    (p, id) => (id === fromId ? p : mapItem(p, id, (item) => withEffectSet(item, copyEffectSet(source)))),
+    (p, id) => (id === fromId ? p : mapItem(p, id, (item) => copyGradeOnto(item, source))),
     project,
   );
 };

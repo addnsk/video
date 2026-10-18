@@ -1,6 +1,6 @@
-import { remapGraph } from './graph';
+import { remapGraph, remapNodeAnimations } from './graph';
 import { createId } from './ids';
-import type { Animations, GradeSnapshot, Item, Still } from './model';
+import type { GradeSnapshot, Item, Still } from './model';
 import { updateItem, type Operation } from './operations';
 
 const GRADE_PATH = /^(node|fx)\./;
@@ -10,21 +10,12 @@ export function captureGrade(item: Item): GradeSnapshot {
   return item.graph ? { effects: item.effects, graph: item.graph, animations } : { effects: item.effects, animations };
 }
 
-function remapAnimations(animations: Animations, ids: ReadonlyMap<string, string>): Animations {
-  return Object.fromEntries(
-    Object.entries(animations).map(([path, keys]) => {
-      const [kind, id, ...rest] = path.split('.');
-      return [kind === 'node' && ids.has(id) ? ['node', ids.get(id), ...rest].join('.') : path, keys];
-    }),
-  );
-}
-
 export function withGrade(item: Item, grade: GradeSnapshot): Item {
   const ids = new Map(grade.effects.map((e) => [e.id, createId('fx')]));
   const effects = grade.effects.map((e) => ({ ...e, id: ids.get(e.id)! }));
   const kept = Object.fromEntries(Object.entries(item.animations).filter(([path]) => !GRADE_PATH.test(path)));
   const { graph: _graph, ...rest } = item;
-  const animations = { ...kept, ...remapAnimations(grade.animations, ids) };
+  const animations = { ...kept, ...remapNodeAnimations(grade.animations, ids) };
   return grade.graph ? { ...rest, effects, graph: remapGraph(grade.graph, ids), animations } : { ...rest, effects, animations };
 }
 

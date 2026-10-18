@@ -487,6 +487,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     pause: () => transport.pause(),
     levels: () => transport.levels(),
 
+    project: () => JSON.parse(JSON.stringify(store.project)) as typeof store.project,
     undo: () => store.undo(),
     redo: () => store.redo(),
     batch: <T>(fn: () => T | Promise<T>) => store.transaction(fn),

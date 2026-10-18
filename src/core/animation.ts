@@ -61,11 +61,20 @@ export const removeKey = (keys: readonly Keyframe[] = [], t: number): Keyframe[]
 export const keyAt = (keys: readonly Keyframe[] | undefined, t: number): Keyframe | undefined =>
   keys?.find((k) => Math.abs(k.t - t) <= KEY_EPSILON);
 
+function boundaryKey(keys: readonly Keyframe[], t: number, at: number): Keyframe {
+  const before = keys.filter((k) => k.t < t).at(-1);
+  const v = valueAt(keys, t, 0);
+  return before?.ease && before.ease !== 'linear' ? { t: at, v, ease: before.ease } : { t: at, v };
+}
+
 export function shiftAnimations(animations: Animations, offset: number, length: number): Animations {
   const out: Record<string, Keyframe[]> = {};
   for (const [path, keys] of Object.entries(animations)) {
+    if (!keys.length) continue;
     const shifted = keys.map((k) => ({ ...k, t: k.t - offset })).filter((k) => k.t >= -KEY_EPSILON && k.t <= length + KEY_EPSILON);
-    if (shifted.length) out[path] = shifted;
+    if (keys[0].t < offset - KEY_EPSILON && !shifted.some((k) => Math.abs(k.t) <= KEY_EPSILON)) shifted.unshift(boundaryKey(keys, offset, 0));
+    if (keys[keys.length - 1].t > offset + length + KEY_EPSILON && !shifted.some((k) => Math.abs(k.t - length) <= KEY_EPSILON)) shifted.push(boundaryKey(keys, offset + length, length));
+    out[path] = shifted;
   }
   return out;
 }

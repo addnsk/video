@@ -96,7 +96,9 @@ describe('animation', () => {
   it('splits animations with the clip', () => {
     const project = sequence(setKeyframe('pip', PROPERTY.scale, 0, 1), setKeyframe('pip', PROPERTY.scale, 2, 2), splitAt(2, 'v2', 'right'))(build());
     const right = findPlacement(project, 'right')!.item;
-    expect(right.animations[PROPERTY.scale]).toEqual([{ t: 1, v: 2 }]);
+    expect(right.animations[PROPERTY.scale]).toEqual([{ t: 0, v: 1.5 }, { t: 1, v: 2 }]);
+    const left = findPlacement(project, 'pip')!.item;
+    expect(left.animations[PROPERTY.scale].at(-1)!.v).toBeCloseTo(1.5);
   });
 });
 

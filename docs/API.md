@@ -372,6 +372,7 @@ montage.pause();
 montage.rate;
 montage.levels();                                // output peak per channel while playing, 0–1
 
+montage.project();                           // a deep copy of the whole project model (JSON)
 montage.undo();
 montage.redo();
 await montage.batch(async () => { /* several edits, one undo step */ });
