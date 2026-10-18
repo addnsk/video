@@ -180,10 +180,11 @@ montage.graph.set(0, merge, { opacity: 0.8 });
 montage.graph.keyframe(0, merge, 'opacity', 0, 0);
 montage.graph.toggle(0, merge, false);
 montage.graph.get(0);                                    // { editable, nodes, links }
+montage.graph.view(0, merge);                            // show one node's result in the viewer; view(null) returns to the output
 montage.graph.disable(0);                                // back to the plain effect chain
 ```
 
-Built-in nodes: `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `blur`, `glow`, `crop`, `invert`, `background`, `gradient`, `ellipse-mask`, `rectangle-mask`, plus every color filter.
+Built-in nodes: `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `blur`, `glow`, `crop`, `invert`, `background`, `gradient`, `ellipse-mask`, `rectangle-mask`, plus every color filter.
 
 Custom nodes are GLSL with any number of inputs and passes. Each pass defines `vec4 process(vec2 uv)` and can call `input_<name>(uv)`, `has_<name>()`, `previous(uv)` (the previous pass), `texel()` and `aspect()`. Values are not clamped, so highlights above 1.0 survive to HDR export.
 

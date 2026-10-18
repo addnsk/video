@@ -14,7 +14,7 @@ import { ExportCanceled, exportProject, type ExportSettings } from './export/exp
 import { fileHandleSink, storageSink } from './export/sinks';
 import { SequentialFrames, StillFrames } from './frames';
 import { GpuContext } from './gpu/context';
-import { Compositor } from './gpu/compositor';
+import { Compositor, type ViewNode } from './gpu/compositor';
 import { MediaPool } from './media/media-pool';
 import { probe } from './media/probe';
 import { buildProxy, findProxy } from './media/proxy';
@@ -236,6 +236,13 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     return transfer(bitmaps, bitmaps.filter((b): b is ImageBitmap => !!b));
   }
 
+  private viewNode: ViewNode | null = null;
+
+  setViewNode(target: ViewNode | null): void {
+    this.viewNode = target;
+    this.redraw();
+  }
+
   setScopes(enabled: boolean): void {
     this.scopesEnabled = enabled;
     this.lastScope = 0;
@@ -340,7 +347,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     }
     metrics.time('still.load', performance.now() - started);
     const renderStart = performance.now();
-    this.compositor.render(frame, images, { bypassFilters: request.bypass, capture: this.captureOption(true) });
+    this.compositor.render(frame, images, { bypassFilters: request.bypass, capture: this.captureOption(true), viewNode: this.viewNode });
     metrics.time('still.render', performance.now() - renderStart);
     metrics.time('still.total', performance.now() - started);
     this.governor.check();
@@ -370,7 +377,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       if (generation !== this.generation || !images) return;
       metrics.time('playback.load', performance.now() - loadStart);
       const renderStart = performance.now();
-      this.compositor.render(frame, images, { bypassFilters: playback.bypass, capture: this.captureOption(false) });
+      this.compositor.render(frame, images, { bypassFilters: playback.bypass, capture: this.captureOption(false), viewNode: this.viewNode });
       metrics.time('playback.render', performance.now() - renderStart);
       const fps = this.project.settings?.fps ?? 25;
       const index = Math.floor(time * fps);

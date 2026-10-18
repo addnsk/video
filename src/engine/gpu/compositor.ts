@@ -24,8 +24,14 @@ export interface FullFrame {
   readonly overBlack: true;
 }
 
+export interface ViewNode {
+  readonly itemId: string;
+  readonly nodeId: string;
+}
+
 export interface RenderOptions {
   readonly bypassFilters?: boolean;
+  readonly viewNode?: ViewNode | null;
   readonly capture?: (pixels: Uint8Array, width: number, height: number) => void;
   readonly readback?: (frame: FullFrame) => void;
 }
@@ -150,7 +156,8 @@ export class Compositor {
     if (options.bypassFilters) return source();
     const registry = this.registry;
     const graph = materialize(resolved.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
-    return renderGraph<RenderTarget>(graph, OUTPUT_ID, registry, {
+    const viewed = options.viewNode?.itemId === item.id && graph.nodes.some((n) => n.id === options.viewNode!.nodeId) ? options.viewNode.nodeId : OUTPUT_ID;
+    return renderGraph<RenderTarget>(graph, viewed, registry, {
       source,
       filter: (_def, effect, input) => this.applyFilter(effect, input),
       node: (def, params, inputs) => this.renderNode(def, params, inputs),
@@ -318,6 +325,7 @@ export class Compositor {
           const arr = (Array.isArray(value) ? value : [Number(value)]) as number[];
           if (spec.type === 'vec2') gl.uniform2fv(loc, arr);
           else if (spec.type === 'vec3') gl.uniform3fv(loc, arr);
+          else if (spec.type === 'color') gl.uniform4fv(loc, arr.length === 4 ? arr : [...arr, 1, 1, 1, 1].slice(0, 4));
           else gl.uniform4fv(loc, arr);
         }
       }

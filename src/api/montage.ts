@@ -346,6 +346,8 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       remove: (ref: ItemRef, nodeId: string) => void apply(removeGraphNode(resolve(ref).item.id, nodeId)),
       set: (ref: ItemRef, nodeId: string, params: Record<string, ParamValue>) => void apply(setNodeParams(resolve(ref).item.id, nodeId, params), `node:${nodeId}`),
       toggle: (ref: ItemRef, nodeId: string, enabled: boolean) => void apply(setNodeEnabled(resolve(ref).item.id, nodeId, enabled)),
+      view: (ref: ItemRef | null, nodeId: string | null = null) =>
+        session.viewNode(ref === null || nodeId === null ? null : { itemId: resolve(ref).item.id, nodeId }),
       move: (ref: ItemRef, nodeId: string, position: [number, number]) => void apply(moveGraphNode(resolve(ref).item.id, nodeId, position)),
       keyframe: (ref: ItemRef, nodeId: string, param: string, time: number, value: number) =>
         void apply(setKeyframe(resolve(ref).item.id, nodeProperty(nodeId, param), time, value)),

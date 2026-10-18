@@ -2,7 +2,7 @@ import type { NodeDef, ParamSpec } from '../types';
 
 const float = (name: string, label: string, value: number, min: number, max: number, step = 0.01): ParamSpec => ({ name, label, type: 'float', default: value, min, max, step });
 const vec2 = (name: string, label: string, value: [number, number]): ParamSpec => ({ name, label, type: 'vec2', default: value, step: 0.01 });
-const color = (name: string, label: string, value: [number, number, number, number]): ParamSpec => ({ name, label, type: 'vec4', default: value, step: 0.01 });
+const color = (name: string, label: string, value: [number, number, number, number]): ParamSpec => ({ name, label, type: 'color', default: value });
 
 const BLUR_TAPS = `
 const int MAX_TAPS = 64;
@@ -148,7 +148,7 @@ export const BACKGROUND: NodeDef = {
   name: 'Background',
   category: 'generator',
   inputs: [],
-  params: [color('color', 'Color (RGBA)', [0, 0, 0, 1])],
+  params: [color('color', 'Color', [0, 0, 0, 1])],
   passes: [{ glsl: 'vec4 process(vec2 uv) { return color; }' }],
 };
 
@@ -240,4 +240,43 @@ export const INVERT: NodeDef = {
   passes: [{ glsl: 'vec4 process(vec2 uv) { vec4 c = input_source(uv); return vec4(1.0 - c.rgb, c.a); }' }],
 };
 
-export const BUILTIN_NODES: readonly NodeDef[] = [MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];
+export const KEYER: NodeDef = {
+  kind: 'node',
+  id: 'keyer',
+  name: 'Chroma key',
+  category: 'mask',
+  inputs: [{ name: 'source', label: 'Input' }, { name: 'garbage', label: 'Garbage mask' }],
+  params: [
+    color('key', 'Key color', [0, 1, 0, 1]),
+    float('tolerance', 'Tolerance', 0.12, 0, 1),
+    float('softness', 'Softness', 0.08, 0, 1),
+    float('spill', 'Spill removal', 0.6, 0, 1),
+    float('choke', 'Choke', 0, -1, 1),
+    { name: 'matte', label: 'Show matte', type: 'bool', default: false },
+  ],
+  passes: [
+    {
+      glsl: `
+vec2 chroma(vec3 c) {
+  float y = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  return vec2((c.b - y) / 1.8556, (c.r - y) / 1.5748);
+}
+vec4 process(vec2 uv) {
+  vec4 c = input_source(uv);
+  float d = distance(chroma(c.rgb), chroma(key.rgb));
+  float lo = tolerance;
+  float alpha = smoothstep(lo, lo + max(softness, 1e-4), d);
+  alpha = clamp(alpha + choke * (alpha * (1.0 - alpha)) * 4.0, 0.0, 1.0);
+  if (has_garbage()) alpha *= input_garbage(uv).a;
+  vec3 rgb = c.rgb;
+  if (key.g >= key.r && key.g >= key.b) rgb.g = mix(rgb.g, min(rgb.g, max(rgb.r, rgb.b)), spill);
+  else if (key.b >= key.r) rgb.b = mix(rgb.b, min(rgb.b, max(rgb.r, rgb.g)), spill);
+  else rgb.r = mix(rgb.r, min(rgb.r, max(rgb.g, rgb.b)), spill);
+  if (matte) return vec4(vec3(alpha * c.a), 1.0);
+  return vec4(rgb, c.a * alpha);
+}`,
+    },
+  ],
+};
+
+export const BUILTIN_NODES: readonly NodeDef[] = [KEYER, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];

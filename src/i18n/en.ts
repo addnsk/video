@@ -133,6 +133,7 @@ export const en = {
   viewNodes: 'Nodes',
   nodesAdd: '+ Node',
   nodesFit: 'Fit graph',
+  viewingNode: 'Viewing {name} · click to show the output',
   nodesHint: 'Select a video clip or title to see its node graph.',
   nodesSelect: 'Select a node to edit it. Drag from an output dot to an input dot to connect.',
   nodesSource: 'Clip',

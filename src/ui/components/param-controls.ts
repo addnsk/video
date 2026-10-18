@@ -42,6 +42,29 @@ export class ParamControls {
       select.value = String(value);
       return h('label', { class: 'field' }, label, select);
     }
+    if (spec.type === 'color') {
+      const rgba = (Array.isArray(value) ? value : spec.default) as number[];
+      const hex = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0');
+      const picker = h('input', { type: 'color', id, value: `#${hex(rgba[0])}${hex(rgba[1])}${hex(rgba[2])}` });
+      const alpha = new Slider({
+        id: `${id}-alpha`,
+        label: 'Alpha',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        value: rgba[3] ?? 1,
+        neutral: 1,
+        onInput: (a) => commit(a),
+      });
+      const commit = (a = Number(rgba[3] ?? 1)) => {
+        const v = picker.value;
+        const next = [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16) / 255);
+        rgba.splice(0, 4, ...next, a);
+        onChange([...rgba]);
+      };
+      picker.addEventListener('input', () => commit());
+      return h('div', { class: 'color-param' }, h('label', { class: 'check' }, picker, h('span', {}, label)), alpha.element);
+    }
     if (spec.type === 'vec2' || spec.type === 'vec3' || spec.type === 'vec4') {
       const arr = (Array.isArray(value) ? value : [value]) as number[];
       const group = h('div', { class: 'vector' }, h('span', {}, label));

@@ -130,6 +130,32 @@ export default {
     await editor.page.click('#view-timeline');
     checks.check(await editor.page.isVisible('#timeline'), 'switching back shows the timeline');
 
+    await editor.import([fixture('greenscreen.mov')], 3);
+    await editor.until(() => montage.clips().length === 3);
+    const keyTime = await editor.run(() => montage.clip(2).start + 0.5);
+    const key = await editor.run(() => montage.batch(() => {
+      const bg = montage.graph.add(2, 'background', { color: [0, 0, 1, 1] });
+      const keyer = montage.graph.add(2, 'keyer', { key: [0.063, 0.816, 0.125, 1] });
+      const merge = montage.graph.add(2, 'merge');
+      montage.graph.connect(2, 'source', keyer);
+      montage.graph.connect(2, bg, merge, 'background');
+      montage.graph.connect(2, keyer, merge, 'foreground');
+      montage.graph.connect(2, merge, 'output');
+      return keyer;
+    }));
+    const subject = await color(CENTER, keyTime);
+    const screen = await color(EDGE, keyTime);
+    checks.check(subject[0] > 150 && subject[1] < 80 && screen[2] > 200 && screen[1] < 60, `chroma key removes the green screen (subject ${fmt(subject)}, screen ${fmt(screen)})`);
+    await editor.run((id) => montage.graph.view(2, id), key);
+    await editor.run((id) => montage.graph.set(2, id, { matte: true }), key);
+    const matte = await color(EDGE, keyTime);
+    const solid = await color(CENTER, keyTime);
+    checks.check(matte[0] < 30 && solid[0] > 220, `viewing the keyer shows its matte (${fmt(matte)} / ${fmt(solid)})`);
+    checks.check(await editor.page.isVisible('#viewing-node'), 'viewer shows which node is displayed');
+    await editor.run((id) => montage.graph.set(2, id, { matte: false }), key);
+    await editor.page.click('#viewing-node');
+    checks.check((await color(EDGE, keyTime))[2] > 200, 'leaving node view shows the output again');
+
     const stats = await editor.stats();
     checks.check((stats.resources.framebuffer?.live ?? 0) <= 12, `render targets stay pooled (${stats.resources.framebuffer?.live})`);
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);

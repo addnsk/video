@@ -112,6 +112,14 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
 
   const nodeEditor = new NodeEditor(session, selection);
+  const viewing = h('button', { class: 'viewing', id: 'viewing-node', hidden: true, onClick: () => session.viewNode(null) });
+  screen.append(viewing);
+  session.on('view', (target) => {
+    viewing.hidden = !target;
+    if (!target) return;
+    const effect = findPlacement(store.project, target.itemId)?.item.effects.find((e) => e.id === target.nodeId);
+    viewing.textContent = t('viewingNode', { name: effect ? (session.registry.get(effect.type)?.name ?? effect.type) : t('nodesSource') });
+  });
   const timelinePane = h('div', { class: 'timeline-pane' }, timelineTools, timelineCanvas);
   const viewTabs = h('div', { class: 'view-tabs', role: 'tablist' });
   const showView = (view: 'timeline' | 'nodes') => {

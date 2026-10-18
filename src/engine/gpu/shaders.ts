@@ -48,6 +48,7 @@ const GLSL_TYPES: Record<string, string> = {
   vec3: 'vec3',
   vec4: 'vec4',
   enum: 'int',
+  color: 'vec4',
 };
 
 function uniformDeclaration(spec: ParamSpec): string {

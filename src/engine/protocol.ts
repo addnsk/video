@@ -4,6 +4,7 @@ import type { Lut3D } from '../effects/cube';
 import type { DeviceInfo, MemoryBudget } from './device';
 import type { ExportSettings } from './export/exporter';
 import type { EngineCapabilities } from './capabilities';
+import type { ViewNode } from './gpu/compositor';
 import type { MemoryGovernor, Pressure } from './memory';
 import type { MetricsSnapshot } from './metrics';
 import type { ScopeData } from './scopes';
@@ -61,6 +62,7 @@ export interface EngineMethods {
   stats(): EngineStats;
   resetMetrics(): void;
   capabilities(): Promise<EngineCapabilities>;
+  setViewNode(target: ViewNode | null): void;
   setScopes(enabled: boolean): void;
   peaks(assetId: string): Promise<unknown>;
   thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;

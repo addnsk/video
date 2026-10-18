@@ -65,6 +65,16 @@ export class NodeEditor {
     this.canvas.addEventListener('pointerup', (e) => this.up(e));
     this.canvas.addEventListener('pointercancel', () => (this.drag = null));
     this.canvas.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
+    this.canvas.addEventListener('dblclick', (e) => {
+      const r = this.canvas.getBoundingClientRect();
+      const hit = hitTest(this.boxes, e.clientX - r.left, e.clientY - r.top, this.view.zoom);
+      const item = this.item;
+      if (hit.kind !== 'node' || !item) return;
+      const current = this.session.viewedNode;
+      const same = current?.itemId === item.id && current.nodeId === hit.box.node.id;
+      this.session.viewNode(same || hit.box.node.type === OUTPUT_NODE ? null : { itemId: item.id, nodeId: hit.box.node.id });
+    });
+    session.on('view', () => this.draw());
     this.canvas.addEventListener('keydown', (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
@@ -318,9 +328,12 @@ export class NodeEditor {
       g.beginPath();
       g.roundRect(box.x, box.y, box.width, box.height, 6 * z);
       g.fill();
-      g.strokeStyle = this.color(selected ? '--accent' : '--line');
-      g.lineWidth = selected ? 2 : 1;
+      const viewed = this.session.viewedNode?.itemId === item.id && this.session.viewedNode.nodeId === box.node.id;
+      g.strokeStyle = this.color(selected || viewed ? '--accent' : '--line');
+      g.lineWidth = selected || viewed ? 2 : 1;
+      if (viewed) g.setLineDash([6, 3]);
       g.stroke();
+      g.setLineDash([]);
       g.fillStyle = this.color('--fg');
       g.font = `600 ${Math.round(12 * z)}px "IBM Plex Sans", system-ui, sans-serif`;
       g.textBaseline = 'middle';

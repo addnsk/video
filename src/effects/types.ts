@@ -34,7 +34,12 @@ export interface CurveParamSpec extends ParamSpecBase {
   readonly periodic?: boolean;
 }
 
-export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec | CurveParamSpec;
+export interface ColorParamSpec extends ParamSpecBase {
+  readonly type: 'color';
+  readonly default: readonly [number, number, number, number];
+}
+
+export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec | CurveParamSpec | ColorParamSpec;
 
 export interface FilterDef {
   readonly kind: 'filter';

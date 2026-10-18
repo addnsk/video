@@ -27,6 +27,7 @@ export interface SessionEvents extends Record<string, unknown> {
   imported: { meta: AssetMeta; file: File; handle?: FileSystemFileHandle };
   peaks: string;
   thumbnails: string;
+  view: { itemId: string; nodeId: string } | null;
   error: string;
 }
 
@@ -201,6 +202,14 @@ export class EditorSession extends Emitter<SessionEvents> {
     const times = Array.from({ length: count }, (_, i) => meta.start + (i + 0.5) * interval);
     const frames = (await this.engine.remote.thumbnails(assetId, times, THUMBNAIL_HEIGHT)) as (ImageBitmap | null)[];
     return { start: meta.start, interval, frames };
+  }
+
+  viewedNode: { itemId: string; nodeId: string } | null = null;
+
+  viewNode(target: { itemId: string; nodeId: string } | null): void {
+    this.viewedNode = target;
+    void this.engine.remote.setViewNode(target);
+    this.emit('view', target);
   }
 
   platform(): Promise<PlatformReport> {
