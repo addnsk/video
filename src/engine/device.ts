@@ -10,6 +10,7 @@ export interface MemoryBudget {
   readonly audioWindowSeconds: number;
   readonly exportChunkBytes: number;
   readonly encoderThreads: number;
+  readonly memoryLimitBytes: number;
 }
 
 export interface DeviceInfo {
@@ -45,6 +46,7 @@ export function budgetFor(device: DeviceInfo): MemoryBudget {
       audioWindowSeconds: 1,
       exportChunkBytes: 4 * MB,
       encoderThreads: Math.min(2, Math.max(1, device.cores - 1)),
+      memoryLimitBytes: 384 * MB,
     };
   }
   if (device.touch || memory <= 4) {
@@ -58,6 +60,7 @@ export function budgetFor(device: DeviceInfo): MemoryBudget {
       audioWindowSeconds: 1,
       exportChunkBytes: 8 * MB,
       encoderThreads: Math.min(3, Math.max(1, device.cores - 1)),
+      memoryLimitBytes: 768 * MB,
     };
   }
   return {
@@ -70,5 +73,6 @@ export function budgetFor(device: DeviceInfo): MemoryBudget {
     audioWindowSeconds: 1,
     exportChunkBytes: 16 * MB,
     encoderThreads: Math.min(6, Math.max(1, device.cores - 1)),
+    memoryLimitBytes: 2048 * MB,
   };
 }

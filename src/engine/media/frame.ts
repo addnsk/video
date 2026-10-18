@@ -13,8 +13,11 @@ export interface OwnedFrame extends FrameImage {
   release(): void;
 }
 
+export const sampleBytes = (sample: { displayWidth: number; displayHeight: number }): number => Math.round(sample.displayWidth * sample.displayHeight * 1.5);
+
 export function frameFromSample(sample: VideoSample, key: string): OwnedFrame {
-  resources.acquire('videoSample');
+  const bytes = sampleBytes(sample);
+  resources.acquire('videoSample', bytes);
   let released = false;
   return {
     source: sample.toCanvasImageSource(),
@@ -26,7 +29,7 @@ export function frameFromSample(sample: VideoSample, key: string): OwnedFrame {
       if (released) return;
       released = true;
       sample.close();
-      resources.release('videoSample');
+      resources.release('videoSample', bytes);
     },
   };
 }

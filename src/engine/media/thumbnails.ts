@@ -1,4 +1,5 @@
 import { resources } from '../resources';
+import { sampleBytes } from './frame';
 import type { MediaFile } from './media-file';
 
 export async function decodeThumbnails(media: MediaFile, times: readonly number[], height: number): Promise<(ImageBitmap | null)[]> {
@@ -12,7 +13,8 @@ export async function decodeThumbnails(media: MediaFile, times: readonly number[
         out.push(null);
         continue;
       }
-      resources.acquire('videoSample');
+      const bytes = sampleBytes(sample);
+      resources.acquire('videoSample', bytes);
       try {
         const width = Math.max(2, Math.round((sample.displayWidth * height) / sample.displayHeight));
         out.push(await createImageBitmap(sample.toCanvasImageSource() as ImageBitmapSource, { resizeWidth: width, resizeHeight: height, resizeQuality: 'low' }));
@@ -20,7 +22,7 @@ export async function decodeThumbnails(media: MediaFile, times: readonly number[
         out.push(null);
       } finally {
         sample.close();
-        resources.release('videoSample');
+        resources.release('videoSample', bytes);
       }
     }
     return out;

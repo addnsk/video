@@ -19,6 +19,7 @@ import { MediaPool } from './media/media-pool';
 import { probe } from './media/probe';
 import { buildProxy, findProxy } from './media/proxy';
 import type { ClockAnchor, EngineEvents, EngineInit, EngineMethods, EngineStats, ExportTarget } from './protocol';
+import { MemoryGovernor } from './memory';
 import { metrics } from './metrics';
 import { resources } from './resources';
 import { analyze } from './scopes';
@@ -71,6 +72,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private stills!: StillFrames;
   private text = new TextRenderer();
   private peakCache = new Map<string, Promise<Float32Array>>();
+  private governor!: MemoryGovernor;
   private thumbnailQueue: Promise<unknown> = Promise.resolve();
   private gpu: GpuContext | null = null;
   private compositor: Compositor | null = null;
@@ -96,6 +98,14 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.mixer = new AudioMixer(this.pool);
     this.stills = new StillFrames(this.pool, this.text, this.budget);
     this.stills.isStale = () => this.stillQueue.latest !== null || !!this.playback;
+    this.governor = new MemoryGovernor(this.budget.memoryLimitBytes, () => resources.total());
+    this.governor.register({ name: 'stillCache', bytes: () => this.stills.cachedBytes, trim: (keep) => this.stills.trim(keep) });
+    this.governor.register({ name: 'idleTargets', bytes: () => this.compositor?.idleTargetBytes ?? 0, trim: () => this.compositor?.trimIdle() });
+    this.governor.on('pressure', ({ level, bytes, limit }) => {
+      this.stills.previewScale = this.governor.previewScale;
+      metrics.count(`memory.${level}`);
+      this.emit('memory', { level, bytes, limit });
+    });
     void loadFonts(fonts).then(() => {
       this.text.clear();
       this.redraw();
@@ -249,6 +259,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       frameCacheBytes: this.stills?.cachedBytes ?? 0,
       floatTargets: this.gpu?.floatTargets ?? false,
       metrics: metrics.snapshot(),
+      memory: this.governor?.report() ?? null,
     };
   }
 
@@ -323,6 +334,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.compositor.render(frame, images, { bypassFilters: request.bypass, capture: this.captureOption(true) });
     metrics.time('still.render', performance.now() - renderStart);
     metrics.time('still.total', performance.now() - started);
+    this.governor.check();
     request.done(true);
   }
 
@@ -356,6 +368,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       if (playback.lastFrame !== null && index > playback.lastFrame + 1) metrics.count('playback.dropped', index - playback.lastFrame - 1);
       if (index !== playback.lastFrame) metrics.count('playback.presented');
       playback.lastFrame = index;
+      if (index % 12 === 0) this.governor.check();
       metrics.time('playback.lateness', Math.max(0, (epochNow() - anchor.epochMs) / 1000 * anchor.rate + anchor.time - time) * 1000);
       this.lastStill = { time: Math.min(time, duration), bypass: playback.bypass };
     } finally {

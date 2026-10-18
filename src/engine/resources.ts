@@ -17,6 +17,10 @@ export class ResourceTracker {
     this.bytes.set(kind, (this.bytes.get(kind) ?? 0) - size);
   }
 
+  total(kinds: readonly ResourceKind[] = ['videoSample', 'bitmap', 'texture', 'framebuffer', 'audioSample']): number {
+    return kinds.reduce((sum, kind) => sum + (this.bytes.get(kind) ?? 0), 0);
+  }
+
   snapshot(): Record<string, { live: number; peak: number; bytes: number }> {
     const out: Record<string, { live: number; peak: number; bytes: number }> = {};
     for (const [kind, live] of this.live) out[kind] = { live, peak: this.peak.get(kind) ?? 0, bytes: this.bytes.get(kind) ?? 0 };

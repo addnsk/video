@@ -50,6 +50,12 @@ export class TargetPool {
     list.push(target);
   }
 
+  get idleBytes(): number {
+    let bytes = 0;
+    for (const list of this.free.values()) for (const t of list) bytes += t.width * t.height * bytesPerPixel(this.ctx.floatTargets);
+    return bytes;
+  }
+
   trim(): void {
     const gl = this.ctx.gl;
     for (const list of this.free.values())

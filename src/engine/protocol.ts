@@ -3,6 +3,7 @@ import type { EffectDef } from '../effects/types';
 import type { Lut3D } from '../effects/cube';
 import type { DeviceInfo, MemoryBudget } from './device';
 import type { ExportSettings } from './export/exporter';
+import type { MemoryGovernor, Pressure } from './memory';
 import type { MetricsSnapshot } from './metrics';
 import type { ScopeData } from './scopes';
 import type { FontSource } from './fonts';
@@ -21,6 +22,7 @@ export interface EngineStats {
   readonly frameCacheBytes: number;
   readonly floatTargets: boolean;
   readonly metrics: MetricsSnapshot;
+  readonly memory: ReturnType<MemoryGovernor['report']> | null;
 }
 
 export type TaskKind = 'export' | 'proxy';
@@ -31,6 +33,7 @@ export interface EngineEvents extends Record<string, unknown> {
   error: { message: string; stack?: string };
   context: { state: 'lost' | 'restored' };
   scopes: ScopeData;
+  memory: { level: Pressure; bytes: number; limit: number };
 }
 
 export interface EngineInit {

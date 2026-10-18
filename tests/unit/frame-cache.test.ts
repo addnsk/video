@@ -48,6 +48,16 @@ describe('FrameCache', () => {
     expect(released).toEqual(['a1', 'x']);
   });
 
+  it('trims down to a byte target, keeping pinned frames', () => {
+    released.length = 0;
+    const cache = new FrameCache(unit * 4);
+    for (const k of ['a', 'b', 'c', 'd']) cache.put(k, frame(k));
+    cache.trim(unit, new Set(['a']));
+    expect(released).toEqual(['b', 'c', 'd']);
+    expect(cache.size).toBe(unit);
+    expect(cache.capacityBytes).toBe(unit * 4);
+  });
+
   it('clear releases everything', () => {
     released.length = 0;
     const cache = new FrameCache(unit * 4);

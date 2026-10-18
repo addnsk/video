@@ -331,6 +331,14 @@ export class Compositor {
     return { data, width: this.width, height: this.height, scale: float ? 1 : 1 / 255, bottomUp: true, overBlack: true };
   }
 
+  get idleTargetBytes(): number {
+    return this.targets.idleBytes;
+  }
+
+  trimIdle(): void {
+    this.targets.trim();
+  }
+
   dispose(): void {
     this.fullFrame = null;
     for (const upload of this.uploads.values()) upload.dispose();

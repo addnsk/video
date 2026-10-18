@@ -31,6 +31,17 @@ export class FrameCache {
     }
   }
 
+  trim(keepBytes: number, pinned: ReadonlySet<string> = new Set()): void {
+    for (const [key, frame] of this.entries) {
+      if (this.bytes <= keepBytes) return;
+      if (!pinned.has(key)) this.remove(key, frame);
+    }
+  }
+
+  get capacityBytes(): number {
+    return this.capacity;
+  }
+
   clear(): void {
     for (const [key, frame] of this.entries) this.remove(key, frame);
   }

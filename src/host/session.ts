@@ -85,6 +85,10 @@ export class EditorSession extends Emitter<SessionEvents> {
       this.log.record('error', 'engine', message, stack);
       this.emit('error', message);
     });
+    engine.events.on('memory', ({ level, bytes, limit }) => {
+      const mb = (n: number) => Math.round(n / 1048576);
+      this.log.record(level === 'normal' ? 'info' : 'warning', 'engine', `Memory ${level}: ${mb(bytes)} of ${mb(limit)} MB`);
+    });
     engine.events.on('proxy', ({ assetId, state, message }) => {
       this.proxies.set(assetId, { state, fraction: state === 'ready' ? 1 : 0 });
       this.emit('proxy', { assetId, state, fraction: state === 'ready' ? 1 : 0 });

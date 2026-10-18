@@ -1,6 +1,6 @@
 import type { VideoSample } from 'mediabunny';
 import type { MediaFile } from './media-file';
-import { frameFromSample, type FrameImage, type OwnedFrame } from './frame';
+import { frameFromSample, sampleBytes, type FrameImage, type OwnedFrame } from './frame';
 import { resources } from '../resources';
 
 const EPSILON = 1e-4;
@@ -59,8 +59,8 @@ export class SequentialReader {
 
   private drop(sample: VideoSample | null) {
     if (!sample) return;
+    resources.release('videoSample', sampleBytes(sample));
     sample.close();
-    resources.release('videoSample');
   }
 
   private async pull() {
@@ -68,7 +68,7 @@ export class SequentialReader {
     const next = await this.iterator.next();
     if (next.done) this.finished = true;
     else {
-      resources.acquire('videoSample');
+      resources.acquire('videoSample', sampleBytes(next.value));
       this.upcoming = next.value;
     }
   }

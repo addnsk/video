@@ -87,7 +87,7 @@ export class StillFrames extends LayeredSource {
     if (cached) return cached;
     const raw = await readStill(this.pool.acquire(assetId, quality), layer.sourceTime, `${assetId}:${quality}`);
     if (!raw) return null;
-    const small = await downscale(raw, this.budget.previewMaxHeight);
+    const small = await downscale(raw, Math.round(this.budget.previewMaxHeight * this.previewScale));
     const keyed: OwnedFrame = { ...small, key, release: () => small.release() };
     this.cache.put(key, keyed, this.pinned);
     return keyed;
@@ -96,6 +96,12 @@ export class StillFrames extends LayeredSource {
   close(): void {
     this.cache.clear();
   }
+
+  trim(keepFraction: number): void {
+    this.cache.trim(this.cache.capacityBytes * keepFraction, this.pinned);
+  }
+
+  previewScale = 1;
 
   get cachedBytes(): number {
     return this.cache.size;

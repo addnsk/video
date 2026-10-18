@@ -19,6 +19,10 @@ describe('device budgets', () => {
     expect(mobile.frameCacheBytes).toBeGreaterThan(constrained.frameCacheBytes);
     expect(constrained.previewMaxHeight).toBeLessThanOrEqual(mobile.previewMaxHeight);
     expect(constrained.maxOpenSources).toBeLessThan(desktop.maxOpenSources);
+    expect(constrained.memoryLimitBytes).toBeLessThan(mobile.memoryLimitBytes);
+    expect(mobile.memoryLimitBytes).toBeLessThan(desktop.memoryLimitBytes);
+    expect(desktop.frameCacheBytes).toBeLessThan(desktop.memoryLimitBytes / 2);
+    expect(constrained.encoderThreads).toBeLessThanOrEqual(desktop.encoderThreads);
   });
 
   it('detects iPadOS posing as Mac', () => {
