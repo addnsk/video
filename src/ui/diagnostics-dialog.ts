@@ -65,7 +65,7 @@ export function openDiagnostics(session: EditorSession): void {
 }
 
 export function diagnosticsButton(session: EditorSession): HTMLElement {
-  const badge = h('span', { class: 'badge', hidden: true });
+  const badge = h('span', { class: 'count', hidden: true });
   const button = h('button', { class: 'btn', id: 'diagnostics', title: t('diagnosticsTitle'), onClick: () => openDiagnostics(session) }, t('diagnosticsButton'), badge);
   const sync = () => {
     const count = session.log.errorCount;

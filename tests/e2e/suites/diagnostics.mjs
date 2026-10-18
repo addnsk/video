@@ -22,7 +22,7 @@ export default {
     await editor.run(() => setTimeout(() => { throw new Error('stray failure'); }));
     await editor.until(() => montage.diagnostics.entries().some((e) => e.source === 'ui'));
     checks.check(true, 'script errors and uncaught exceptions are logged');
-    checks.check((await editor.page.textContent('#diagnostics .badge')) === '3', 'the log button counts errors');
+    checks.check((await editor.page.textContent('#diagnostics .count')) === '3', 'the log button counts errors');
 
     await editor.page.click('#diagnostics');
     const items = await editor.page.locator('#log-list li').count();
@@ -39,7 +39,7 @@ export default {
     checks.check(persisted === 3, `log survives a reload (${persisted})`);
     await editor.page.click('#diagnostics');
     await editor.page.click('#log-clear');
-    checks.check(await editor.page.isHidden('#diagnostics .badge'), 'clearing resets the badge');
+    checks.check(await editor.page.isHidden('#diagnostics .count'), 'clearing resets the badge');
     await editor.close();
   },
 };

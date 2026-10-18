@@ -163,7 +163,7 @@ select {
 .audio-effect.active summary::after { content: " ●"; color: var(--accent); }
 .audio-effect[open] { display: grid; gap: 6px; }
 .audio-effect .btn { justify-self: start; }
-.badge {
+.count {
   display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px;
   background: var(--danger); color: var(--bg); font: 600 11px/18px var(--font-mono); text-align: center;
 }
@@ -276,3 +276,4 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; 
 textarea.plain { min-height: 64px; white-space: pre-wrap; font-family: var(--font-ui); font-size: 13px; }
 input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: transparent; }
 .panel.disabled .keyed { opacity: 0.4; pointer-events: none; }
+.bar .language { width: auto; flex: 0 0 auto; padding-right: 28px; }

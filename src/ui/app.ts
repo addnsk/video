@@ -5,6 +5,7 @@ import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
 import type { ProjectPersistence } from '../host/persistence/project-persistence';
 import type { EditorSession } from '../host/session';
 import { LevelMeter } from './components/level-meter';
+import { languageSelect } from './components/language-select';
 import { offlineBanner } from './components/offline-banner';
 import { projectMenu } from './project-menu';
 import { t } from '../i18n';
@@ -47,6 +48,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     projectMenu(session, persistence),
     h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, t('import')),
     exportButton,
+    languageSelect(),
   );
 
   const info = h('div', { class: 'info' });

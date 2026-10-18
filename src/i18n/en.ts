@@ -1,5 +1,7 @@
 export const en = {
   appName: 'Montage',
+  language: 'Language',
+  languageName: 'English',
   tagline: 'ProRes · color · in the browser',
   import: 'Import',
   export: 'Export',
@@ -57,7 +59,7 @@ export const en = {
   scriptError: 'Error: {message}',
   opening: 'Opening "{name}"…',
   added: 'Added {name}',
-  exportTitle: 'Export to MP4',
+  exportTitle: 'Export',
   resolution: 'Resolution',
   sourceResolution: 'Source ({width}×{height})',
   quality: 'Quality',

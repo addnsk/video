@@ -50,6 +50,14 @@ export default {
 
     await editor.run(() => montage.undo());
     checks.check((await editor.run(snapshot)) === before, 'opening a project starts a fresh history');
+    await editor.page.selectOption('#language', 'ru');
+    await editor.page.waitForLoadState('load');
+    await editor.ready();
+    checks.check((await editor.page.textContent('#import')) !== 'Import' && (await editor.page.getAttribute('html', 'lang')) === 'ru', 'switching the language relabels the UI after reload');
+    await editor.page.selectOption('#language', 'en');
+    await editor.page.waitForLoadState('load');
+    await editor.ready();
+    checks.check((await editor.page.textContent('#import')) === 'Import', 'switching back restores English');
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);
     await editor.close();
   },
