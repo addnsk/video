@@ -1,15 +1,4 @@
-import {
-  AudioSample,
-  AudioSampleSource,
-  CanvasSource,
-  Mp4OutputFormat,
-  Output,
-  QUALITY_HIGH,
-  QUALITY_MEDIUM,
-  StreamTarget,
-  getFirstEncodableAudioCodec,
-  getFirstEncodableVideoCodec,
-} from 'mediabunny';
+import { AudioSample, AudioSampleSource, CanvasSource, Output, StreamTarget } from 'mediabunny';
 import type { Project } from '../../core/model';
 import { compositionAt, projectDuration } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';
@@ -22,10 +11,9 @@ import type { MediaPool } from '../media/media-pool';
 import type { ByteSink } from './sinks';
 import type { TextRenderer } from '../text';
 
-export interface ExportSettings {
-  readonly height: number | null;
-  readonly quality: 'high' | 'medium';
-}
+import { planFormat, type ExportSettings } from './formats';
+
+export type { ExportSettings };
 
 export interface ExportContext {
   readonly text: TextRenderer;
@@ -55,12 +43,8 @@ export async function exportProject(
   const fps = base.fps;
   const rate = base.sampleRate;
 
-  const videoCodec = await getFirstEncodableVideoCodec(['avc', 'hevc', 'vp9', 'av1'], { width, height });
-  if (!videoCodec) throw new Error(`No video encoder supports ${width}×${height} in this browser`);
   const hasAudio = Object.values(project.assets).some((a) => a.hasAudio);
-  const audioCodec = hasAudio
-    ? await getFirstEncodableAudioCodec(['aac', 'opus'], { numberOfChannels: OUTPUT_CHANNELS, sampleRate: rate })
-    : null;
+  const plan = await planFormat(settings, { width, height, sampleRate: rate, channels: OUTPUT_CHANNELS, hasAudio });
 
   const canvas = new OffscreenCanvas(width, height);
   const gpu = new GpuContext(canvas);
@@ -69,13 +53,12 @@ export async function exportProject(
   const mixer = new AudioMixer(context.pool);
 
   const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: false }),
+    format: plan.output,
     target: new StreamTarget(sink.writable, { chunked: true, chunkSize: context.budget.exportChunkBytes }),
   });
-  const bitrate = settings.quality === 'medium' ? QUALITY_MEDIUM : QUALITY_HIGH;
-  const video = new CanvasSource(canvas, { codec: videoCodec, bitrate });
+  const video = new CanvasSource(canvas, { codec: plan.videoCodec, bitrate: plan.videoBitrate });
   output.addVideoTrack(video, { frameRate: fps });
-  const audio = audioCodec ? new AudioSampleSource({ codec: audioCodec, bitrate: QUALITY_HIGH }) : null;
+  const audio = plan.audioCodec ? new AudioSampleSource({ codec: plan.audioCodec, bitrate: plan.audioBitrate }) : null;
   if (audio) output.addAudioTrack(audio);
   await output.start();
 

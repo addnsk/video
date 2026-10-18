@@ -1,9 +1,12 @@
 import { projectDuration } from '../core/timeline';
+import { PRORES_PROFILES, type ProresProfile } from '../engine/export/prores/tables';
 import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
 import { Modal } from './components/modal';
 import { toast } from './components/toast';
 import { formatDuration, formatTimecode, h } from './dom';
+
+const PROFILE_NAMES: Record<ProresProfile, string> = { proxy: '422 Proxy', lt: '422 LT', standard: '422', hq: '422 HQ' };
 
 const RESOLUTIONS = [2160, 1440, 1080, 720, 540];
 
@@ -16,9 +19,18 @@ export function openExportDialog(session: EditorSession): void {
     h('option', { value: '0' }, t('sourceResolution', { width: settings.width, height: settings.height })),
     ...RESOLUTIONS.filter((r) => r < settings.height).map((r) => h('option', { value: String(r) }, `${r}p`)));
   if (settings.height > 1080) resolution.value = '1080';
+  const format = h('select', { id: 'export-format' },
+    h('option', { value: '' }, t('formatMp4')),
+    ...PRORES_PROFILES.slice().reverse().map((p) => h('option', { value: p }, t('formatProres', { profile: PROFILE_NAMES[p] }))));
   const quality = h('select', { id: 'export-quality' },
     h('option', { value: 'high' }, t('qualityHigh')),
     h('option', { value: 'medium' }, t('qualityMedium')));
+  const qualityField = h('label', { class: 'field' }, t('quality'), quality);
+  const proresHint = h('p', { class: 'hint', hidden: true }, t('proresHint'));
+  format.addEventListener('change', () => {
+    qualityField.hidden = !!format.value;
+    proresHint.hidden = !format.value;
+  });
   const progress = h('progress', { max: 1, value: 0, hidden: true });
   const duration = projectDuration(session.store.project);
   const status = h('p', { class: 'hint' }, t('exportInfo', { duration: formatTimecode(duration, settings.fps) }));
@@ -28,7 +40,9 @@ export function openExportDialog(session: EditorSession): void {
   const run = h('button', { class: 'btn primary', id: 'export-run' }, t('exportRun'));
   modal.body(
     h('label', { class: 'field' }, t('resolution'), resolution),
-    h('label', { class: 'field' }, t('quality'), quality),
+    h('label', { class: 'field' }, t('format'), format),
+    qualityField,
+    proresHint,
     progress,
     status,
     h('div', { class: 'row' }, cancel, run),
@@ -40,7 +54,7 @@ export function openExportDialog(session: EditorSession): void {
     const started = performance.now();
     try {
       const result = await session.exportVideo(
-        { height: +resolution.value || null, quality: quality.value as 'high' | 'medium' },
+        { height: +resolution.value || null, quality: quality.value as 'high' | 'medium', prores: (format.value || null) as ProresProfile | null },
         (fraction) => {
           progress.value = fraction;
           const elapsed = (performance.now() - started) / 1000;
@@ -76,8 +90,9 @@ function showResult(modal: Modal, file: File | null, name: string, ms: number) {
     URL.revokeObjectURL(url);
     modal.close();
   });
+  const preview = name.endsWith('.mp4') ? [h('video', { controls: true, playsInline: true, src: url })] : [];
   modal.body(
-    h('video', { controls: true, playsInline: true, src: url }),
+    ...preview,
     h('p', { class: 'hint' }, t('exportStats', { size: (file.size / 1048576).toFixed(1), seconds: (ms / 1000).toFixed(1) })),
     h('div', { class: 'row' }, close, h('a', { class: 'btn primary', href: url, download: name }, t('save'))),
   );

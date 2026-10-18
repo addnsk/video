@@ -7,6 +7,7 @@ import { Store } from '../core/store';
 import { registerBuiltins } from '../effects/builtin';
 import { EffectRegistry } from '../effects/registry';
 import type { ExportSettings } from '../engine/export/exporter';
+import { exportExtension, exportMimeType } from '../engine/export/formats';
 import type { EngineEvents, ExportTarget } from '../engine/protocol';
 import type { EngineClient } from './engine-client';
 import type { PickedFile } from './file-picker';
@@ -139,12 +140,13 @@ export class EditorSession extends Emitter<SessionEvents> {
   }
 
   async exportVideo(settings: ExportSettings, onProgress: (fraction: number) => void, signal: { canceled: boolean }): Promise<ExportResult> {
-    const name = `export-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.mp4`;
+    const extension = exportExtension(settings);
+    const name = `export-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${extension}`;
     const picker = (globalThis as unknown as { showSaveFilePicker?: SavePicker }).showSaveFilePicker;
     let target: ExportTarget = { kind: 'storage', name };
     if (picker && this.engine.mode === 'worker') {
       try {
-        const handle = await picker({ suggestedName: name, types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }] });
+        const handle = await picker({ suggestedName: name, types: [{ description: `${extension.toUpperCase()} video`, accept: { [exportMimeType(settings)]: [`.${extension}`] } }] });
         target = { kind: 'handle', handle };
       } catch (e) {
         if ((e as Error).name === 'AbortError') throw e;

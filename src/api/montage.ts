@@ -340,7 +340,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
 
     render: (settings: Partial<ExportSettings> & { onProgress?: (f: number) => void } = {}) =>
       session.exportVideo(
-        { height: settings.height ?? null, quality: settings.quality ?? 'high' },
+        { height: settings.height ?? null, quality: settings.quality ?? 'high', prores: settings.prores ?? null },
         settings.onProgress ?? (() => undefined),
         { canceled: false },
       ),

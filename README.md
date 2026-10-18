@@ -6,9 +6,11 @@ A video editor that runs entirely in the browser. Media never leaves the device.
 - **GPU color**: Blackmagic Film Gen 5 → Rec.709 with the Wide Gamut matrix, exposure, white balance, lift/gamma/gain wheels, contrast, saturation and `.cube` 3D LUTs, processed in half-float.
 - **Multitrack editing**: a magnetic main track, free video tracks for overlays and picture-in-picture, audio tracks for music, mute per track, snapping.
 - **Titles** with bundled Latin and Cyrillic fonts, background boxes and alignment.
-- **Keyframes** for opacity, position, scale, rotation, volume and any effect parameter.
+- **Keyframes** with easing for opacity, position, scale, rotation, volume and any effect parameter, plus live **animation presets** (rise, pop, slide, fade, sink, shrink, slow zoom, drift) that follow trims and speed changes.
+- **Clip speed** from 0.1× to 16× with retimed audio, and **J/K/L shuttle** up to 8× forward and backward.
 - **Curves** (master, RGB, hue vs saturation) and **scopes** (waveform, RGB parade, vectorscope, histogram).
-- **Audio waveforms** on the timeline, per-clip volume, crossfades on transitions, audio-only files.
+- **Audio**: waveforms and frame thumbnails on the timeline, per-clip volume, crossfades on transitions, audio-only files, per-clip low cut, 3-band EQ and compressor, output level meters.
+- **Export** to MP4 (H.264, HEVC, VP9 or AV1 via WebCodecs) or **Apple ProRes 422 HQ, 422, LT and Proxy** in `.mov` with PCM audio, encoded by a built-in ProRes encoder.
 - **Projects** autosave in the browser, reconnect their media after a reload and save to or open from `.json` files.
 - **Transitions** in the [gl-transitions](https://gl-transitions.com) format, and custom GLSL filters. Both register at runtime.
 - **Scripting API** (`montage`) for everything the UI does. See [docs/API.md](docs/API.md).
@@ -38,6 +40,10 @@ CHROME_PATH=/path/to/chrome npm run test:e2e -- color transitions
 
 `test:e2e` needs `ffmpeg` and builds fixtures on first run. It serves the production build and runs browser suites from `tests/e2e/suites` on a shared harness (`tests/e2e/harness.mjs`), checking rendered pixels and engine resource counters:
 
+- `audio`: output levels, low cut, EQ gain at a known frequency, audio effect controls, export through the effect chain.
+- `media-drag`: dragging from the media panel to the main and overlay tracks, refusals, undo.
+- `playback`: J/K/L shuttle rates, reverse, clip speed and retimed export.
+- `prores-export`: ProRes HQ and Proxy exports checked with `ffprobe` and `ffmpeg`, and imported back.
 - `color`: exposure, compare bypass, curves, LUTs, saturation, BMD Film Gen5 input transform, all four scopes.
 - `transitions`: dissolve mix, every built-in transition, custom gl-transition shaders and their params.
 - `multitrack`: placement by media type, overlay transform, opacity keyframes, muted tracks, titles, export, phone layout.
