@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:e2e": "npm run build && node tests/e2e/run.mjs",
     "test:stress": "npm run build && node tests/e2e/run.mjs stress",
-    "bench": "npm run build && node tests/bench/run.mjs"
+    "bench": "npm run build && node tests/bench/run.mjs",
+    "test:mutation": "FUZZ_RUNS=40 stryker run"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "5.2.6",
@@ -19,6 +20,8 @@
     "turbores": "1.2.2"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "8.7.1",
+    "@stryker-mutator/vitest-runner": "8.7.1",
     "@types/node": "^22.19.1",
     "coi-serviceworker": "0.1.7",
     "fast-check": "3.23.2",

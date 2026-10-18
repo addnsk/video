@@ -1,3 +1,5 @@
 node_modules
 dist
 bench-results/
+reports/
+.stryker-tmp/
