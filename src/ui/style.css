@@ -303,3 +303,5 @@ input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid v
 .point-picker { position: absolute; inset: 0; cursor: crosshair; background: rgb(0 0 0 / 0.08); }
 .point-picker[hidden] { display: none; }
 .point-picker span { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 4px 10px; border-radius: 6px; background: var(--label-backdrop); color: var(--fg); font: 500 12px var(--font-ui); }
+.mask-overlay .mask-handle { fill: var(--accent); stroke: var(--bg); stroke-width: 1.5; cursor: move; pointer-events: all; }
+.mask-overlay .mask-handle-line { stroke: var(--accent); stroke-width: 1; opacity: 0.7; }

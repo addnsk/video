@@ -21,3 +21,28 @@ export function catmullRom(points: readonly number[], closed: boolean, subdivisi
   if (!closed) out.push(...at(n - 1));
   return out.slice(0, max * 2);
 }
+
+export const BEZIER_STRIDE = 6;
+
+export function bezierPath(data: readonly number[], closed: boolean, subdivisions: number, max: number): number[] {
+  const n = Math.floor(data.length / BEZIER_STRIDE);
+  if (n < 2) return [];
+  const steps = Math.max(1, Math.min(subdivisions, Math.floor(max / n)));
+  const out: number[] = [];
+  const segments = closed ? n : n - 1;
+  for (let i = 0; i < segments; i++) {
+    const a = i * BEZIER_STRIDE;
+    const b = ((i + 1) % n) * BEZIER_STRIDE;
+    const p0 = [data[a], data[a + 1]];
+    const p1 = [data[a] + data[a + 4], data[a + 1] + data[a + 5]];
+    const p2 = [data[b] + data[b + 2], data[b + 1] + data[b + 3]];
+    const p3 = [data[b], data[b + 1]];
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      const u = 1 - t;
+      for (let c = 0; c < 2; c++) out.push(u * u * u * p0[c] + 3 * u * u * t * p1[c] + 3 * u * t * t * p2[c] + t * t * t * p3[c]);
+    }
+  }
+  if (!closed) out.push(data[(n - 1) * BEZIER_STRIDE], data[(n - 1) * BEZIER_STRIDE + 1]);
+  return out.slice(0, max * 2);
+}

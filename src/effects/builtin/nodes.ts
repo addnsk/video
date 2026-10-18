@@ -285,21 +285,7 @@ vec4 process(vec2 uv) {
 
 export const MAX_MASK_POINTS = 128;
 
-export const POLYGON_MASK: NodeDef = {
-  kind: 'node',
-  id: 'polygon-mask',
-  name: 'Polygon mask',
-  category: 'mask',
-  inputs: [],
-  params: [
-    { name: 'points', label: 'Points', type: 'points', default: [-0.25, -0.25, 0.25, -0.25, 0.25, 0.25, -0.25, 0.25], max: MAX_MASK_POINTS },
-    { name: 'spline', label: 'Smooth curve', type: 'bool', default: true },
-    float('feather', 'Feather', 0.01, 0, 0.3, 0.002),
-    { name: 'invert', label: 'Invert', type: 'bool', default: false },
-  ],
-  passes: [
-    {
-      glsl: `
+const POLYGON_GLSL = `
 float segmentDistance(vec2 p, vec2 a, vec2 b) {
   vec2 ab = b - a;
   float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-9), 0.0, 1.0);
@@ -322,9 +308,46 @@ vec4 process(vec2 uv) {
   if (points_count < 3) m = 0.0;
   if (invert) m = 1.0 - m;
   return vec4(m);
-}`,
+}`;
+
+export const POLYGON_MASK: NodeDef = {
+  kind: 'node',
+  id: 'polygon-mask',
+  name: 'Polygon mask',
+  category: 'mask',
+  inputs: [],
+  params: [
+    { name: 'points', label: 'Points', type: 'points', default: [-0.25, -0.25, 0.25, -0.25, 0.25, 0.25, -0.25, 0.25], max: MAX_MASK_POINTS },
+    { name: 'spline', label: 'Smooth curve', type: 'bool', default: true },
+    float('feather', 'Feather', 0.01, 0, 0.3, 0.002),
+    { name: 'invert', label: 'Invert', type: 'bool', default: false },
+  ],
+  passes: [
+    {
+      glsl: POLYGON_GLSL,
     },
   ],
 };
 
-export const BUILTIN_NODES: readonly NodeDef[] = [TEXT_NODE, ...STYLIZE_NODES, KEYER, POLYGON_MASK, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];
+export const BEZIER_MASK: NodeDef = {
+  kind: 'node',
+  id: 'bezier-mask',
+  name: 'Bezier mask',
+  category: 'mask',
+  inputs: [],
+  params: [
+    {
+      name: 'points',
+      label: 'Points',
+      type: 'points',
+      bezier: true,
+      default: [-0.25, -0.25, -0.1, 0, 0.1, 0, 0.25, -0.25, 0, -0.1, 0, 0.1, 0.25, 0.25, 0.1, 0, -0.1, 0, -0.25, 0.25, 0, 0.1, 0, -0.1],
+      max: MAX_MASK_POINTS,
+    },
+    float('feather', 'Feather', 0.01, 0, 0.3, 0.002),
+    { name: 'invert', label: 'Invert', type: 'bool', default: false },
+  ],
+  passes: [{ glsl: POLYGON_GLSL }],
+};
+
+export const BUILTIN_NODES: readonly NodeDef[] = [BEZIER_MASK, TEXT_NODE, ...STYLIZE_NODES, KEYER, POLYGON_MASK, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];

@@ -63,6 +63,11 @@ export default {
     const corner = await editor.previewColorAt(1, { x: 0.12, y: 0.95, size: 0.02 });
     checks.check(corner.every((v) => v < 10), `vignette darkens corners (${fmt(corner)})`);
 
+    await single('bezier-mask', { feather: 0 });
+    const inside = await editor.previewColorAt(1, { x: 0.5, y: 0.5, size: 0.02 });
+    const outside = await editor.previewColorAt(1, { x: 0.5, y: 0.1, size: 0.02 });
+    checks.check(inside[0] > 240 && outside[0] < 10, `bezier mask fills its shape (${fmt(inside)} / ${fmt(outside)})`);
+
     await reset();
     await editor.run(() => {
       const a = montage.graph.add(0, 'rectangle-mask', { center: [-0.2, 0], size: [0.5, 0.5], softness: 0 });

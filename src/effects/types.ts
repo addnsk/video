@@ -43,6 +43,7 @@ export interface PointsParamSpec extends ParamSpecBase {
   readonly type: 'points';
   readonly default: readonly number[];
   readonly max: number;
+  readonly bezier?: boolean;
 }
 
 export interface TextParamSpec extends ParamSpecBase {

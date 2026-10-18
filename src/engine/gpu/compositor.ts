@@ -9,7 +9,7 @@ import { COPY, FIT, filterSource, nodeHasUniform, nodeInputUniform, nodeSource, 
 import { OUTPUT_ID, materialize } from '../../core/graph';
 import { renderGraph } from './graph-renderer';
 import { sampleCurve } from '../../effects/curves';
-import { catmullRom } from '../../effects/points';
+import { bezierPath, catmullRom } from '../../effects/points';
 import { RasterTextures, type Rasterizer } from './raster';
 import { CurveTextures, LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
 
@@ -429,7 +429,7 @@ export class Compositor {
         case 'points': {
           const raw = (Array.isArray(value) ? value : spec.default) as number[];
           const spline = values.spline ?? specs.find((s) => s.name === 'spline')?.default;
-          const points = spline === true ? catmullRom(raw, true, 8, spec.max) : raw.slice(0, spec.max * 2);
+          const points = spec.bezier ? bezierPath(raw, true, 8, spec.max) : spline === true ? catmullRom(raw, true, 8, spec.max) : raw.slice(0, spec.max * 2);
           const data = new Float32Array(spec.max * 2);
           data.set(points);
           gl.uniform2fv(this.ctx.uniform(program, `${spec.name}[0]`), data);
