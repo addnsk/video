@@ -170,44 +170,39 @@ export class Editor {
     await this.frame();
   }
 
-  async previewNoise(region = { x: 0.5, y: 0.5, size: 0.2 }) {
-    const shot = await this.page.locator('.screen canvas').screenshot();
-    return this.page.evaluate(async ({ data, region }) => {
+  async regionPixels(region) {
+    const box = await this.page.locator('.screen canvas').boundingBox();
+    const w = Math.max(1, box.width * region.size);
+    const h = Math.max(1, box.height * region.size);
+    const clip = { x: box.x + box.width * region.x - w / 2, y: box.y + box.height * region.y - h / 2, width: w, height: h };
+    const shot = await this.page.screenshot({ clip, scale: 'css' });
+    return this.page.evaluate(async (data) => {
       const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
       const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       const ctx = canvas.getContext('2d');
       ctx.drawImage(bitmap, 0, 0);
-      const w = Math.max(1, Math.round(bitmap.width * region.size));
-      const h = Math.max(1, Math.round(bitmap.height * region.size));
-      const pixels = ctx.getImageData(Math.round(bitmap.width * region.x - w / 2), Math.round(bitmap.height * region.y - h / 2), w, h).data;
-      let sum = 0;
-      let squares = 0;
-      for (let i = 0; i < pixels.length; i += 4) {
-        sum += pixels[i + 1];
-        squares += pixels[i + 1] * pixels[i + 1];
-      }
-      const n = pixels.length / 4;
-      return Math.sqrt(Math.max(0, squares / n - (sum / n) ** 2));
-    }, { data: shot.toString('base64'), region });
+      return Array.from(ctx.getImageData(0, 0, bitmap.width, bitmap.height).data);
+    }, shot.toString('base64'));
+  }
+
+  async previewNoise(region = { x: 0.5, y: 0.5, size: 0.2 }) {
+    const pixels = await this.regionPixels(region);
+    let sum = 0;
+    let squares = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      sum += pixels[i + 1];
+      squares += pixels[i + 1] * pixels[i + 1];
+    }
+    const n = pixels.length / 4;
+    return Math.sqrt(Math.max(0, squares / n - (sum / n) ** 2));
   }
 
   async previewColor(region = { x: 0.5, y: 0.5, size: 0.1 }) {
-    const shot = await this.page.locator('.screen canvas').screenshot();
-    return this.page.evaluate(async ({ data, region }) => {
-      const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
-      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(bitmap, 0, 0);
-      const w = Math.max(1, Math.round(bitmap.width * region.size));
-      const h = Math.max(1, Math.round(bitmap.height * region.size));
-      const x = Math.round(bitmap.width * region.x - w / 2);
-      const y = Math.round(bitmap.height * region.y - h / 2);
-      const pixels = ctx.getImageData(x, y, w, h).data;
-      const sum = [0, 0, 0];
-      for (let i = 0; i < pixels.length; i += 4) for (let c = 0; c < 3; c++) sum[c] += pixels[i + c];
-      const n = pixels.length / 4;
-      return sum.map((s) => s / n);
-    }, { data: shot.toString('base64'), region });
+    const pixels = await this.regionPixels(region);
+    const sum = [0, 0, 0];
+    for (let i = 0; i < pixels.length; i += 4) for (let c = 0; c < 3; c++) sum[c] += pixels[i + c];
+    const n = pixels.length / 4;
+    return sum.map((v) => v / n);
   }
 
   stats() {
