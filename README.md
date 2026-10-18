@@ -35,8 +35,9 @@ npm run dev
 
 ```bash
 npm test
-CHROME_PATH=/path/to/chrome npm run test:e2e
-CHROME_PATH=/path/to/chrome npm run test:e2e -- color transitions
+SOFTWARE_GL=1 CHROME_PATH=/path/to/chrome npm run test:e2e
+npm run test:e2e -- color transitions
+npm run bench                     # see docs/BENCHMARK.md
 ```
 
 `npm test` runs unit and API integration tests in node; the API tests drive `EditorSession` and the `montage` scripting API against a fake engine.

@@ -21,8 +21,9 @@
 ## Commands
 
 - `npm test` — vitest unit tests (`tests/unit`).
-- `CHROME_PATH=... npm run test:e2e [-- suite ...]` — browser suites in `tests/e2e/suites` on `tests/e2e/harness.mjs` (audio, color, diagnostics, prores-export, media-drag, multitrack, persistence, playback, proxies, stress, transitions). New suites export `{ name, run({ browser, url, checks }) }`.
+- `SOFTWARE_GL=1 CHROME_PATH=... npm run test:e2e [-- suite ...]` — browser suites in `tests/e2e/suites` on `tests/e2e/harness.mjs` (audio, color, diagnostics, prores-export, media-drag, multitrack, persistence, playback, proxies, stress, transitions). New suites export `{ name, run({ browser, url, checks }) }`.
 - `npm run build` — type-check and build.
+- `npm run bench [-- profile|source|--quick]` — benchmarks (`tests/bench/run.mjs`, `docs/BENCHMARK.md`). In this cloud use `CHROME_PATH=... SOFTWARE_GL=1`.
 
 ## Status
 

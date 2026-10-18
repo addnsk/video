@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { basename } from 'node:path';
 import { Editor, fixture, launchBrowser, startServer } from '../e2e/harness.mjs';
 
 const PROFILES = {
@@ -6,7 +7,16 @@ const PROFILES = {
   phone: { memoryGb: 4, cores: 4, touch: true },
 };
 
-const SOURCES = ['prores-1080-10s.mov', 'prores-2160-4s.mov', 'vp9-1080-10s.webm'];
+const SOURCES = [
+  ...['prores-1080-10s.mov', 'prores-2160-4s.mov', 'vp9-1080-10s.webm'].map((name) => ({ name, path: () => fixture(name) })),
+  ...(process.env.BENCH_MEDIA ?? '').split(',').filter(Boolean).map((path) => ({ name: basename(path), path: () => path })),
+];
+
+const args = process.argv.slice(2);
+const names = args.filter((a) => !a.startsWith('--'));
+const profiles = names.filter((n) => n in PROFILES);
+const sources = names.filter((n) => !(n in PROFILES));
+const quick = args.includes('--quick');
 
 const round = (v, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
 const timing = (m, name) => m.timings[name] ?? { count: 0, mean: 0, p95: 0, max: 0 };
@@ -82,23 +92,25 @@ function summarize(profile, source, r) {
   return row;
 }
 
-const only = new Set(process.argv.slice(2));
 const server = await startServer(Number(process.env.BENCH_PORT ?? 4196));
 const browser = await launchBrowser();
 const rows = [];
 const raw = [];
 try {
   for (const [profile, device] of Object.entries(PROFILES)) {
-    if (only.size && !only.has(profile)) continue;
-    for (const source of SOURCES) {
+    if (profiles.length && !profiles.includes(profile)) continue;
+    for (const { name: source, path } of SOURCES) {
+      if (sources.length && !sources.includes(source)) continue;
       const editor = await Editor.open(browser, server.url, { device, viewport: device ? { width: 390, height: 844 } : undefined });
-      await editor.import([fixture(source)]);
+      await editor.import([path()]);
       await editor.until(() => montage.clips().length === 1, null, 60000);
       const results = [await seekStorm(editor), await playFor(editor, 'play', 5)];
       await editor.run(heavyStack);
       results.push(await playFor(editor, 'play-heavy', 5));
-      results.push(await exportRun(editor, 'export-mp4-720', { height: 720, quality: 'medium' }));
-      results.push(await exportRun(editor, 'export-prores-hq', { prores: 'hq' }));
+      if (!quick) {
+        results.push(await exportRun(editor, 'export-mp4-720', { height: 720, quality: 'medium' }));
+        results.push(await exportRun(editor, 'export-prores-hq', { prores: 'hq' }));
+      }
       for (const r of results) {
         const row = summarize(profile, source, r);
         rows.push(row);
@@ -115,5 +127,9 @@ try {
 }
 mkdirSync('bench-results', { recursive: true });
 const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-writeFileSync(`bench-results/${stamp}.json`, JSON.stringify({ rows, raw }, null, 2));
-console.log(`\nSaved bench-results/${stamp}.json`);
+const environment = { node: process.version, platform: process.platform, softwareGl: process.env.SOFTWARE_GL === '1', chrome: browser.version?.() };
+writeFileSync(`bench-results/${stamp}.json`, JSON.stringify({ environment, rows, raw }, null, 2));
+const columns = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+const table = [`| ${columns.join(' | ')} |`, `| ${columns.map(() => '---').join(' | ')} |`, ...rows.map((r) => `| ${columns.map((c) => r[c] ?? '').join(' | ')} |`)].join('\n');
+writeFileSync(`bench-results/${stamp}.md`, `# Benchmark ${stamp}\n\n${JSON.stringify(environment)}\n\n${table}\n`);
+console.log(`\n${table}\n\nSaved bench-results/${stamp}.json and .md`);

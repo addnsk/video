@@ -51,10 +51,13 @@ export async function startServer(port) {
   throw new Error(`Preview server did not start on ${port}`);
 }
 
+const SOFTWARE_GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+
 export const launchBrowser = () =>
   chromium.launch({
-    executablePath: process.env.CHROME_PATH,
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-precise-memory-info'],
+    ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: process.env.CHROME_CHANNEL ?? 'chrome' }),
+    headless: process.env.HEADLESS !== '0',
+    args: [...(process.env.SOFTWARE_GL === '1' ? SOFTWARE_GL : ['--enable-gpu', '--ignore-gpu-blocklist']), '--enable-precise-memory-info', '--autoplay-policy=no-user-gesture-required'],
   });
 
 export class Checks {
