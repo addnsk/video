@@ -1,0 +1,86 @@
+# Roadmap
+
+What Montage still needs, in the order we plan to build it. Each phase ends with unit and e2e coverage and an update of this file.
+
+## Principles
+
+- Memory first: every new feature declares its memory cost and lives inside the device budget (`engine/device.ts`). Browser tabs have a hard ceiling of roughly 2–4 GB (less on iOS); we never rely on the garbage collector for frames, textures or buffers.
+- One graph for everything visual: compositing (Fusion-like), color nodes and clip effects share a single node graph and renderer.
+- The engine stays UI-agnostic: everything the UI does goes through `core` operations and the `montage` API, so the UI can be replaced.
+
+## Out of scope
+
+- RAW formats (BRAW and others): closed SDKs, native only.
+- DeckLink or other external video output, reference HDR monitoring.
+- 3D scenes in compositing.
+- AI features (masks, voice isolation, reframing, optical-flow retiming): a separate track after this roadmap.
+
+## Phase 0. UI foundation
+
+The current UI is hand-written DOM. Before adding graph editors and node inspectors we move it to React.
+
+- React 18 with `useSyncExternalStore` bindings over `Store`, `Transport`, `EditorSession` and `EventLog`; no second state store.
+- Canvas-heavy views (viewer, timeline, scopes, curves, wheels) stay imperative components wrapped in React.
+- A design system: tokens (color, spacing, type), light and dark themes, components (buttons, sliders, numeric drag fields, menus, popovers, dialogs, tabs, panels) built on accessible headless primitives.
+- Workspace layout: resizable, dockable panels; pages like Resolve (Edit, Fusion, Color, Fairlight, Deliver) sharing one project; a dedicated phone layout.
+- Keyboard map and command palette.
+- Migration panel by panel, with e2e suites kept green; the old DOM UI is removed at the end.
+
+## Phase 1. Memory and performance
+
+- Global memory governor: one budget across frame cache, textures, render targets, audio buffers, thumbnails and graph intermediates; pressure levels that shrink caches and lower preview resolution.
+- Render cache: cached composited frames for heavy ranges (in memory within budget, spilled to OPFS), invalidated by graph and project hashes.
+- Long 4K projects: streaming everything, bounded decoders, proxy policy per device class, measured in a long-timeline stress suite.
+- Telemetry in `montage.stats()` and the problem log for memory pressure events.
+
+## Phase 2. Node graph core (Fusion foundation)
+
+- Graph model in `core`: nodes, typed ports (image, mask, number), links, parameters with keyframes, groups/macros; operations and undo like the rest of the model.
+- Graph evaluation in the engine: topological scheduling, pooled render targets, region of interest and domain of definition, per-node caching.
+- Each clip owns a graph; the default graph reproduces today's effect chain so existing projects migrate unchanged.
+- Node editor UI (pan, zoom, connect, view any node in the viewer), a simplified list view on phones.
+- Custom nodes from the scripting API: GLSL with multiple inputs and typed parameters.
+
+## Phase 3. Compositing nodes
+
+- Merge with blend modes, Transform, Crop, Resize, Letterbox, Background, Gradient, Noise.
+- Blur, Glow, Sharpen, Directional and Radial blur, Displace, Corner pin, Lens distortion, Vignette, Film grain.
+- Text+ style text node: per-character animation, outlines, shadows, follow-on presets.
+- Shapes and paint: rectangle, ellipse, polygon and Bezier masks with feather, animated by keyframes (rotoscoping), mask operations.
+- Keyers: chroma key with spill suppression, edge cleanup, luma key, matte controls.
+- Tracking: point tracker driving masks, text and transforms; stabilization.
+- Templates: saving node groups as reusable titles and effects.
+
+## Phase 4. Color page
+
+- Color nodes in the shared graph: serial, parallel and layer mixers.
+- Windows (circle, linear, polygon, curve) with tracking; HSL and 3D qualifiers.
+- Curves: hue vs hue, hue vs lum, lum vs sat, sat vs sat; HDR wheels; color warper.
+- Color management: project working space, input and output transforms per camera, ACES.
+- Noise reduction (spatial, then temporal within the memory budget), sharpen.
+- Stills gallery, split-screen and wipe comparison, grade versions, copy and apply grades.
+
+## Phase 5. Edit page
+
+- Source viewer with In and Out, three-point editing, insert and overwrite.
+- Ripple, roll, slip and slide trims; trim mode.
+- Markers, linked audio and video, nested timelines, several timelines per project.
+- Bins, search, clip metadata.
+- Multicam.
+
+## Phase 6. Audio (Fairlight-like)
+
+- Mixer with buses, track-level effects and automation.
+- Loudness: LUFS metering, normalization targets for platforms, master limiter.
+- Voice cleanup: noise reduction, de-esser, gate.
+
+## Phase 7. Deliver and interchange
+
+- Render queue with several outputs.
+- OTIO, FCPXML and EDL export and import to move projects to and from DaVinci Resolve.
+- Subtitles: SRT import and export, burn-in, styling.
+- Remote storage: S3-compatible buckets for media and projects.
+
+## Phase 8. AI track
+
+Separate planning later: masks, voice isolation, transcription for subtitles, reframing, speed warp.

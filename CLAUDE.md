@@ -32,5 +32,8 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 ## Next (agreed with the owner)
 
+The full plan is `docs/ROADMAP.md`; work through its phases in order.
+
+
 1. The owner's real sample (BMD Film log, ProRes 422 1080p25, Google Drive id 12nX-cC_qCGPIiGldbwZQjF-DztMCiKO8) passed decode, look, proxy, playback and export; it stays out of git (a person in frame, no license).
 2. Later: HDR in MP4 needs a 10-bit HEVC encoder (not in this Chromium, untestable here); HDR preview on HDR displays; translating effect/preset labels.
