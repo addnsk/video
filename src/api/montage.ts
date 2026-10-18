@@ -36,6 +36,7 @@ import { parseCube } from '../effects/cube';
 import { glTransition } from '../effects/gl-transitions';
 import { defaultParams, type FilterDef, type ParamSpec } from '../effects/types';
 import type { ExportSettings } from '../engine/export/exporter';
+import type { LogSource } from '../core/log';
 import type { EditorSession } from '../host/session';
 
 export type ItemRef = string | number;
@@ -348,6 +349,12 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     proxy: (assetId: string) => session.requestProxy(assetId),
     proxies: () => Object.fromEntries(session.proxies),
     stats: () => session.engine.remote.stats(),
+    diagnostics: {
+      entries: () => session.log.entries(),
+      clear: () => session.log.clear(),
+      warn: (message: string) => void session.log.record('warning', 'script', message),
+      error: (source: LogSource, error: unknown) => void session.log.error(source, error),
+    },
     onChange: (fn: () => void) => store.on('change', fn),
   };
   return api;
@@ -363,7 +370,10 @@ export async function runScript(code: string, api: MontageApi, log: (...args: un
     const AsyncFunction = Object.getPrototypeOf(async () => undefined).constructor as new (...a: string[]) => ScriptFn;
     fn = new AsyncFunction('montage', 'log', code);
   } catch (e) {
-    if (e instanceof SyntaxError) throw e;
+    if (e instanceof SyntaxError) {
+      api.diagnostics.error('script', e);
+      throw e;
+    }
     const url = URL.createObjectURL(new Blob([`export default async (montage, log) => {\n${code}\n}`], { type: 'text/javascript' }));
     try {
       fn = (await import(url)).default;
@@ -371,5 +381,10 @@ export async function runScript(code: string, api: MontageApi, log: (...args: un
       URL.revokeObjectURL(url);
     }
   }
-  return api.batch(() => fn(api, log));
+  try {
+    return await api.batch(() => fn(api, log));
+  } catch (e) {
+    api.diagnostics.error('script', e);
+    throw e;
+  }
 }

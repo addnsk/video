@@ -26,7 +26,7 @@ export type TaskKind = 'export' | 'proxy';
 export interface EngineEvents extends Record<string, unknown> {
   progress: { task: TaskKind; id: string; fraction: number };
   proxy: { assetId: string; state: 'queued' | 'building' | 'ready' | 'failed'; message?: string };
-  error: { message: string };
+  error: { message: string; stack?: string };
   context: { state: 'lost' | 'restored' };
   scopes: ScopeData;
 }

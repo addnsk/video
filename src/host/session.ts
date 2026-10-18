@@ -1,4 +1,5 @@
 import { Emitter } from '../core/emitter';
+import { EventLog } from '../core/log';
 import { createId } from '../core/ids';
 import type { AssetMeta } from '../core/model';
 import { addAsset, addTrack, insertItem, sequence } from '../core/operations';
@@ -12,6 +13,7 @@ import type { EngineEvents, ExportTarget } from '../engine/protocol';
 import type { EngineClient } from './engine-client';
 import type { PickedFile } from './file-picker';
 import { AssetDataCache } from './asset-data';
+import { localLogStore } from './log-store';
 import { LutLibrary } from './luts';
 import { Transport } from './transport';
 
@@ -50,6 +52,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly transport: Transport;
   readonly files = new Map<string, File>();
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
+  readonly log = new EventLog(200, localLogStore('montage.log'));
   private peakData: AssetDataCache<Float32Array>;
   private thumbnailData: AssetDataCache<ThumbnailStrip>;
   private exportProgress = new Map<string, (fraction: number) => void>();
@@ -78,11 +81,17 @@ export class EditorSession extends Emitter<SessionEvents> {
     this.registry.on('change', (def) => void engine.remote.setEffects([def]));
     this.luts.on('added', (entry) => void engine.remote.setLut(entry.id, entry.lut));
     this.luts.on('removed', (id) => void engine.remote.setLut(id, null));
-    engine.events.on('error', ({ message }) => this.emit('error', message));
+    engine.events.on('error', ({ message, stack }) => {
+      this.log.record('error', 'engine', message, stack);
+      this.emit('error', message);
+    });
     engine.events.on('proxy', ({ assetId, state, message }) => {
       this.proxies.set(assetId, { state, fraction: state === 'ready' ? 1 : 0 });
       this.emit('proxy', { assetId, state, fraction: state === 'ready' ? 1 : 0 });
-      if (state === 'failed' && message) this.emit('error', message);
+      if (state === 'failed' && message) {
+        this.log.record('error', 'media', `Proxy for ${this.store.project.assets[assetId]?.name ?? assetId}: ${message}`);
+        this.emit('error', message);
+      }
     });
     engine.events.on('progress', ({ task, id, fraction }) => {
       if (task === 'export') this.exportProgress.get(id)?.(fraction);
@@ -125,6 +134,7 @@ export class EditorSession extends Emitter<SessionEvents> {
         this.store.dispatch(this.placement(meta));
         added.push(meta);
       } catch (e) {
+        this.log.record('error', 'media', `${file.name}: ${(e as Error).message}`, (e as Error).stack);
         onError(file, e as Error);
       }
     }
@@ -157,7 +167,11 @@ export class EditorSession extends Emitter<SessionEvents> {
     const poll = setInterval(() => signal.canceled && void this.engine.remote.cancel(id), 200);
     try {
       const file = await this.engine.remote.exportVideo(id, settings, target);
+      this.log.record('info', 'export', `Exported ${name}${settings.prores ? ` (ProRes ${settings.prores})` : ''}`);
       return { file, name, savedToDisk: target.kind === 'handle' };
+    } catch (e) {
+      if (!signal.canceled) this.log.error('export', e);
+      throw e;
     } finally {
       clearInterval(poll);
       this.exportProgress.delete(id);

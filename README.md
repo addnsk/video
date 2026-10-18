@@ -15,6 +15,7 @@ A video editor that runs entirely in the browser. Media never leaves the device.
 - **Transitions** in the [gl-transitions](https://gl-transitions.com) format, and custom GLSL filters. Both register at runtime.
 - **Scripting API** (`montage`) for everything the UI does. See [docs/API.md](docs/API.md).
 - **Undo/redo** for every edit, including scripts.
+- **Problem log**: errors from the UI, the engine worker, media, exports and scripts are kept across reloads and export as a JSON report with the environment.
 - Works on phones: adaptive layout, touch gestures, automatic proxies.
 
 ## Deploying
@@ -41,6 +42,7 @@ CHROME_PATH=/path/to/chrome npm run test:e2e -- color transitions
 `test:e2e` needs `ffmpeg` and builds fixtures on first run. It serves the production build and runs browser suites from `tests/e2e/suites` on a shared harness (`tests/e2e/harness.mjs`), checking rendered pixels and engine resource counters:
 
 - `audio`: output levels, low cut, EQ gain at a known frequency, audio effect controls, export through the effect chain.
+- `diagnostics`: logging of bad media, script errors and uncaught exceptions, the log dialog, report download, persistence.
 - `media-drag`: dragging from the media panel to the main and overlay tracks, refusals, undo.
 - `playback`: J/K/L shuttle rates, reverse, clip speed and retimed export.
 - `prores-export`: ProRes HQ and Proxy exports checked with `ffprobe` and `ffmpeg`, and imported back.

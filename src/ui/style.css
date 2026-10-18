@@ -163,6 +163,16 @@ select {
 .audio-effect.active summary::after { content: " ●"; color: var(--accent); }
 .audio-effect[open] { display: grid; gap: 6px; }
 .audio-effect .btn { justify-self: start; }
+.badge {
+  display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px;
+  background: var(--danger); color: var(--bg); font: 600 11px/18px var(--font-mono); text-align: center;
+}
+.log-list { list-style: none; margin: 0; padding: 0; max-height: min(50vh, 420px); overflow: auto; display: grid; gap: 6px; }
+.log-entry { display: grid; gap: 2px; padding: 6px 8px; border-radius: 6px; background: var(--panel-2); border-left: 3px solid var(--line); }
+.log-entry.error { border-left-color: var(--danger); }
+.log-entry.warning { border-left-color: var(--accent); }
+.log-meta { color: var(--muted); font: 11px var(--font-mono); }
+.log-message { overflow-wrap: anywhere; font-size: 13px; }
 .drag-ghost {
   position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; max-width: 240px;
   padding: 6px 10px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line);

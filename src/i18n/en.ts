@@ -123,6 +123,15 @@ export const en = {
   reconnectNone: 'Nothing to reconnect. Use Locate files.',
   locateFiles: 'Locate files',
   relinked: 'Reconnected {count} file(s)',
+  diagnosticsButton: 'Log',
+  diagnosticsTitle: 'Problems and events',
+  diagnosticsHint: 'Errors from the editor, the engine, media, exports and scripts. The report includes your browser and project setup but no media; attach it when reporting a problem.',
+  diagnosticsEmpty: 'Nothing logged.',
+  diagnosticsClear: 'Clear',
+  diagnosticsCopy: 'Copy report',
+  diagnosticsDownload: 'Download report',
+  diagnosticsCopied: 'Report copied',
+  diagnosticsCopyFailed: 'Copying is not allowed here; use Download.',
 };
 
 export type Strings = typeof en;

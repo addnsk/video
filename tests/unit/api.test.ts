@@ -176,6 +176,32 @@ describe('montage api', () => {
   });
 });
 
+describe('diagnostics', () => {
+  it('logs import failures, engine errors and failed scripts', async () => {
+    const { session, engine, montage } = await setup(['x.fail', 'a.mov']);
+    engine.events.emit('error', { message: 'shader failed', stack: 'at gpu' });
+    await runScript('montage.clip(42);', montage, () => undefined).catch(() => undefined);
+    montage.diagnostics.warn('custom note');
+    const entries = montage.diagnostics.entries().map((e) => [e.level, e.source, e.message]);
+    expect(entries).toEqual([
+      ['error', 'media', 'x.fail: Unsupported x.fail'],
+      ['error', 'engine', 'shader failed'],
+      ['error', 'script', 'No clip 42'],
+      ['warning', 'script', 'custom note'],
+    ]);
+    expect(session.log.errorCount).toBe(3);
+    montage.diagnostics.clear();
+    expect(montage.diagnostics.entries()).toHaveLength(0);
+  });
+
+  it('logs successful exports as info', async () => {
+    const { montage } = await setup();
+    await montage.render({ prores: 'hq' });
+    expect(montage.diagnostics.entries().at(-1)).toMatchObject({ level: 'info', source: 'export' });
+    expect(montage.diagnostics.entries().at(-1)?.message).toMatch(/\.mov \(ProRes hq\)$/);
+  });
+});
+
 describe('runScript', () => {
   it('runs a script as one undo step and returns its value', async () => {
     const { montage } = await setup();
