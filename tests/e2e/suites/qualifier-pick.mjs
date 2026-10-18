@@ -47,7 +47,7 @@ export default {
     await editor.page.waitForSelector('#qualifier-add', { timeout: 10000 });
     await editor.page.click('#qualifier-add');
     await editor.page.waitForSelector('#point-picker:not([hidden])');
-    const screen = await editor.page.locator('.screen').boundingBox();
+    const screen = await editor.page.locator('#timeline-screen').boundingBox();
     const aspect = 16 / 9;
     const w = screen.width / screen.height > aspect ? screen.height * aspect : screen.width;
     const hgt = screen.width / screen.height > aspect ? screen.height : screen.width / aspect;

@@ -47,7 +47,10 @@ export interface EngineInit {
   readonly surface: OffscreenCanvas | HTMLCanvasElement;
   readonly device: DeviceInfo;
   readonly fonts: readonly FontSource[];
+  readonly role?: EngineRole;
 }
+
+export type EngineRole = 'main' | 'source';
 
 export interface EngineMethods {
   init(options: EngineInit): Promise<MemoryBudget>;

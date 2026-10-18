@@ -1,7 +1,7 @@
 import { connect, localChannel, transfer, type Remote } from '../core/rpc';
 import type { Emitter } from '../core/emitter';
 import { detectDevice, type MemoryBudget } from '../engine/device';
-import type { EngineEvents, EngineMethods } from '../engine/protocol';
+import type { EngineEvents, EngineMethods, EngineRole } from '../engine/protocol';
 import { fontSources } from './fonts';
 
 export type EngineMode = 'worker' | 'inline';
@@ -22,19 +22,19 @@ function supportsWorkerRendering(canvas: HTMLCanvasElement): boolean {
   }
 }
 
-export async function startEngine(canvas: HTMLCanvasElement): Promise<EngineClient> {
+export async function startEngine(canvas: HTMLCanvasElement, role: EngineRole = 'main'): Promise<EngineClient> {
   const device = detectDevice();
   if (supportsWorkerRendering(canvas)) {
-    const worker = new Worker(new URL('../engine/worker.ts', import.meta.url), { type: 'module', name: 'engine' });
+    const worker = new Worker(new URL('../engine/worker.ts', import.meta.url), { type: 'module', name: role === 'main' ? 'engine' : 'source-engine' });
     const { remote, events } = connect<EngineMethods, EngineEvents>(worker);
     const surface = canvas.transferControlToOffscreen();
-    const budget = await remote.init(transfer({ surface, device, fonts: fontSources() }, [surface]) as never);
+    const budget = await remote.init(transfer({ surface, device, fonts: fontSources(), role }, [surface]) as never);
     return { remote, events, budget, mode: 'worker' };
   }
   const { serveEngine } = await import('../engine/server');
   const [client, server] = localChannel();
   serveEngine(server);
   const { remote, events } = connect<EngineMethods, EngineEvents>(client);
-  const budget = await remote.init({ surface: canvas, device, fonts: fontSources() });
+  const budget = await remote.init({ surface: canvas, device, fonts: fontSources(), role });
   return { remote, events, budget, mode: 'inline' };
 }

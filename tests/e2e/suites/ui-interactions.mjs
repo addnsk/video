@@ -109,7 +109,7 @@ export default {
     await page.keyboard.press('Escape');
     checks.check(await page.locator('#point-picker').isHidden(), 'Escape cancels picking a tracking point');
     await page.locator(`#node-inspector [data-track="center"]`).click();
-    const screen = await page.locator('.screen').boundingBox();
+    const screen = await page.locator('#timeline-screen').boundingBox();
     const aspect = 640 / 360;
     const w = screen.width / screen.height > aspect ? screen.height * aspect : screen.width;
     const h = screen.width / screen.height > aspect ? screen.height : screen.width / aspect;

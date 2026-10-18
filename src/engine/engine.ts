@@ -13,7 +13,7 @@ import { AudioMixer } from './audio/mixer';
 import { itemColorSpace } from '../core/model';
 import { scanLoudness } from './audio/loudness-scan';
 import type { LoudnessReading } from '../effects/audio/loudness';
-import { budgetFor, type MemoryBudget } from './device';
+import { budgetFor, sourceViewerBudget, type MemoryBudget } from './device';
 import { ExportCanceled, exportProject, type ExportSettings } from './export/exporter';
 import { fileHandleSink, storageSink } from './export/sinks';
 import { SequentialFrames, StillFrames, allLayersOf } from './frames';
@@ -122,15 +122,16 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     registerBuiltins(this.registry);
   }
 
-  async init({ surface, device, fonts }: EngineInit): Promise<MemoryBudget> {
-    this.budget = budgetFor(device);
+  async init({ surface, device, fonts, role = 'main' }: EngineInit): Promise<MemoryBudget> {
+    this.budget = role === 'source' ? sourceViewerBudget(budgetFor(device)) : budgetFor(device);
+    if (role === 'source') this.renderCacheEnabled = false;
     this.pool = new MediaPool(this.budget);
     this.mixer = new AudioMixer(this.pool);
     this.stills = new StillFrames(this.pool, this.text, this.budget);
     this.stills.isStale = () => this.stillQueue.latest !== null || !!this.playback;
     this.governor = new MemoryGovernor(this.budget.memoryLimitBytes, () => resources.total());
     this.renderCache = new RenderCache({ memoryBytes: this.budget.renderCacheBytes, diskBytes: this.budget.renderDiskBytes });
-    void opfsFrameStore().then((store) => this.renderCache.attach(store));
+    if (role === 'main') void opfsFrameStore().then((store) => this.renderCache.attach(store));
     this.governor.register({ name: 'renderCache', bytes: () => this.renderCache.bytes, trim: (keep) => this.renderCache.trim(keep) });
     this.governor.register({ name: 'stillCache', bytes: () => this.stills.cachedBytes, trim: (keep) => this.stills.trim(keep) });
     this.governor.register({ name: 'nodeCache', bytes: () => this.compositor?.nodeCacheBytes ?? 0, trim: () => this.compositor?.trimNodeCache() });

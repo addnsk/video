@@ -170,8 +170,8 @@ export class Editor {
     await this.frame();
   }
 
-  async regionPixels(region) {
-    const box = await this.page.locator('.screen canvas').boundingBox();
+  async regionPixels(region, screen = 'timeline') {
+    const box = await this.page.locator(screen === 'source' && (await this.page.locator('#source-screen').isVisible()) ? '#source-screen canvas' : '#timeline-screen canvas').boundingBox();
     const w = Math.max(1, box.width * region.size);
     const h = Math.max(1, box.height * region.size);
     const clip = { x: box.x + box.width * region.x - w / 2, y: box.y + box.height * region.y - h / 2, width: w, height: h };
@@ -185,8 +185,8 @@ export class Editor {
     }, shot.toString('base64'));
   }
 
-  async previewNoise(region = { x: 0.5, y: 0.5, size: 0.2 }) {
-    const pixels = await this.regionPixels(region);
+  async previewNoise(region = { x: 0.5, y: 0.5, size: 0.2 }, screen = 'timeline') {
+    const pixels = await this.regionPixels(region, screen);
     let sum = 0;
     let squares = 0;
     for (let i = 0; i < pixels.length; i += 4) {
@@ -197,8 +197,8 @@ export class Editor {
     return Math.sqrt(Math.max(0, squares / n - (sum / n) ** 2));
   }
 
-  async previewColor(region = { x: 0.5, y: 0.5, size: 0.1 }) {
-    const pixels = await this.regionPixels(region);
+  async previewColor(region = { x: 0.5, y: 0.5, size: 0.1 }, screen = 'timeline') {
+    const pixels = await this.regionPixels(region, screen);
     const sum = [0, 0, 0];
     for (let i = 0; i < pixels.length; i += 4) for (let c = 0; c < 3; c++) sum[c] += pixels[i + c];
     const n = pixels.length / 4;

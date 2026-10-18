@@ -37,7 +37,7 @@ export interface AppHandle {
   readonly fit: () => void;
 }
 
-export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session: EditorSession, persistence: ProjectPersistence): AppHandle {
+export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session: EditorSession, persistence: ProjectPersistence, sourcePreview: HTMLCanvasElement | null = null): AppHandle {
   const { store, transport } = session;
   const selection = new Selection(store);
   const api = createMontageApi(session, (id) => selection.set(id));
@@ -67,7 +67,29 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const info = h('div', { class: 'info' });
   const before = h('div', { class: 'badge', hidden: true }, t('before'));
   const empty = h('div', { class: 'empty' }, h('strong', {}, t('emptyTitle')), h('span', {}, t('emptyHint')));
-  const screen = h('div', { class: 'screen' }, preview, info, before, empty, offlineBanner(session, persistence));
+  const screen = h('div', { class: 'screen', id: 'timeline-screen' }, preview, info, before, empty, offlineBanner(session, persistence));
+  const sourceLabel = h('div', { class: 'info' });
+  const sourceScreen = sourcePreview && h('div', { class: 'screen', id: 'source-screen', hidden: true }, sourcePreview, sourceLabel);
+  const screens = h('div', { class: 'screens' }, sourceScreen, screen);
+  if (sourceScreen) {
+    sourceScreen.addEventListener('pointerdown', () => session.source.show('source'));
+    screen.addEventListener('pointerdown', () => session.source.show('timeline'));
+    const syncScreens = () => {
+      sourceScreen.hidden = !session.source.assetId;
+      screens.classList.toggle('dual', !!session.source.assetId);
+      sourceScreen.classList.toggle('active', session.source.viewer === 'source');
+      screen.classList.toggle('active', !!session.source.assetId && session.source.viewer === 'timeline');
+      sourceLabel.textContent = session.source.assetId ? (store.project.assets[session.source.assetId]?.name ?? '') : '';
+    };
+    session.source.on('change', syncScreens);
+    syncScreens();
+    new ResizeObserver(() => {
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      const height = Math.min(Math.round(sourceScreen.clientHeight * dpr), session.engine.budget.previewMaxHeight);
+      const width = Math.round((height * sourceScreen.clientWidth) / Math.max(1, sourceScreen.clientHeight));
+      session.source.resize(Math.max(2, width), Math.max(2, height));
+    }).observe(sourceScreen);
+  }
 
   const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => active().toggle() }, '▶');
   const timecode = h('div', { class: 'tc', id: 'tc' });
@@ -190,7 +212,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
   showView('timeline');
 
-  root.replaceChildren(bar, h('section', { class: 'viewer' }, screen, transportBar), h('section', { class: 'timeline' }, viewTabs, timelinePane, nodeEditor.element), inspector);
+  root.replaceChildren(bar, h('section', { class: 'viewer' }, screens, transportBar), h('section', { class: 'timeline' }, viewTabs, timelinePane, nodeEditor.element), inspector);
 
   function toggleBypass() {
     transport.bypass = !transport.bypass;

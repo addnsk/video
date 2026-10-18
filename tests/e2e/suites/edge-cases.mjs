@@ -88,7 +88,7 @@ export default {
     await editor.seekAndSettle(0.44);
     const [beforeLoss] = await sample([{ x: 0, y: 0 }], 0.48);
     await editor.run(() => {
-      const gl = document.querySelector('.screen canvas').getContext('webgl2');
+      const gl = document.querySelector('#timeline-screen canvas').getContext('webgl2');
       const ext = gl.getExtension('WEBGL_lose_context');
       ext.loseContext();
       return new Promise((r) => setTimeout(() => {

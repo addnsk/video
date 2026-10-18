@@ -1,4 +1,5 @@
 import { Emitter } from '../core/emitter';
+import { emptyProject, type Project } from '../core/model';
 import { Store } from '../core/store';
 import { multiviewProject } from '../core/multicam';
 import { nestedTimelineOf, timelineData } from '../core/timeline-data';
@@ -20,7 +21,9 @@ export interface SourceState {
 
 export class SourceMonitor extends Emitter<SourceMonitorEvents> {
   readonly store = new Store();
-  readonly transport: Transport;
+  private player: Transport;
+  private dedicated: EngineClient | null = null;
+  private prepare: (project: Project) => void = () => undefined;
   private asset: string | null = null;
   private active: Viewer = 'timeline';
   private ranges = new Map<string, MarkRange>();
@@ -31,9 +34,35 @@ export class SourceMonitor extends Emitter<SourceMonitorEvents> {
     private timelineTransport: Transport,
   ) {
     super();
-    this.transport = new Transport(engine, this.store);
+    this.player = new Transport(engine, this.store);
     timeline.on('change', ({ project }) => {
       if (this.asset && !project.assets[this.asset]) this.close();
+    });
+  }
+
+  get transport(): Transport {
+    return this.player;
+  }
+
+  resize(width: number, height: number): void {
+    void this.dedicated?.remote.resize(width, height);
+  }
+
+  idle(): Promise<void> {
+    return this.dedicated ? this.dedicated.remote.whenIdle() : Promise.resolve();
+  }
+
+  get dual(): boolean {
+    return this.dedicated !== null;
+  }
+
+  useEngine(engine: EngineClient, prepare: (project: Project) => void): void {
+    this.dedicated = engine;
+    this.prepare = prepare;
+    this.player = new Transport(engine, this.store);
+    this.store.on('change', ({ project }) => {
+      this.prepare(project);
+      void engine.remote.setProject(project);
     });
   }
 
@@ -69,6 +98,7 @@ export class SourceMonitor extends Emitter<SourceMonitorEvents> {
     if (!this.asset) return;
     this.transport.pause();
     this.asset = null;
+    if (this.dedicated) this.store.dispatch(() => ({ ...emptyProject(), settings: this.timeline.project.settings }), { history: false });
     this.show('timeline');
     this.emit('change', this.state);
   }
@@ -78,6 +108,10 @@ export class SourceMonitor extends Emitter<SourceMonitorEvents> {
     if (viewer === this.active) return;
     this.active = viewer;
     (viewer === 'source' ? this.timelineTransport : this.transport).pause();
+    if (this.dedicated) {
+      this.emit('change', this.state);
+      return;
+    }
     void this.engine.remote.setSource(viewer === 'source' ? this.store.project : null);
     const transport = viewer === 'source' ? this.transport : this.timelineTransport;
     transport.seek(transport.time);

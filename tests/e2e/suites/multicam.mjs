@@ -24,8 +24,8 @@ export default {
     checks.check(!!created, 'the media panel builds a multicam clip from the listed clips');
     await editor.run(() => montage.source.seek(2));
     await editor.frame();
-    const left = await editor.previewColor({ x: 0.25, y: 0.25, size: 0.05 });
-    const right = await editor.previewColor({ x: 0.75, y: 0.25, size: 0.05 });
+    const left = await editor.previewColor({ x: 0.25, y: 0.25, size: 0.05 }, 'source');
+    const right = await editor.previewColor({ x: 0.75, y: 0.25, size: 0.05 }, 'source');
     checks.check(isRed(left) && isBlue(right), `the multiview shows every angle side by side (${left.map(Math.round)} | ${right.map(Math.round)})`);
 
     await page.click('#viewer-timeline');

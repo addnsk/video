@@ -18,10 +18,15 @@ const preview = h('canvas', { id: 'preview' });
 root.append(preview);
 const engine = await startEngine(preview);
 const session = new EditorSession(engine);
+const sourcePreview = engine.budget.deviceClass === 'desktop' ? h('canvas', { id: 'source-preview' }) : null;
+if (sourcePreview) {
+  root.append(sourcePreview);
+  session.attachSourceEngine(await startEngine(sourcePreview, 'source'));
+}
 captureGlobalErrors(session.log);
 void session.platform();
 const persistence = new ProjectPersistence(session);
-const app = mountApp(root, preview, session, persistence);
+const app = mountApp(root, preview, session, persistence, sourcePreview);
 if (await persistence.restore()) {
   app.fit();
   session.transport.seek(0);

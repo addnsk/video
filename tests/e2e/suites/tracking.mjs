@@ -60,7 +60,7 @@ export default {
 
     await editor.page.click('#item-stabilize');
     await editor.page.waitForSelector('#point-picker:not([hidden])');
-    const box = await editor.page.locator('.screen').boundingBox();
+    const box = await editor.page.locator('#timeline-screen').boundingBox();
     const aspect = 640 / 360;
     const w = box.width / box.height > aspect ? box.height * aspect : box.width;
     const hgt = box.width / box.height > aspect ? box.height : box.width / aspect;

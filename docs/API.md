@@ -41,11 +41,11 @@ montage.proxies();                               // { [assetId]: { state, fracti
 ### Source viewer and marks
 
 ```js
-montage.source.open(asset.id);               // show the clip in the viewer (the timeline keeps its own playhead)
+montage.source.open(asset.id);               // on desktops the source viewer opens next to the timeline viewer, on phones it replaces it
 montage.source.seek(3); montage.source.play(); montage.source.pause();
 montage.source.mark({ in: 1, out: 4 });      // seconds from the start of the clip; null clears a mark
 montage.source.state();                      // { assetId, viewer: 'source' | 'timeline', marks, time }
-montage.source.show('timeline');             // switch the viewer back; marks are kept per clip
+montage.source.show('timeline');             // make the timeline viewer active (keys and transport follow it); marks are kept per clip
 montage.source.close();
 montage.marks({ in: 10, out: 12 });          // timeline In and Out; montage.marks() reads them
 ```

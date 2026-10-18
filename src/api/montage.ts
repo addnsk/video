@@ -546,7 +546,9 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       if (!values) throw new Error('Nothing to sample');
       return Array.isArray(points) ? values : values[0];
     },
-    idle: () => session.engine.remote.whenIdle(),
+    idle: async () => {
+      await Promise.all([session.engine.remote.whenIdle(), session.source.idle()]);
+    },
     resetMetrics: () => session.engine.remote.resetMetrics(),
     renderCache: (options: boolean | { enabled?: boolean; memoryBytes?: number; diskBytes?: number }) =>
       session.engine.remote.setRenderCache(typeof options === 'boolean' ? { enabled: options } : options),

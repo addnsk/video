@@ -14,7 +14,7 @@ A video editor that runs entirely in the browser. Media never leaves the device.
 - **Projects** autosave in the browser, reconnect their media after a reload and save to or open from `.json` files.
 - **Transitions** in the [gl-transitions](https://gl-transitions.com) format, and custom GLSL filters. Both register at runtime.
 - **Scripting API** (`montage`) for everything the UI does. See [docs/API.md](docs/API.md).
-- **Edit page**: source viewer with In/Out, three-point insert, overwrite and append (fit to fill with four points), ripple, roll, slip and slide tools, lift and extract, linked video and audio, timeline markers, several timelines per project and nested timelines (compound clips), bins and smart bins with metadata search, multicam clips synced by sound with a multiview and live angle cuts.
+- **Edit page**: source viewer next to the timeline viewer with In/Out, three-point insert, overwrite and append (fit to fill with four points), ripple, roll, slip and slide tools, lift and extract, linked video and audio, timeline markers, several timelines per project and nested timelines (compound clips), bins and smart bins with metadata search, multicam clips synced by sound with a multiview and live angle cuts.
 - **Undo/redo** for every edit, including scripts.
 - **Problem log**: errors from the UI, the engine worker, media, exports and scripts are kept across reloads and export as a JSON report with the environment.
 - English and Russian interface.

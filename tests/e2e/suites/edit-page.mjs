@@ -24,9 +24,16 @@ export default {
     checks.check((await page.getAttribute('#viewer-source', 'aria-selected')) === 'true', 'double-clicking a media item opens it in the source viewer');
     await editor.run(() => montage.source.seek(0.5));
     await editor.frame();
-    const sourceColor = await editor.previewColor({ x: 0.1, y: 0.1, size: 0.05 });
+    const sourceColor = await editor.previewColor({ x: 0.1, y: 0.1, size: 0.05 }, 'source');
     checks.check(Math.abs(sourceColor[0] - timelineColor[0]) > 0.05 || Math.abs(sourceColor[2] - timelineColor[2]) > 0.05, `the viewer shows the source clip, not the timeline (${sourceColor.map((v) => v.toFixed(2))} vs ${timelineColor.map((v) => v.toFixed(2))})`);
 
+    const dual = await page.locator('#source-screen').isVisible();
+    checks.check(dual, 'on a desktop the source viewer opens next to the timeline viewer');
+    const stillTimeline = await editor.previewColor();
+    checks.check(Math.abs(stillTimeline[0] - timelineColor[0]) < 10, `the timeline viewer keeps showing the timeline meanwhile (${stillTimeline.map(Math.round)})`);
+    await page.click('#timeline-screen');
+    checks.check((await editor.run(() => montage.source.state().viewer)) === 'timeline' && (await page.locator('#source-screen').isVisible()), 'clicking a viewer makes it active and keeps both on screen');
+    await page.click('#source-screen');
     await page.keyboard.press('ArrowRight');
     const sourceTime = await editor.run(() => montage.source.state().time);
     checks.near(sourceTime, 0.54, 0.001, 'arrow keys step the source playhead');

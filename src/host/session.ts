@@ -119,6 +119,23 @@ export class EditorSession extends Emitter<SessionEvents> {
     });
   }
 
+  attachSourceEngine(engine: EngineClient): void {
+    const attached = new Set<string>();
+    void engine.remote.setEffects(this.registry.all());
+    this.registry.on('change', (def) => void engine.remote.setEffects([def]));
+    for (const entry of this.luts.all()) void engine.remote.setLut(entry.id, entry.lut);
+    this.luts.on('added', (entry) => void engine.remote.setLut(entry.id, entry.lut));
+    this.luts.on('removed', (id) => void engine.remote.setLut(id, null));
+    this.source.useEngine(engine, (project) => {
+      for (const meta of Object.values(project.assets)) {
+        const file = this.files.get(meta.id);
+        if (!file || attached.has(meta.id)) continue;
+        attached.add(meta.id);
+        void engine.remote.attach(meta, file);
+      }
+    });
+  }
+
   get videoTrackId(): string {
     return this.store.project.tracks.find((t) => t.kind === 'video' && t.magnetic)!.id;
   }

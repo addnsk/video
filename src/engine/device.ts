@@ -84,3 +84,15 @@ export function budgetFor(device: DeviceInfo): MemoryBudget {
     renderDiskBytes: 4096 * MB,
   };
 }
+
+export function sourceViewerBudget(main: MemoryBudget): MemoryBudget {
+  return {
+    ...main,
+    frameCacheBytes: Math.round(main.frameCacheBytes / 4),
+    maxOpenSources: Math.min(4, main.maxOpenSources),
+    memoryLimitBytes: Math.round(main.memoryLimitBytes / 4),
+    renderCacheBytes: 0,
+    renderDiskBytes: 0,
+    encoderThreads: 1,
+  };
+}
