@@ -23,7 +23,7 @@ export interface FormatPlan {
   readonly output: OutputFormat;
   readonly audioCodec: AudioCodec | null;
   readonly audioBitrate: number | Quality;
-  video(output: Output, canvas: OffscreenCanvas, frameRate: number): VideoWriter;
+  video(output: Output, canvas: OffscreenCanvas, frameRate: number, threads: number): VideoWriter;
 }
 
 export const exportExtension = (settings: ExportSettings): 'mov' | 'mp4' => (settings.prores ? 'mov' : 'mp4');
@@ -46,7 +46,7 @@ export async function planFormat(settings: ExportSettings, frame: Frame): Promis
       output: new MovOutputFormat({ fastStart: false }),
       audioCodec: frame.hasAudio ? await getFirstEncodableAudioCodec(['pcm-s24', 'pcm-s16'], audioConfig) : null,
       audioBitrate: QUALITY_HIGH,
-      video: (output, _canvas, frameRate) => proresWriter(output, profile, frameRate),
+      video: (output, _canvas, frameRate, threads) => proresWriter(output, profile, frameRate, threads),
     };
   }
   const codec = await getFirstEncodableVideoCodec(['avc', 'hevc', 'vp9', 'av1'], { width: frame.width, height: frame.height });

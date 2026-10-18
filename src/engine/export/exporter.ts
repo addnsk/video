@@ -56,7 +56,7 @@ export async function exportProject(
     format: plan.output,
     target: new StreamTarget(sink.writable, { chunked: true, chunkSize: context.budget.exportChunkBytes }),
   });
-  const video = plan.video(output, canvas, fps);
+  const video = plan.video(output, canvas, fps, context.budget.encoderThreads);
   const audio = plan.audioCodec ? new AudioSampleSource({ codec: plan.audioCodec, bitrate: plan.audioBitrate }) : null;
   if (audio) output.addAudioTrack(audio);
   await output.start();
@@ -91,10 +91,11 @@ export async function exportProject(
       onProgress((i + 1) / frameCount);
     }
     await writeAudioUntil(duration);
-    video.close();
+    await video.finish();
     audio?.close();
     await output.finalize();
   } catch (e) {
+    video.abort();
     await output.cancel().catch(() => undefined);
     await sink.abort().catch(() => undefined);
     throw e;
