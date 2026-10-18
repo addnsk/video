@@ -5,7 +5,7 @@ import type { FilterDef, NodeDef } from '../../effects/types';
 export interface GraphRuntime<T> {
   source(): T | null;
   filter(def: FilterDef, effect: EffectInstance, input: T): T;
-  node(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, T>): T;
+  node(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, T>, nodeId: string): T;
   release(target: T): void;
   copy(target: T): T;
 }
@@ -53,7 +53,7 @@ export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeL
     const primary = read.get('source') ?? read.get('input') ?? read.values().next().value ?? null;
     const inputKeys = [...inputs].map(([name, from]) => [name, keys.get(from)] as const);
     const key =
-      node.type === SOURCE_NODE || lookup.node(node.type)?.temporal || inputKeys.some(([, k]) => k === null)
+      node.type === SOURCE_NODE || lookup.node(node.type)?.temporal || lookup.node(node.type)?.history || inputKeys.some(([, k]) => k === null)
         ? null
         : `${node.type}:${node.enabled}:${JSON.stringify(node.params)}(${inputKeys.map(([n, k]) => `${n}=${k}`).join(',')})`;
     keys.set(id, key);
@@ -70,7 +70,7 @@ export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeL
       const def = lookup.node(node.type);
       const effect: EffectInstance = { id: node.id, type: node.type, enabled: true, params: node.params };
       if (filter) result = primary === null ? null : runtime.filter(filter, effect, primary);
-      else if (def) result = runtime.node(def, node.params, read);
+      else if (def) result = runtime.node(def, node.params, read, node.id);
       else result = primary;
       if (key !== null && cache && result !== null && result !== primary) {
         cache.put(key, result);

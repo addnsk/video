@@ -26,6 +26,7 @@ const FIXTURES = {
     '-filter_complex', '[0][1]overlay=220:80', '-t', '1', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
   'moving.mov': ['-f', 'lavfi', '-i', 'color=c=0x404040:size=640x360:rate=25', '-f', 'lavfi', '-i', 'testsrc2=size=100x100:rate=25',
     '-filter_complex', "[1]trim=end_frame=1,loop=-1:1,setpts=N/25/TB[p];[0][p]overlay=x='100+t*100':y=130", '-t', '1', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
+  'noisy.mov': ['-f', 'lavfi', '-i', 'color=c=0x808080:size=640x360:rate=25', '-vf', 'noise=alls=30:allf=t+u', '-t', '2', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
   'music.wav': ['-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=44100', '-t', '6', '-c:a', 'pcm_s16le'],
 };
 
@@ -154,6 +155,27 @@ export class Editor {
   async seekAndSettle(time, ms = 1500) {
     await this.run((t) => montage.seek(t), time);
     await this.settle(ms);
+  }
+
+  async previewNoise(region = { x: 0.5, y: 0.5, size: 0.2 }) {
+    const shot = await this.page.locator('.screen canvas').screenshot();
+    return this.page.evaluate(async ({ data, region }) => {
+      const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      const w = Math.max(1, Math.round(bitmap.width * region.size));
+      const h = Math.max(1, Math.round(bitmap.height * region.size));
+      const pixels = ctx.getImageData(Math.round(bitmap.width * region.x - w / 2), Math.round(bitmap.height * region.y - h / 2), w, h).data;
+      let sum = 0;
+      let squares = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        sum += pixels[i + 1];
+        squares += pixels[i + 1] * pixels[i + 1];
+      }
+      const n = pixels.length / 4;
+      return Math.sqrt(Math.max(0, squares / n - (sum / n) ** 2));
+    }, { data: shot.toString('base64'), region });
   }
 
   async previewColor(region = { x: 0.5, y: 0.5, size: 0.1 }) {

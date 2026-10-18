@@ -117,6 +117,12 @@ vec4 raster(vec2 uv) {
 int glyph_count() { return u_glyph_count; }
 vec4 glyph(int i) { return u_glyphs[i]; }`
     : '';
+  const history = def.history
+    ? `uniform sampler2D u_history;
+uniform bool u_has_history;
+bool has_history() { return u_has_history; }
+vec4 history(vec2 uv) { return u_has_history ? texture(u_history, uv) : vec4(0.0); }`
+    : '';
   const previous = pass > 0 ? 'uniform sampler2D u_previous;\nvec4 previous(vec2 uv) { return texture(u_previous, uv); }' : 'vec4 previous(vec2 uv) { return vec4(0.0); }';
   return `${HEADER}
 uniform vec2 u_resolution;
@@ -130,6 +136,7 @@ ${CURVE_HELPER}
 ${WORKING_HELPER}
 ${inputs}
 ${raster}
+${history}
 ${previous}
 ${def.params.map(uniformDeclaration).join('\n')}
 ${def.passes[pass].glsl}

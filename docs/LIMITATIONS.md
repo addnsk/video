@@ -33,6 +33,8 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - Input transforms are math approximations of the vendor curves (ARRI LogC3 at EI 800 only); no camera-specific IDT matrices beyond the gamut primaries.
 - Generator nodes (background, text node, gradient) are not color managed: in ACES their colors pass through the output transform and look slightly different from `display`.
 - The input color space is per media file, not per clip.
+- Temporal noise reduction is recursive (it reuses its previous output, no motion estimation); it needs frames rendered in order, so a still after a jump and the first frame of playback get spatial-only quality, and moving areas get no temporal cleanup.
+- Spatial noise reduction is a bilateral filter, not non-local means; strong settings soften fine texture.
 
 - Curves, qualifiers and the color warper work on display-referred values clipped to 0..1; HDR wheels and grade keep values above 1.
 - Qualifiers have no blur or clean-up of their own; follow them with a `matte` node.

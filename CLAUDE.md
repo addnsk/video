@@ -44,7 +44,8 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 - Color nodes done: `effects/builtin/color-nodes.ts` (qualifier, qualifier-3d, parallel-mixer, hdr-wheels, color-warper), extra curves, e2e `color-nodes`.
 - GPU gotcha: any lazily created texture must be created with the right `activeTexture` unit, otherwise it clobbers the sampler bound just before (fixed for empty, curve, LUT and raster textures).
 - Color management done: `effects/color-management.ts` (input spaces, `input-transform`/`output-transform` filters), `ProjectSettings.colorScience`, `AssetMeta.colorSpace`, applied in `Compositor.setProject`/`inputTransform`/`outputTransform`; filters and nodes get `toWorkingLinear`/`fromWorkingLinear`.
-- Next (phase 4): noise reduction, stills/wipe/versions.
+- Noise reduction done: `denoise`, `temporal-denoise` nodes; `history: true` node defs keep their last output per item and node in the compositor (`histories`, governor consumer `nodeHistory`); e2e `denoise` (fixture `noisy.mov`).
+- Next (phase 4): stills/wipe/versions.
 - GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
 
 ## Known issues

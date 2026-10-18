@@ -202,5 +202,87 @@ vec4 effect(vec4 color, vec2 uv) {
 `,
 };
 
-export const COLOR_NODES: readonly NodeDef[] = [HSL_QUALIFIER, QUALIFIER_3D, PARALLEL_MIXER];
+const YCBCR = `
+const vec3 NR_LUMA = vec3(0.2126, 0.7152, 0.0722);
+vec3 toYcc(vec3 c) {
+  float y = dot(c, NR_LUMA);
+  return vec3(y, (c.b - y) / 1.8556, (c.r - y) / 1.5748);
+}
+vec3 fromYcc(vec3 v) {
+  float r = v.x + 1.5748 * v.z;
+  float b = v.x + 1.8556 * v.y;
+  return vec3(r, (v.x - 0.2126 * r - 0.0722 * b) / 0.7152, b);
+}`;
+
+export const DENOISE: NodeDef = {
+  kind: 'node',
+  id: 'denoise',
+  name: 'Noise reduction (spatial)',
+  category: 'color',
+  inputs: SOURCE,
+  params: [
+    float('luma', 'Luma threshold', 0.04, 0, 0.3, 0.002),
+    float('chroma', 'Chroma threshold', 0.06, 0, 0.3, 0.002),
+    float('radius', 'Radius', 2, 0.5, 8, 0.1),
+    float('blend', 'Blend', 1, 0, 1),
+  ],
+  passes: [
+    {
+      glsl: `${YCBCR}
+vec4 process(vec2 uv) {
+  vec4 c = input_source(uv);
+  vec3 center = toYcc(c.rgb);
+  vec2 step = texel() * max(px(radius), 0.5) * 0.5;
+  vec3 sum = vec3(0.0);
+  vec3 weight = vec3(0.0);
+  float ls = max(luma, 1e-4);
+  float cs = max(chroma, 1e-4);
+  for (int y = -3; y <= 3; y++)
+    for (int x = -3; x <= 3; x++) {
+      vec2 o = vec2(float(x), float(y));
+      vec3 s = toYcc(input_source(uv + o * step).rgb);
+      float spatial = exp(-dot(o, o) / 8.0);
+      vec3 d = s - center;
+      float wl = spatial * exp(-d.x * d.x / (2.0 * ls * ls));
+      float wc = spatial * exp(-dot(d.yz, d.yz) / (2.0 * cs * cs));
+      sum += vec3(s.x * wl, s.yz * wc);
+      weight += vec3(wl, wc, wc);
+    }
+  vec3 filtered = sum / max(weight, vec3(1e-6));
+  return vec4(mix(c.rgb, max(fromYcc(filtered), 0.0), blend), c.a);
+}`,
+    },
+  ],
+};
+
+export const TEMPORAL_DENOISE: NodeDef = {
+  kind: 'node',
+  id: 'temporal-denoise',
+  name: 'Noise reduction (temporal)',
+  category: 'color',
+  inputs: SOURCE,
+  history: true,
+  params: [float('strength', 'Strength', 0.6, 0, 0.95), float('motion', 'Motion threshold', 0.05, 0.005, 0.3, 0.005)],
+  passes: [
+    {
+      glsl: `${YCBCR}
+vec4 process(vec2 uv) {
+  vec4 c = input_source(uv);
+  if (!has_history()) return c;
+  vec4 h = history(uv);
+  float diff = 0.0;
+  for (int y = -1; y <= 1; y++)
+    for (int x = -1; x <= 1; x++) {
+      vec2 o = vec2(float(x), float(y)) * texel();
+      diff += abs(dot(input_source(uv + o).rgb - history(uv + o).rgb, NR_LUMA));
+    }
+  diff /= 9.0;
+  float w = strength * (1.0 - smoothstep(motion, motion * 2.0, diff));
+  return mix(c, h, w);
+}`,
+    },
+  ],
+};
+
+export const COLOR_NODES: readonly NodeDef[] = [HSL_QUALIFIER, QUALIFIER_3D, PARALLEL_MIXER, DENOISE, TEMPORAL_DENOISE];
 export const COLOR_FILTERS: readonly FilterDef[] = [HDR_WHEELS, COLOR_WARPER];

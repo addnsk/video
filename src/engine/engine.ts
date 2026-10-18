@@ -118,6 +118,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.governor.register({ name: 'renderCache', bytes: () => this.renderCache.bytes, trim: (keep) => this.renderCache.trim(keep) });
     this.governor.register({ name: 'stillCache', bytes: () => this.stills.cachedBytes, trim: (keep) => this.stills.trim(keep) });
     this.governor.register({ name: 'nodeCache', bytes: () => this.compositor?.nodeCacheBytes ?? 0, trim: () => this.compositor?.trimNodeCache() });
+    this.governor.register({ name: 'nodeHistory', bytes: () => this.compositor?.historyBytes ?? 0, trim: () => this.compositor?.trimHistories() });
     this.governor.register({ name: 'idleTargets', bytes: () => this.compositor?.idleTargetBytes ?? 0, trim: () => this.compositor?.trimIdle() });
     this.governor.on('pressure', ({ level, bytes, limit }) => {
       this.stills.previewScale = this.governor.previewScale;

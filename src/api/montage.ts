@@ -419,7 +419,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     },
 
     nodes: {
-      register(def: { id: string; name: string; category?: NodeCategory; inputs?: string[]; params?: ParamSpec[]; passes: string[] | string; raster?: 'text'; temporal?: boolean }) {
+      register(def: { id: string; name: string; category?: NodeCategory; inputs?: string[]; params?: ParamSpec[]; passes: string[] | string; raster?: 'text'; temporal?: boolean; history?: boolean }) {
         registry.register({
           kind: 'node',
           id: def.id,
@@ -430,6 +430,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
           passes: (Array.isArray(def.passes) ? def.passes : [def.passes]).map((glsl) => ({ glsl })),
           ...(def.raster ? { raster: def.raster } : {}),
           ...(def.temporal ? { temporal: true } : {}),
+          ...(def.history ? { history: true } : {}),
         });
       },
     },

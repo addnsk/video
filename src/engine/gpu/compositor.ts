@@ -83,6 +83,7 @@ export class Compositor {
   setProject(project: Project): void {
     if (project.settings) this.setFrame(project.settings.width, project.settings.height);
     this.colorScience = project.settings?.colorScience ?? 'display';
+    this.frameInterval = 1 / (project.settings?.fps || 25);
     this.assets = project.assets;
   }
 
@@ -218,7 +219,7 @@ export class Compositor {
       {
         source,
         filter: (_def, effect, input) => this.applyFilter(effect, input),
-        node: (def, params, inputs) => this.renderNode(def, params, inputs),
+        node: (def, params, inputs, nodeId) => this.renderNode(def, params, inputs, `${item.id}:${nodeId}`),
         release: (target) => this.targets.release(target),
         copy: (target) => this.copyTarget(target),
       },
@@ -286,9 +287,38 @@ export class Compositor {
     return out;
   }
 
-  private renderNode(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, RenderTarget>): RenderTarget {
+  private histories = new Map<string, { target: RenderTarget; time: number }>();
+  frameInterval = 1 / 25;
+
+  get historyBytes(): number {
+    let bytes = 0;
+    for (const { target } of this.histories.values()) bytes += target.width * target.height * (this.ctx.floatTargets ? 8 : 4);
+    return bytes;
+  }
+
+  trimHistories(): void {
+    for (const { target } of this.histories.values()) this.targets.release(target);
+    this.histories.clear();
+  }
+
+  private historyFor(key: string): RenderTarget | null {
+    const entry = this.histories.get(key);
+    if (!entry) return null;
+    const step = this.nodeTime - entry.time;
+    const valid = entry.target.width === this.width && entry.target.height === this.height && step > 0 && step <= this.frameInterval * 1.5;
+    return valid ? entry.target : null;
+  }
+
+  private keepHistory(key: string, output: RenderTarget) {
+    const old = this.histories.get(key);
+    if (old) this.evicted.push(old.target);
+    this.histories.set(key, { target: this.copyTarget(output), time: this.nodeTime });
+  }
+
+  private renderNode(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, RenderTarget>, key: string): RenderTarget {
     const gl = this.ctx.gl;
     let previous: RenderTarget | null = null;
+    const history = def.history ? this.historyFor(key) : null;
     for (let pass = 0; pass < def.passes.length; pass++) {
       const out = this.targets.acquire(this.width, this.height);
       this.passes++;
@@ -318,13 +348,20 @@ export class Compositor {
         unit++;
       }
       if (previous) this.bindTexture(program, 'u_previous', unit++, previous.texture);
+      if (def.history) {
+        gl.uniform1i(this.ctx.uniform(program, 'u_has_history'), history ? 1 : 0);
+        this.bindTexture(program, 'u_history', unit, history?.texture ?? this.emptyTexture(unit));
+        unit++;
+      }
       if (def.raster) unit = this.bindRaster(program, def.raster, { ...defaultParams(def.params), ...params }, unit);
       this.applyParams(program, def.params, params, unit);
       this.ctx.drawQuad();
       if (previous) this.targets.release(previous);
       previous = out;
     }
-    return previous ?? this.blankTarget();
+    const result = previous ?? this.blankTarget();
+    if (def.history) this.keepHistory(key, result);
+    return result;
   }
 
   private presented: UploadTexture | null = null;
@@ -599,6 +636,7 @@ export class Compositor {
 
   dispose(): void {
     this.trimNodeCache();
+    this.trimHistories();
     this.fullFrame = null;
     for (const upload of this.uploads.values()) upload.dispose();
     this.uploads.clear();
