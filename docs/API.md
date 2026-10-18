@@ -434,6 +434,8 @@ montage.loudnessTargets();            // youtube, spotify -14; apple, podcast -1
 
 ## Playback, history, export
 
+Frame n of a project renders at the time n / fps (the start of the frame), in preview and in export alike, so transitions and animations land on the same values in both.
+
 `play(rate)` shuttles: rates above 1 play faster with pitched audio, negative rates scrub backward without audio. `rate` is 0 while paused.
 
 ```js
