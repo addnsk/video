@@ -363,6 +363,58 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.proxyRunning = false;
   }
 
+  private compare: { bitmap: ImageBitmap; position: number } | null = null;
+
+  setCompare(bitmap: ImageBitmap | null, position = 0.5): void {
+    if (this.compare && this.compare.bitmap !== bitmap) this.compare.bitmap.close();
+    this.compare = bitmap ? { bitmap, position: Math.min(1, Math.max(0, position)) } : null;
+    this.redraw();
+  }
+
+  setComparePosition(position: number): void {
+    if (!this.compare) return;
+    this.compare = { ...this.compare, position: Math.min(1, Math.max(0, position)) };
+    this.redraw();
+  }
+
+  private drawCompare() {
+    if (this.compare && this.compositor) this.compositor.drawCompare(this.compare.bitmap, this.compare.position);
+  }
+
+  async grabFrame(time: number, maxHeight: number): Promise<Blob | null> {
+    if (!this.compositor || this.playback) return null;
+    const frame = compositionAt(this.project, Math.min(time, Math.max(0, projectDuration(this.project) - 1e-3)));
+    const images = await this.stills.load(this.project, frame, this.compositor.size);
+    if (!images) return null;
+    let canvas: OffscreenCanvas | null = null;
+    this.compositor.render(frame, images, {
+      viewNode: this.viewNode,
+      readback: (full) => {
+        const pixels = new Uint8ClampedArray(full.width * full.height * 4);
+        const scale = 255 * full.scale;
+        for (let y = 0; y < full.height; y++) {
+          const from = (full.height - 1 - y) * full.width * 4;
+          const to = y * full.width * 4;
+          for (let i = 0; i < full.width * 4; i += 4) {
+            pixels[to + i] = full.data[from + i] * scale;
+            pixels[to + i + 1] = full.data[from + i + 1] * scale;
+            pixels[to + i + 2] = full.data[from + i + 2] * scale;
+            pixels[to + i + 3] = 255;
+          }
+        }
+        canvas = new OffscreenCanvas(full.width, full.height);
+        canvas.getContext('2d')!.putImageData(new ImageData(pixels, full.width, full.height), 0, 0);
+      },
+    });
+    this.drawCompare();
+    const source = canvas as OffscreenCanvas | null;
+    if (!source) return null;
+    const height = Math.min(maxHeight, source.height);
+    const scaled = new OffscreenCanvas(Math.max(2, Math.round((source.width * height) / source.height)), height);
+    scaled.getContext('2d')!.drawImage(source, 0, 0, scaled.width, scaled.height);
+    return scaled.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+  }
+
   private invalidateRenders() {
     this.renderGeneration++;
     this.renderCache?.clear();
@@ -415,6 +467,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     const key = this.scopesEnabled ? null : this.cacheKey(frame, request.bypass);
     if (await this.presentCached(key)) {
       metrics.time('still.cached', performance.now() - started);
+      this.drawCompare();
       return request.done(true);
     }
     const images = await this.stills.load(this.project, frame, this.compositor.size);
@@ -428,6 +481,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     metrics.time('still.render', performance.now() - renderStart);
     metrics.time('still.total', performance.now() - started);
     this.remember(key, performance.now() - started);
+    this.drawCompare();
     this.governor.check();
     request.done(true);
   }
@@ -464,6 +518,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
         metrics.time('playback.render', performance.now() - renderStart);
         this.remember(key, performance.now() - loadStart);
       }
+      this.drawCompare();
       const fps = this.project.settings?.fps ?? 25;
       const index = Math.floor(time * fps);
       if (playback.lastFrame !== null && index > playback.lastFrame + 1) metrics.count('playback.dropped', index - playback.lastFrame - 1);

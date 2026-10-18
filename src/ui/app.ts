@@ -20,6 +20,7 @@ import { openExportDialog } from './export-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
 import { ScopesPanel } from './panels/scopes-panel';
+import { StillsPanel } from './panels/stills-panel';
 import { ItemPanel } from './panels/item-panel';
 import { addTrack, insertText } from '../core/operations';
 import { ScriptPanel } from './panels/script-panel';
@@ -116,6 +117,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new ItemPanel(session, selection, (itemId) => track(itemId, 'stabilize')).element,
     new TransitionPanel(session, selection).element,
     new ColorPanel(session, selection).element,
+    new StillsPanel(session, selection).element,
     new MediaPanel(session, timeline).element,
     new ScriptPanel(api).element,
   );

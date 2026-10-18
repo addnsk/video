@@ -382,6 +382,29 @@ export class Compositor {
     return true;
   }
 
+  private compareTexture: UploadTexture | null = null;
+
+  drawCompare(bitmap: ImageBitmap, position: number): void {
+    const gl = this.ctx.gl;
+    if (this.ctx.lost || !bitmap.width || position <= 0) return;
+    this.compareTexture ??= new UploadTexture(this.ctx);
+    gl.activeTexture(gl.TEXTURE0);
+    const texture = this.compareTexture.upload(bitmap, bitmap.width, bitmap.height, `compare:${bitmap.width}x${bitmap.height}`);
+    const surface = this.ctx.surface;
+    const size = this.size;
+    const x = Math.round((surface.width - size.width) / 2);
+    const y = Math.round((surface.height - size.height) / 2);
+    const program = this.ctx.program(PRESENT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(x, y, size.width, size.height);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(x, y, Math.round(size.width * Math.min(1, position)), size.height);
+    gl.useProgram(program);
+    this.bindTexture(program, 'u_image', 0, texture);
+    this.ctx.drawQuad();
+    gl.disable(gl.SCISSOR_TEST);
+  }
+
   get surface(): { readonly width: number; readonly height: number } {
     return this.ctx.surface;
   }
@@ -642,6 +665,8 @@ export class Compositor {
     this.uploads.clear();
     this.rasterTextures.clear();
     this.presented?.dispose();
+    this.compareTexture?.dispose();
+    this.compareTexture = null;
     this.presented = null;
     for (const rasterizer of this.rasterizers.values()) rasterizer.clear();
     this.targets.trim();

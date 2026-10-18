@@ -51,7 +51,7 @@ Status: merge, transform, crop, background, gradient, blur, glow, polygon and sh
 
 ## Phase 4. Color page
 
-Status: qualifiers (HSL, 3D), parallel mixer, hue/lum/sat curves, HDR wheels, color warper and color management (input spaces, ACEScct working space, ACES output transform) and noise reduction (spatial and recursive temporal) are done.
+Status: qualifiers (HSL, 3D), parallel mixer, hue/lum/sat curves, HDR wheels, color warper and color management (input spaces, ACEScct working space, ACES output transform) noise reduction (spatial and recursive temporal), stills with wipe comparison, grade versions and grade copying are done. Phase 4 is complete.
 
 - Color nodes in the shared graph: serial, parallel and layer mixers.
 - Windows (circle, linear, polygon, curve) with tracking; HSL and 3D qualifiers.

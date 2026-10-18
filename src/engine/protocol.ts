@@ -66,6 +66,9 @@ export interface EngineMethods {
   capabilities(): Promise<EngineCapabilities>;
   setViewNode(target: ViewNode | null): void;
   setScopes(enabled: boolean): void;
+  setCompare(bitmap: ImageBitmap | null, position?: number): void;
+  setComparePosition(position: number): void;
+  grabFrame(time: number, maxHeight: number): Promise<Blob | null>;
   setRenderCache(options: { enabled?: boolean; memoryBytes?: number; diskBytes?: number }): void;
   peaks(assetId: string): Promise<unknown>;
   thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;

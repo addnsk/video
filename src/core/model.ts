@@ -62,6 +62,20 @@ export interface ItemGraph {
   readonly positions: Readonly<Record<string, readonly [number, number]>>;
 }
 
+export interface GradeSnapshot {
+  readonly effects: readonly EffectInstance[];
+  readonly graph?: ItemGraph;
+  readonly animations: Animations;
+}
+
+export interface Still {
+  readonly id: string;
+  readonly name: string;
+  readonly time: number;
+  readonly image: string;
+  readonly grade: GradeSnapshot;
+}
+
 interface ItemBase {
   readonly id: string;
   readonly start: number;
@@ -73,6 +87,8 @@ interface ItemBase {
   readonly animations: Animations;
   readonly presets: ItemPresets;
   readonly graph?: ItemGraph;
+  readonly gradeVersions?: Readonly<Record<string, GradeSnapshot>>;
+  readonly gradeVersion?: string;
 }
 
 export interface MediaItem extends ItemBase {
@@ -133,6 +149,7 @@ export interface Project {
   readonly settings: ProjectSettings | null;
   readonly assets: Readonly<Record<string, AssetMeta>>;
   readonly tracks: readonly Track[];
+  readonly stills?: readonly Still[];
 }
 
 export const IDENTITY_TRANSFORM: Transform = { x: 0, y: 0, scale: 1, rotation: 0 };

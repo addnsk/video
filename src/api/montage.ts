@@ -33,6 +33,7 @@ import {
 import { findPlacement } from '../core/timeline';
 import type { FramePoint } from '../core/tracking';
 import { captureTemplate, placeTemplate, type NodeTemplate } from '../core/graph-templates';
+import { loadGradeVersion, removeGradeVersion, saveGradeVersion } from '../core/grades';
 import { trackPoint, type TrackRequest } from '../host/point-tracking';
 import { createId } from '../core/ids';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
@@ -409,6 +410,32 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
           inputs: registry.inputsOf(d.id) ?? [],
           params: d.params,
         })),
+    },
+
+    stills: {
+      grab: async (options: { name?: string; clip?: ItemRef } = {}) => {
+        const still = await session.stills.grab({ name: options.name, itemId: options.clip === undefined ? undefined : resolve(options.clip).item.id });
+        return { id: still.id, name: still.name, time: still.time };
+      },
+      list: () => session.stills.list.map(({ id, name, time, image }) => ({ id, name, time, image })),
+      remove: (id: string) => session.stills.remove(id),
+      apply: (id: string, target: ItemTarget | ItemRef[]) => session.stills.applyTo(id, Array.isArray(target) ? target.map((r) => resolve(r).item.id) : targets(target)),
+      compare: (id: string | null, position?: number) => session.stills.compare(id, position),
+      wipe: (position: number) => session.stills.wipe(position),
+    },
+
+    versions: {
+      list: (ref: ItemRef) => {
+        const { item } = resolve(ref);
+        return { active: item.gradeVersion ?? null, names: Object.keys(item.gradeVersions ?? {}) };
+      },
+      save: (ref: ItemRef, name: string) => void apply(saveGradeVersion(resolve(ref).item.id, name)),
+      load: (ref: ItemRef, name: string) => {
+        const { item } = resolve(ref);
+        if (!item.gradeVersions?.[name]) throw new Error(`No grade version "${name}". Saved: ${Object.keys(item.gradeVersions ?? {}).join(', ')}`);
+        apply(loadGradeVersion(item.id, name));
+      },
+      remove: (ref: ItemRef, name: string) => void apply(removeGradeVersion(resolve(ref).item.id, name)),
     },
 
     templates: {

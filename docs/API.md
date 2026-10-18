@@ -213,6 +213,33 @@ montage.colorSpace({ asset: id }, 'logc3');   // by asset id
 
 In the color panel the same choices are the Working space and Input color space selects. The `grade` filter keeps its legacy `inputTransform` parameter for old projects; new imports use the input color space instead.
 
+### Stills, wipe and grade versions
+
+A still is the rendered frame at the playhead (a 270-line JPEG kept in the project) together with the grade of a clip. Stills compare against the live picture with a wipe and pass their grade to other clips.
+
+```js
+const still = await montage.stills.grab({ name: 'Hero', clip: 0 }); // clip defaults to the top clip at the playhead
+montage.stills.list();                     // [{ id, name, time, image }]
+await montage.stills.compare(still.id);    // wipe: the still on the left, the live frame on the right
+await montage.stills.wipe(0.3);            // wipe position, 0 to 1
+await montage.stills.compare(null);        // end the comparison
+montage.stills.apply(still.id, 'all');     // copy its grade to clips (ref, list of refs or 'all')
+montage.stills.remove(still.id);
+```
+
+Grade versions keep several grades per clip (effects, node graph and their keyframes). Loading a version stores the current grade under the active version name first.
+
+```js
+montage.versions.save(0, 'Warm');
+montage.grade(0, { temperature: -0.3 });
+montage.versions.save(0, 'Cool');
+montage.versions.load(0, 'Warm');
+montage.versions.list(0);                  // { active: 'Warm', names: ['Warm', 'Cool'] }
+montage.versions.remove(0, 'Cool');
+```
+
+In the UI the Stills panel grabs, compares (click a still), applies and deletes stills; the color panel has the Grade version select and Save version.
+
 ### Color filters
 
 Filters run on any clip with `montage.effect(ref, type, params)` (or `null` to remove) and in the node graph:

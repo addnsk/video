@@ -18,6 +18,7 @@ import { detectPlatform } from './platform';
 import type { PlatformReport } from './platform-report';
 import { LutLibrary } from './luts';
 import { TemplateLibrary } from './template-library';
+import { StillsController } from './stills';
 import { Transport } from './transport';
 
 export type ProxyState = EngineEvents['proxy']['state'];
@@ -58,6 +59,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
   readonly log = new EventLog(200, localLogStore('montage.log'));
   readonly templates = new TemplateLibrary();
+  readonly stills = new StillsController(this);
   private peakData: AssetDataCache<Float32Array>;
   private platformReport: Promise<PlatformReport> | null = null;
   private thumbnailData: AssetDataCache<ThumbnailStrip>;

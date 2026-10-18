@@ -1,6 +1,7 @@
 import type { ColorScience, Item, ParamValue, ParamValues } from '../../core/model';
 import { copyEffects, replaceEffect, setAssetColorSpace, setColorScience, upsertEffect } from '../../core/operations';
 import { DEFAULT_INPUT_SPACE, INPUT_SPACES } from '../../effects/color-management';
+import { loadGradeVersion, saveGradeVersion } from '../../core/grades';
 import { findPlacement, placeTrack } from '../../core/timeline';
 import { parseCube } from '../../effects/cube';
 import { defaultParams, type ScalarParamSpec } from '../../effects/types';
@@ -26,6 +27,7 @@ export class ColorPanel extends Panel {
   private hint = h('p', { class: 'hint' }, t('colorHint'));
   private input: HTMLSelectElement;
   private science: HTMLSelectElement;
+  private version: HTMLSelectElement;
   private sliders = new Map<string, Slider>();
   private wheels = new Map<string, ColorWheel>();
   private lutName = h('div', { class: 'mono' });
@@ -44,6 +46,9 @@ export class ColorPanel extends Panel {
     this.science = h('select', { id: 'color-science', onChange: () => session.store.dispatch(setColorScience(this.science.value as ColorScience)) },
       h('option', { value: 'display' }, t('colorScienceDisplay')),
       h('option', { value: 'aces' }, t('colorScienceAces')));
+
+    this.version = h('select', { id: 'grade-version', onChange: () => this.loadVersion(this.version.value) });
+    const saveVersion = h('button', { class: 'btn small', id: 'grade-version-save', onClick: () => this.saveVersion() }, t('versionSave'));
 
     const wheelRow = h('div', { class: 'wheels' });
     for (const [name, label] of WHEELS) {
@@ -104,6 +109,7 @@ export class ColorPanel extends Panel {
       this.hint,
       h('label', { class: 'field' }, t('colorScience'), this.science),
       h('label', { class: 'field' }, t('colorInputSpace'), this.input),
+      h('div', { class: 'row' }, h('label', { class: 'field' }, t('versionTitle'), this.version), saveVersion),
       wheelRow,
       sliderBox,
       h('h2', {}, t('curvesTitle')),
@@ -128,6 +134,18 @@ export class ColorPanel extends Panel {
   private params(type: string): ParamValues {
     const def = this.session.registry.filter(type)!;
     return { ...defaultParams(def.params), ...this.item?.effects.find((e) => e.type === type)?.params };
+  }
+
+  private saveVersion() {
+    const item = this.item;
+    if (!item) return;
+    const name = prompt(t('versionName'), `Version ${Object.keys(item.gradeVersions ?? {}).length + 1}`)?.trim();
+    if (name) this.session.store.dispatch(saveGradeVersion(item.id, name));
+  }
+
+  private loadVersion(name: string) {
+    const item = this.item;
+    if (item && name) this.session.store.dispatch(loadGradeVersion(item.id, name));
   }
 
   private setInputSpace(space: string) {
@@ -199,6 +217,12 @@ export class ColorPanel extends Panel {
     this.input.value = asset?.colorSpace ?? DEFAULT_INPUT_SPACE;
     this.input.disabled = !asset;
     this.science.value = this.session.store.project.settings?.colorScience ?? 'display';
+    const versions = Object.keys(item?.gradeVersions ?? {});
+    const options = ['', ...versions];
+    if (this.version.options.length !== options.length || options.some((v, i) => this.version.options[i].value !== v))
+      this.version.replaceChildren(...options.map((v) => h('option', { value: v }, v || t('versionNone'))));
+    this.version.value = item?.gradeVersion && versions.includes(item.gradeVersion) ? item.gradeVersion : '';
+    this.version.disabled = !item;
     this.science.disabled = !this.session.store.project.settings;
     for (const [name, slider] of this.sliders) {
       slider.disabled = !item;

@@ -34,6 +34,9 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - Generator nodes (background, text node, gradient) are not color managed: in ACES their colors pass through the output transform and look slightly different from `display`.
 - The input color space is per media file, not per clip.
 - Temporal noise reduction is recursive (it reuses its previous output, no motion estimation); it needs frames rendered in order, so a still after a jump and the first frame of playback get spatial-only quality, and moving areas get no temporal cleanup.
+- Wipe comparison is a vertical wipe against a still (no split-screen layouts, no angle, no comparison with the ungraded frame other than the Compare button).
+- Stills are low resolution (270 lines, JPEG) and live inside the project file, which grows by roughly 20–40 KB per still.
+- Grade versions and stills copy node keyframes but not keyframed clip transforms or opacity.
 - Spatial noise reduction is a bilateral filter, not non-local means; strong settings soften fine texture.
 
 - Curves, qualifiers and the color warper work on display-referred values clipped to 0..1; HDR wheels and grade keep values above 1.
