@@ -51,6 +51,8 @@ Status: merge, transform, crop, background, gradient, blur, glow, polygon and sh
 
 ## Phase 4. Color page
 
+Status: qualifiers (HSL, 3D), parallel mixer, hue/lum/sat curves, HDR wheels and color warper are done.
+
 - Color nodes in the shared graph: serial, parallel and layer mixers.
 - Windows (circle, linear, polygon, curve) with tracking; HSL and 3D qualifiers.
 - Curves: hue vs hue, hue vs lum, lum vs sat, sat vs sat; HDR wheels; color warper.

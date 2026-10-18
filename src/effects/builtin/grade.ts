@@ -57,10 +57,7 @@ vec3 bmdFilmToRec709(vec3 x) {
 }
 
 vec3 wheelOffset(vec3 w) {
-  float r = length(w.xy);
-  if (r == 0.0) return vec3(0.0);
-  float a = atan(-w.y, w.x);
-  return vec3(cos(a), cos(a - 2.0943951), cos(a - 4.1887902)) * r;
+  return vec3(w.x, -0.5 * w.x - 0.8660254 * w.y, -0.5 * w.x + 0.8660254 * w.y);
 }
 
 vec4 effect(vec4 color, vec2 uv) {

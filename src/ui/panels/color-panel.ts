@@ -66,7 +66,7 @@ export class ColorPanel extends Panel {
     }
 
     const curvesDef = session.registry.filter('curves')!;
-    const channelColors: Record<string, string> = { master: '', red: '#e5675a', green: '#5fbf6a', blue: '#5b8def', hueSat: '#e9a23b' };
+    const channelColors: Record<string, string> = { master: '', red: '#e5675a', green: '#5fbf6a', blue: '#5b8def', hueSat: '#e9a23b', hueHue: '#c77dff', hueLum: '#9ad1d4', lumSat: '#d9d9d9', satSat: '#f2c14e' };
     this.curves = new CurveEditor(
       curvesDef.params.map((p) => ({
         name: p.name,

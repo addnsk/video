@@ -135,6 +135,7 @@ export class Compositor {
       this.targets.release(accumulator);
     }
     this.collect(frame);
+    this.releaseEvicted();
   }
 
   private renderTrack(layer: TrackFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions): RenderTarget | null {
@@ -201,6 +202,12 @@ export class Compositor {
   }
 
   private nodeCache = new Map<string, RenderTarget>();
+  private evicted: RenderTarget[] = [];
+
+  private releaseEvicted() {
+    for (const target of this.evicted) this.targets.release(target);
+    this.evicted = [];
+  }
   private nodeCacheGeneration = -1;
 
   private nodeCacheFor() {
@@ -223,7 +230,7 @@ export class Compositor {
         for (const [k, t] of this.nodeCache) {
           if (this.nodeCache.size <= NODE_CACHE_ENTRIES) break;
           this.nodeCache.delete(k);
-          this.targets.release(t);
+          this.evicted.push(t);
         }
       },
     };
@@ -281,7 +288,8 @@ export class Compositor {
       for (const { name } of def.inputs) {
         const input = inputs.get(name);
         gl.uniform1i(this.ctx.uniform(program, nodeHasUniform(name)), input ? 1 : 0);
-        this.bindTexture(program, nodeInputUniform(name), unit++, input?.texture ?? this.emptyTexture());
+        this.bindTexture(program, nodeInputUniform(name), unit, input?.texture ?? this.emptyTexture(unit));
+        unit++;
       }
       if (previous) this.bindTexture(program, 'u_previous', unit++, previous.texture);
       if (def.raster) unit = this.bindRaster(program, def.raster, { ...defaultParams(def.params), ...params }, unit);
@@ -323,7 +331,7 @@ export class Compositor {
     const gl = this.ctx.gl;
     const rasterizer = this.rasterizers.get(id);
     if (!rasterizer) {
-      this.bindTexture(program, 'u_raster', unit, this.emptyTexture());
+      this.bindTexture(program, 'u_raster', unit, this.emptyTexture(unit));
       gl.uniform1i(this.ctx.uniform(program, 'u_glyph_count'), 0);
       return unit + 1;
     }
@@ -338,9 +346,10 @@ export class Compositor {
 
   private empty: { texture: WebGLTexture; generation: number } | null = null;
 
-  private emptyTexture(): WebGLTexture {
+  private emptyTexture(unit: number): WebGLTexture {
     if (this.empty?.generation === this.ctx.generation) return this.empty.texture;
     const gl = this.ctx.gl;
+    gl.activeTexture(gl.TEXTURE0 + unit);
     const texture = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
@@ -440,12 +449,14 @@ export class Compositor {
       const loc = this.ctx.uniform(program, spec.name);
       switch (spec.type) {
         case 'resource': {
+          gl.activeTexture(gl.TEXTURE0 + unit);
           const texture = this.luts.get(String(value), this.lutProvider.lut(String(value)));
           if (texture) this.bindTexture(program, spec.name, unit++, texture, gl.TEXTURE_3D);
           break;
         }
         case 'curve': {
           const points = (Array.isArray(value) ? value : spec.default) as number[];
+          gl.activeTexture(gl.TEXTURE0 + unit);
           const texture = this.curves.get(`${spec.periodic ? 'p' : 'l'}:${points.join(',')}`, () => sampleCurve(points, 256, spec.periodic));
           this.bindTexture(program, spec.name, unit++, texture);
           break;

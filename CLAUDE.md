@@ -41,7 +41,9 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 - Stylize/transform nodes in `effects/builtin/stylize-nodes.ts`; `time()` in node GLSL with `temporal` defs excluded from the node cache; e2e `fusion-nodes` compiles every built-in node.
 - Node templates: `core/graph-templates.ts` (capture/place), `host/template-library.ts` (localStorage), API `graph.template`/`graph.insert`/`templates.*`, node editor Save template.
 - Render cache done: `engine/render-cache/{frame-key,frame-store,render-cache}.ts`, wired in engine `tick`/`drawStill`, `Compositor.present`/`snapshot`, API `montage.renderCache`, e2e `render-cache`.
-- Next: color page (phase 4): qualifiers, mixers, curves, color management/ACES, noise reduction, stills/wipe/versions.
+- Color nodes done: `effects/builtin/color-nodes.ts` (qualifier, qualifier-3d, parallel-mixer, hdr-wheels, color-warper), extra curves, e2e `color-nodes`.
+- GPU gotcha: any lazily created texture must be created with the right `activeTexture` unit, otherwise it clobbers the sampler bound just before (fixed for empty, curve, LUT and raster textures).
+- Next (phase 4): color management/ACES, noise reduction, stills/wipe/versions.
 - GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
 
 ## Known issues

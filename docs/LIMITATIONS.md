@@ -27,6 +27,12 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - `graph.disable` keeps added nodes in the effect chain; remove nodes you no longer want.
 - Node templates are stored in the browser (localStorage), not in the project file; export them as JSON with `montage.templates.get` to move them.
 
+## Color
+
+- Curves, qualifiers and the color warper work on display-referred values clipped to 0..1; HDR wheels and grade keep values above 1.
+- Qualifiers have no blur or clean-up of their own; follow them with a `matte` node.
+- There is no color-picker on the viewer for qualifiers yet; colors are set as parameters.
+
 ## Text node
 
 - Up to 128 glyphs animate individually; extra glyphs are hidden.

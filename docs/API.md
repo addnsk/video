@@ -191,7 +191,24 @@ Built-in nodes:
 - Blur and detail: `blur`, `glow`, `directional-blur` (`blurLength` in project pixels, `angle`, `centered`), `radial-blur` (`center`, `amount`, `mode` `zoom` or `spin`), `sharpen` (`amount`, `radius`, `threshold`).
 - Stylize: `vignette` (`amount`, `radius`, `softness`, `roundness`, `tint`), `film-grain` (`amount`, `grainSize`, `shadows`, `mono`; changes every frame), `invert`.
 - Masks and keys: `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `bezier-mask` (`points` as six numbers per vertex: x, y, then the in and out handle offsets from the vertex; editable on the viewer, Alt breaks the handle symmetry, double-click removes a vertex), `ellipse-mask`, `rectangle-mask`, `mask-combine` (inputs `a` and `b`; `mode` `union`, `intersect`, `subtract`, `difference`; `invert`), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `luma-key` (`low`, `high`, `softness`, `invert`, `matte`), `matte` (matte control for any alpha: `choke` in project pixels, negative grows, `feather`, `gamma`, `clipLow`, `clipHigh`, `invert`, `matte` view).
-- Every color filter is also a node.
+- Color: `qualifier` (HSL qualifier mask: `useHue`, `hueCenter` 0 to 1, `hueWidth`, `hueSoft`, `useSat`, `satLow`, `satHigh`, `satSoft`, `useLum`, `lumLow`, `lumHigh`, `lumSoft`, `invert`), `qualifier-3d` (mask around up to three picked colors `key1` to `key3` in Oklab space; a color with alpha 0 is unused; `tolerance`, `softness`, `ignoreLuma`, `invert`), `parallel-mixer` (weighted average of up to four inputs `a` to `d`, like Resolve's parallel node; `merge` is the layer mixer).
+- Every color filter is also a node. A secondary correction is a `merge` with the original as `background`, the corrected branch as `foreground` and a qualifier or window as `mask`.
+
+### Color filters
+
+Filters run on any clip with `montage.effect(ref, type, params)` (or `null` to remove) and in the node graph:
+
+- `grade`: input transform, exposure, temperature, tint, contrast, pivot, saturation and the lift, gamma and gain wheels (`[x, y, master]`).
+- `curves`: `master`, `red`, `green`, `blue` (x, y pairs), `hueSat`, `hueHue`, `hueLum` (periodic, 0.5 is neutral), `lumSat` (0.5 is neutral) and `satSat` (identity is neutral).
+- `hdr-wheels`: zone wheels `dark`, `shadow`, `light`, `highlight` and `global` as `[x, y, exposure]` in stops, zones set by `darkPoint` and `highlightPoint` (stops around 18% gray) and `falloff`, plus `saturation`.
+- `color-warper`: per hue range (`red`, `yellow`, `green`, `cyan`, `blue`, `magenta`) a `[hue shift, saturation, luminance]` vector, range `width`.
+- `lut`: a loaded .cube with `strength`.
+
+```js
+montage.effect(0, 'hdr-wheels', { highlight: [0, 0.1, -0.5], dark: [0.05, 0, 0] });
+montage.effect(0, 'color-warper', { green: [-0.3, -0.4, 0] });
+montage.effect(0, 'curves', { hueHue: [0, 0.5, 0.33, 0.45, 1, 0.5] });
+```
 
 ### Text node
 
