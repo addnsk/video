@@ -1,4 +1,5 @@
 import { registerProresDecoder } from '@mediabunny/prores';
+import { serializeSharedProresDecoding } from './media/prores-guard';
 import { Emitter } from '../core/emitter';
 import type { AssetMeta, Project } from '../core/model';
 import { emptyProject } from '../core/model';
@@ -38,6 +39,7 @@ const SCOPE_INTERVAL_MS = 120;
 const HEAVY_FRAME_SHARE = 0.5;
 const HEAVY_FRAME_PASSES = 8;
 
+serializeSharedProresDecoding();
 registerProresDecoder();
 
 const nextTick: (fn: () => void) => void =

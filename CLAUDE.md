@@ -48,7 +48,7 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 ## Known issues
 
-- Rare page error "memory access out of bounds" (seen once in the `fusion` suite, not reproducible in reruns); suspected in the ProRes WASM decoder under concurrent decoding (stills, thumbnails, playback readers on one file). Investigate with a concurrency stress test.
+- Rare page error "memory access out of bounds" (seen in the `fusion` and `multitrack` suites, never reproduced in isolated stress loops). Suspected cause: several decoders using the shared turbores WASM runtime and thread pool at once. Mitigation: `engine/media/prores-guard.ts` serializes decodes and closes across shared-memory decoders. If it shows up again, the guard did not fix it.
 
 ## Next (agreed with the owner)
 

@@ -8,7 +8,7 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - H.264/HEVC decoding and encoding depend on the browser; Chromium builds without proprietary codecs fall back to VP9 for export and proxies.
 - HDR export is ProRes only (Rec.2020 HLG/PQ); HDR in MP4 needs a 10-bit HEVC encoder the browser may not have. The preview is SDR.
 - Camera log is detected automatically only for Blackmagic Film (the `com.apple.proapps.customgamma` tag); other cameras need a manual input transform.
-- Rare "memory access out of bounds" page error suspected in the ProRes WASM decoder under concurrent decoding of one file.
+- ProRes decodes from different files run one at a time on the shared WASM runtime (each frame still uses all decoder threads); this works around a rare out-of-bounds crash that was suspected in concurrent decoding.
 
 ## Render cache
 
