@@ -317,7 +317,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.ticking = true;
     try {
       const { anchor } = playback;
-      const time = anchor.time + (epochNow() - anchor.epochMs) / 1000;
+      const time = anchor.time + ((epochNow() - anchor.epochMs) / 1000) * anchor.rate;
       const duration = projectDuration(this.project);
       if (time < anchor.time) return;
       const frame = compositionAt(this.project, Math.min(time, Math.max(0, duration - 1e-3)));

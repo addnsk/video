@@ -24,7 +24,7 @@ export class AudioOutput {
     return performance.timeOrigin + performance.now() + (contextTime - ctx.currentTime - ctx.baseLatency) * 1000;
   }
 
-  schedule(planar: Float32Array[], when: number): void {
+  schedule(planar: Float32Array[], when: number, rate = 1): void {
     const ctx = this.context!;
     const frames = planar[0]?.length ?? 0;
     if (!frames) return;
@@ -32,6 +32,7 @@ export class AudioOutput {
     planar.forEach((data, c) => buffer.copyToChannel(data as Float32Array<ArrayBuffer>, c));
     const node = ctx.createBufferSource();
     node.buffer = buffer;
+    node.playbackRate.value = rate;
     node.connect(ctx.destination);
     node.onended = () => this.sources.delete(node);
     this.sources.add(node);

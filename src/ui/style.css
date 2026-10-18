@@ -97,6 +97,7 @@ button, select, input { font: inherit; color: inherit; }
 }
 .tc { font: 500 14px var(--font-mono); font-variant-numeric: tabular-nums; min-width: 25ch; }
 .tc span { color: var(--muted); }
+.rate { font: 600 12px var(--font-mono); color: var(--accent-ink); background: var(--accent); border-radius: 4px; padding: 2px 6px; }
 .spacer { flex: 1; }
 
 .timeline { grid-area: timeline; border-top: 1px solid var(--line); }

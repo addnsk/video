@@ -151,10 +151,15 @@ vec4 transition(vec2 uv) {
 
 ## Playback, history, export
 
+`play(rate)` shuttles: rates above 1 play faster with pitched audio, negative rates scrub backward without audio. `rate` is 0 while paused.
+
 ```js
 montage.seek(12.5);
 await montage.play();
+await montage.play(4);
+await montage.play(-2);
 montage.pause();
+montage.rate;
 
 montage.undo();
 montage.redo();

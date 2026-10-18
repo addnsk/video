@@ -9,6 +9,7 @@ import type { FontSource } from './fonts';
 export interface ClockAnchor {
   readonly time: number;
   readonly epochMs: number;
+  readonly rate: number;
 }
 
 export type ExportTarget = { kind: 'storage'; name: string } | { kind: 'handle'; handle: FileSystemFileHandle };

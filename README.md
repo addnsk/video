@@ -50,6 +50,7 @@ CHROME_PATH=/path/to/chrome npm run test:e2e -- color transitions
 | Key | Action |
 |---|---|
 | Space | Play / pause |
+| J / K / L | Shuttle backward / stop / forward; repeat J or L for 2×, 4×, 8× |
 | S | Split at the playhead |
 | Delete | Delete the selected clip |
 | ← → | Previous / next frame |

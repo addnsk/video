@@ -55,6 +55,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
 
   const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => transport.toggle() }, '▶');
   const timecode = h('div', { class: 'tc', id: 'tc' });
+  const rate = h('span', { class: 'rate', id: 'rate', hidden: true });
   const split = () => {
     const placement = selection.id ? findPlacement(store.project, selection.id) : null;
     const covers = placement && transport.time > placement.start && transport.time < placement.end;
@@ -70,6 +71,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const transportBar = h('div', { class: 'transport' },
     play,
     timecode,
+    rate,
     h('div', { class: 'spacer' }),
     ...editButtons,
     h('button', { class: 'btn icon', 'aria-label': t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, '−'),
@@ -116,9 +118,11 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     timecode.replaceChildren(formatTimecode(transport.time, fps), h('span', {}, ` / ${formatTimecode(projectDuration(store.project), fps)}`));
   };
   transport.on('time', renderTime);
-  transport.on('state', ({ playing }) => {
+  transport.on('state', ({ playing, rate: speed }) => {
     play.textContent = playing ? '❚❚' : '▶';
     play.setAttribute('aria-label', playing ? t('pause') : t('play'));
+    rate.hidden = !playing || speed === 1;
+    rate.textContent = `${speed < 0 ? '−' : ''}${Math.abs(speed)}×`;
   });
 
   const syncChrome = () => {
@@ -154,6 +158,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     else if (mod && e.code === 'KeyY') store.redo();
     else if (mod) return;
     else if (e.code === 'Space') transport.toggle();
+    else if (e.code === 'KeyJ') void transport.shuttle(-1);
+    else if (e.code === 'KeyK') transport.pause();
+    else if (e.code === 'KeyL') void transport.shuttle(1);
     else if (e.code === 'KeyS') split();
     else if (e.key === 'Delete' || e.key === 'Backspace') remove();
     else if (e.code === 'ArrowLeft') transport.seek(transport.time - 1 / fps);

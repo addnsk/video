@@ -163,6 +163,9 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     get time() {
       return transport.time;
     },
+    get rate() {
+      return transport.rate;
+    },
 
     assets: (): AssetMeta[] => Object.values(store.project.assets),
     clips: (trackId?: string): ClipInfo[] => {
@@ -298,7 +301,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     },
 
     seek: (time: number) => transport.seek(time),
-    play: () => transport.play(),
+    play: (rate = 1) => transport.play(rate),
     pause: () => transport.pause(),
 
     undo: () => store.undo(),
