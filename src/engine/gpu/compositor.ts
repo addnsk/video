@@ -9,6 +9,7 @@ import { COPY, FIT, filterSource, nodeHasUniform, nodeInputUniform, nodeSource, 
 import { OUTPUT_ID, materialize } from '../../core/graph';
 import { renderGraph } from './graph-renderer';
 import { sampleCurve } from '../../effects/curves';
+import { catmullRom } from '../../effects/points';
 import { CurveTextures, LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
 
 export interface LutProvider {
@@ -71,16 +72,30 @@ export class Compositor {
     this.curves = new CurveTextures(ctx);
   }
 
+  private project: { width: number; height: number } | null = null;
+  private pixelScale = 1;
+
+  setFrame(width: number, height: number): void {
+    this.project = width > 0 && height > 0 ? { width, height } : null;
+  }
+
   get size(): { width: number; height: number } {
-    return { width: this.ctx.surface.width, height: this.ctx.surface.height };
+    const surface = this.ctx.surface;
+    if (!this.project) return { width: surface.width, height: surface.height };
+    const aspect = this.project.width / this.project.height;
+    const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
+    return surface.width / surface.height > aspect
+      ? { width: even(surface.height * aspect), height: even(surface.height) }
+      : { width: even(surface.width), height: even(surface.width / aspect) };
   }
 
   render(frame: CompositionFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions = {}): void {
     const gl = this.ctx.gl;
     if (this.ctx.lost) return;
-    const surface = this.ctx.surface;
-    this.width = surface.width;
-    this.height = surface.height;
+    const size = this.size;
+    this.width = size.width;
+    this.height = size.height;
+    this.pixelScale = this.project ? size.height / this.project.height : 1;
     let accumulator: RenderTarget | null = null;
     for (const layer of frame.layers) {
       const result = this.renderTrack(layer, images, options);
@@ -98,7 +113,7 @@ export class Compositor {
       this.targets.release(result);
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, this.width, this.height);
+    gl.viewport(0, 0, this.ctx.surface.width, this.ctx.surface.height);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     if (options.readback) options.readback(this.readFull(accumulator));
@@ -185,6 +200,7 @@ export class Compositor {
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(program);
       gl.uniform2f(this.ctx.uniform(program, 'u_resolution'), this.width, this.height);
+      gl.uniform1f(this.ctx.uniform(program, 'u_pixel_scale'), this.pixelScale);
       let unit = 0;
       for (const { name } of def.inputs) {
         const input = inputs.get(name);
@@ -274,7 +290,11 @@ export class Compositor {
     const gl = this.ctx.gl;
     const program = this.ctx.program(COPY);
     gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer ?? null);
-    gl.viewport(0, 0, this.width, this.height);
+    if (target) gl.viewport(0, 0, this.width, this.height);
+    else {
+      const surface = this.ctx.surface;
+      gl.viewport(Math.round((surface.width - this.width) / 2), Math.round((surface.height - this.height) / 2), this.width, this.height);
+    }
     gl.useProgram(program);
     this.bindTexture(program, 'u_image', 0, source.texture);
     gl.uniform1f(this.ctx.uniform(program, 'u_opacity'), opacity);
@@ -312,6 +332,15 @@ export class Compositor {
         case 'enum':
           gl.uniform1i(loc, Math.max(0, spec.options.findIndex((o) => o.value === value)));
           break;
+        case 'points': {
+          const raw = (Array.isArray(value) ? value : spec.default) as number[];
+          const points = values.smooth === true ? catmullRom(raw, true, 8, spec.max) : raw.slice(0, spec.max * 2);
+          const data = new Float32Array(spec.max * 2);
+          data.set(points);
+          gl.uniform2fv(this.ctx.uniform(program, `${spec.name}[0]`), data);
+          gl.uniform1i(this.ctx.uniform(program, `${spec.name}_count`), points.length / 2);
+          break;
+        }
         case 'bool':
           gl.uniform1i(loc, value ? 1 : 0);
           break;

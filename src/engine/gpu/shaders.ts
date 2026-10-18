@@ -52,6 +52,7 @@ const GLSL_TYPES: Record<string, string> = {
 };
 
 function uniformDeclaration(spec: ParamSpec): string {
+  if (spec.type === 'points') return `uniform vec2 ${spec.name}[${spec.max}];\nuniform int ${spec.name}_count;`;
   if (spec.type === 'resource') return `uniform sampler3D ${spec.name};`;
   if (spec.type === 'curve') return `uniform sampler2D ${spec.name};`;
   return `uniform ${GLSL_TYPES[spec.type]} ${spec.name};`;
@@ -89,7 +90,9 @@ vec4 input_${name}(vec2 uv) {
   const previous = pass > 0 ? 'uniform sampler2D u_previous;\nvec4 previous(vec2 uv) { return texture(u_previous, uv); }' : 'vec4 previous(vec2 uv) { return vec4(0.0); }';
   return `${HEADER}
 uniform vec2 u_resolution;
+uniform float u_pixel_scale;
 vec2 texel() { return 1.0 / u_resolution; }
+float px(float projectPixels) { return projectPixels * u_pixel_scale; }
 float aspect() { return u_resolution.x / u_resolution.y; }
 ${CURVE_HELPER}
 ${inputs}

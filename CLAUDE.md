@@ -31,6 +31,10 @@ Done: HDR ProRes export (Rec.2020 HLG/PQ via `ENCODINGS` in `export/prores/color
 
 The owner must enable Settings → Pages → Source: GitHub Actions. Published preview: https://claude.ai/artifact/HGAVKmA9JAvLH71uheStDR (republish from a copy of `dist` with an `index.html` fragment that links the built css/js; drop the coi script there).
 
+## Known issues
+
+- Rare page error "memory access out of bounds" (seen once in the `fusion` suite, not reproducible in reruns); suspected in the ProRes WASM decoder under concurrent decoding (stills, thumbnails, playback readers on one file). Investigate with a concurrency stress test.
+
 ## Next (agreed with the owner)
 
 The full plan is `docs/ROADMAP.md`; work through its phases in order.

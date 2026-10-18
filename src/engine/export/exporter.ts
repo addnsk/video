@@ -52,6 +52,7 @@ export async function exportProject(
   const maxSize = gpu.gl.getParameter(gpu.gl.MAX_TEXTURE_SIZE) as number;
   if (width > maxSize || height > maxSize) throw new Error(`This GPU renders at most ${maxSize} px; choose a smaller export resolution`);
   const compositor = new Compositor(gpu, context.registry, context.luts);
+  compositor.setFrame(base.width, base.height);
   const frames = new SequentialFrames(context.pool, context.text, 'master');
   const mixer = new AudioMixer(context.pool);
 

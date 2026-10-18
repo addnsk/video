@@ -7,8 +7,9 @@ const color = (name: string, label: string, value: [number, number, number, numb
 const BLUR_TAPS = `
 const int MAX_TAPS = 64;
 vec4 gaussian(vec2 uv, vec2 direction, float radius, bool fromPrevious) {
-  float sigma = max(radius, 0.001) / 2.0;
-  int taps = int(min(ceil(radius), float(MAX_TAPS)));
+  float scaled = px(radius);
+  float sigma = max(scaled, 0.001) / 2.0;
+  int taps = int(min(ceil(scaled), float(MAX_TAPS)));
   vec4 sum = vec4(0.0);
   float total = 0.0;
   for (int i = -MAX_TAPS; i <= MAX_TAPS; i++) {
@@ -115,8 +116,9 @@ export const GLOW: NodeDef = {
     {
       glsl: `${BLUR_TAPS}
 vec4 process(vec2 uv) {
-  float sigma = max(radius, 0.001) / 2.0;
-  int taps = int(min(ceil(radius), float(MAX_TAPS)));
+  float scaled = px(radius);
+  float sigma = max(scaled, 0.001) / 2.0;
+  int taps = int(min(ceil(scaled), float(MAX_TAPS)));
   vec3 sum = vec3(0.0);
   float total = 0.0;
   for (int i = -MAX_TAPS; i <= MAX_TAPS; i++) {
@@ -279,4 +281,48 @@ vec4 process(vec2 uv) {
   ],
 };
 
-export const BUILTIN_NODES: readonly NodeDef[] = [KEYER, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];
+export const MAX_MASK_POINTS = 128;
+
+export const POLYGON_MASK: NodeDef = {
+  kind: 'node',
+  id: 'polygon-mask',
+  name: 'Polygon mask',
+  category: 'mask',
+  inputs: [],
+  params: [
+    { name: 'points', label: 'Points', type: 'points', default: [-0.25, -0.25, 0.25, -0.25, 0.25, 0.25, -0.25, 0.25], max: MAX_MASK_POINTS },
+    { name: 'smooth', label: 'Smooth curve', type: 'bool', default: true },
+    float('feather', 'Feather', 0.01, 0, 0.3, 0.002),
+    { name: 'invert', label: 'Invert', type: 'bool', default: false },
+  ],
+  passes: [
+    {
+      glsl: `
+float segmentDistance(vec2 p, vec2 a, vec2 b) {
+  vec2 ab = b - a;
+  float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-9), 0.0, 1.0);
+  return length(p - a - ab * t);
+}
+vec4 process(vec2 uv) {
+  vec2 p = vec2((uv.x - 0.5) * aspect(), 0.5 - uv.y);
+  float d = 1e9;
+  bool inside = false;
+  for (int i = 0; i < ${MAX_MASK_POINTS}; i++) {
+    if (i >= points_count) break;
+    int j = i == 0 ? points_count - 1 : i - 1;
+    vec2 a = vec2(points[i].x * aspect(), points[i].y);
+    vec2 b = vec2(points[j].x * aspect(), points[j].y);
+    d = min(d, segmentDistance(p, a, b));
+    if ((a.y > p.y) != (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  float signedDistance = inside ? -d : d;
+  float m = 1.0 - smoothstep(-feather, feather, signedDistance);
+  if (points_count < 3) m = 0.0;
+  if (invert) m = 1.0 - m;
+  return vec4(m);
+}`,
+    },
+  ],
+};
+
+export const BUILTIN_NODES: readonly NodeDef[] = [KEYER, POLYGON_MASK, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];

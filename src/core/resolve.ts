@@ -21,7 +21,15 @@ export function resolveItem(item: Item, local: number): ResolvedItem {
       const keys = a[nodeProperty(e.id, name)] ?? a[effectProperty(e.type, name)];
       if (!keys) continue;
       params ??= { ...e.params };
-      (params as Record<string, unknown>)[name] = valueAt(keys, local, Number(e.params[name] ?? 0));
+      const target = params as Record<string, unknown>;
+      const dot = name.lastIndexOf('.');
+      const index = dot > 0 ? Number(name.slice(dot + 1)) : NaN;
+      if (Number.isInteger(index)) {
+        const base = name.slice(0, dot);
+        const list = [...((target[base] as readonly number[] | undefined) ?? [])];
+        list[index] = valueAt(keys, local, Number(list[index] ?? 0));
+        target[base] = list;
+      } else target[name] = valueAt(keys, local, Number(e.params[name] ?? 0));
     }
     return params ? { ...e, params } : e;
   });

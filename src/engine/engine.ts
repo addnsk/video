@@ -113,6 +113,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     });
     this.gpu = new GpuContext(surface);
     this.compositor = new Compositor(this.gpu, this.registry, { lut: (id) => this.luts.get(id) });
+    if (this.project.settings) this.compositor.setFrame(this.project.settings.width, this.project.settings.height);
     this.compositor.onError = (message) => this.emit('error', { message });
     this.gpu.on('lost', () => this.emit('context', { state: 'lost' }));
     this.gpu.on('restored', () => {
@@ -133,6 +134,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
 
   setProject(project: Project): void {
     this.project = project;
+    if (project.settings) this.compositor?.setFrame(project.settings.width, project.settings.height);
     this.redraw();
   }
 

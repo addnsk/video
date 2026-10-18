@@ -1,7 +1,7 @@
 import { Editor, fixture } from '../harness.mjs';
 
 const CENTER = { x: 0.5, y: 0.5, size: 0.04 };
-const EDGE = { x: 0.08, y: 0.5, size: 0.04 };
+const EDGE = { x: 0.25, y: 0.5, size: 0.04 };
 const fmt = (c) => c.map((v) => v.toFixed(0)).join(',');
 
 export default {

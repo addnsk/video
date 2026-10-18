@@ -39,7 +39,13 @@ export interface ColorParamSpec extends ParamSpecBase {
   readonly default: readonly [number, number, number, number];
 }
 
-export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec | CurveParamSpec | ColorParamSpec;
+export interface PointsParamSpec extends ParamSpecBase {
+  readonly type: 'points';
+  readonly default: readonly number[];
+  readonly max: number;
+}
+
+export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec | CurveParamSpec | ColorParamSpec | PointsParamSpec;
 
 export interface FilterDef {
   readonly kind: 'filter';
