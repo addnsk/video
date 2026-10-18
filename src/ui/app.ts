@@ -1,5 +1,5 @@
 import { createMontageApi } from '../api/montage';
-import { removeItem, splitAt } from '../core/operations';
+import { splitAt } from '../core/operations';
 import { findPlacement, projectDuration } from '../core/timeline';
 import type { TrackApply } from '../core/tracking';
 import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
@@ -21,6 +21,7 @@ import { openExportDialog } from './export-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
 import { MixerPanel } from './panels/mixer-panel';
+import { MarkersPanel } from './panels/markers-panel';
 import { ScopesPanel } from './panels/scopes-panel';
 import { StillsPanel } from './panels/stills-panel';
 import { ItemPanel } from './panels/item-panel';
@@ -29,6 +30,7 @@ import { ScriptPanel } from './panels/script-panel';
 import { TransitionPanel } from './panels/transition-panel';
 import { Selection } from './selection';
 import { TimelineView } from './timeline-view';
+import { EditControls } from './edit-controls';
 
 export interface AppHandle {
   readonly fit: () => void;
@@ -39,6 +41,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const selection = new Selection(store);
   const api = createMontageApi(session, (id) => selection.set(id));
   Object.assign(globalThis, { montage: api });
+  const controls = new EditControls(session, selection, api);
+  const active = () => controls.active;
 
   const importFiles = async (picked: Iterable<PickedFile>) => {
     const added = await session.importAndPlace(picked, (file, error) => toast(`${file.name}: ${error.message}`, 'error'));
@@ -64,7 +68,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const empty = h('div', { class: 'empty' }, h('strong', {}, t('emptyTitle')), h('span', {}, t('emptyHint')));
   const screen = h('div', { class: 'screen' }, preview, info, before, empty, offlineBanner(session, persistence));
 
-  const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => transport.toggle() }, '▶');
+  const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => active().toggle() }, '▶');
   const timecode = h('div', { class: 'tc', id: 'tc' });
   const rate = h('span', { class: 'rate', id: 'rate', hidden: true });
   const meter = new LevelMeter(transport, t('audioLevels'));
@@ -79,7 +83,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     const covers = placement && transport.time > placement.start && transport.time < placement.end;
     store.dispatch(splitAt(transport.time, covers ? placement.track.id : session.videoTrackId));
   };
-  const remove = () => selection.id && store.dispatch(removeItem(selection.id));
+  const remove = () => controls.deleteSelection(false);
   const compare = h('button', { class: 'btn', id: 'bypass', 'aria-pressed': 'false', onClick: () => toggleBypass() }, t('compare'));
   const editButtons = [
     h('button', { class: 'btn', id: 'split', title: 'S', onClick: split }, t('split')),
@@ -87,6 +91,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     compare,
   ];
   const transportBar = h('div', { class: 'transport' },
+    controls.viewerTabs,
     play,
     timecode,
     rate,
@@ -94,13 +99,10 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     liveLoudness,
     h('div', { class: 'spacer' }),
     ...editButtons,
-    h('button', { class: 'btn icon', 'aria-label': t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, '−'),
-    h('button', { class: 'btn icon', 'aria-label': t('zoomFit'), onClick: () => timeline.fit() }, '⤢'),
-    h('button', { class: 'btn icon', 'aria-label': t('zoomIn'), onClick: () => timeline.zoom(1.5) }, '+'),
   );
 
   const timelineCanvas = h('canvas', { id: 'timeline' });
-  const timeline = new TimelineView(timelineCanvas, session, selection);
+  const timeline = new TimelineView(timelineCanvas, session, selection, () => controls.tool);
   const addTitle = () => {
     const overlay = store.project.tracks.find((tr) => tr.kind === 'video' && !tr.magnetic);
     if (!overlay) store.dispatch(addTrack('video'));
@@ -114,6 +116,12 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     h('button', { class: 'btn small', id: 'add-title', onClick: addTitle }, t('addTitle')),
     h('button', { class: 'btn small', id: 'add-video-track', onClick: () => store.dispatch(addTrack('video')) }, t('addVideoTrack')),
     h('button', { class: 'btn small', id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }, t('addAudioTrack')),
+    controls.editBar,
+    controls.toolBar,
+    h('div', { class: 'spacer' }),
+    h('button', { class: 'btn small icon', 'aria-label': t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, '−'),
+    h('button', { class: 'btn small icon', 'aria-label': t('zoomFit'), onClick: () => timeline.fit() }, '⤢'),
+    h('button', { class: 'btn small icon', 'aria-label': t('zoomIn'), onClick: () => timeline.zoom(1.5) }, '+'),
   );
 
   const picker = new PointPicker(screen, () => {
@@ -128,7 +136,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new ColorPanel(session, selection).element,
     new StillsPanel(session, selection).element,
     new MixerPanel(session).element,
-    new MediaPanel(session, timeline).element,
+    new MarkersPanel(session).element,
+    new MediaPanel(session, timeline, (assetId) => session.source.open(assetId)).element,
     new ScriptPanel(api).element,
   );
 
@@ -177,10 +186,13 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
 
   const renderTime = () => {
     const fps = store.project.settings?.fps ?? 25;
-    timecode.replaceChildren(formatTimecode(transport.time, fps), h('span', {}, ` / ${formatTimecode(projectDuration(store.project), fps)}`));
+    const viewed = session.source.viewer === 'source' ? session.source.store.project : store.project;
+    timecode.replaceChildren(formatTimecode(active().time, fps), h('span', {}, ` / ${formatTimecode(projectDuration(viewed), fps)}`));
   };
   transport.on('time', renderTime);
-  transport.on('state', ({ playing, rate: speed }) => {
+  session.source.transport.on('time', renderTime);
+  session.source.on('change', renderTime);
+  const onState = ({ playing, rate: speed }: { playing: boolean; rate: number }) => {
     play.textContent = playing ? '❚❚' : '▶';
     play.setAttribute('aria-label', playing ? t('pause') : t('play'));
     rate.hidden = !playing || speed === 1;
@@ -191,7 +203,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     } else meter.stop();
     showLoudness();
     rate.textContent = `${speed < 0 ? '−' : ''}${Math.abs(speed)}×`;
-  });
+  };
+  transport.on('state', onState);
+  session.source.transport.on('state', onState);
 
   const syncChrome = () => {
     const hasItems = store.project.tracks.some((tr) => tr.items.length);
@@ -224,15 +238,15 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.code === 'KeyZ') e.shiftKey ? store.redo() : store.undo();
     else if (mod && e.code === 'KeyY') store.redo();
+    else if (controls.handleKey(e)) void 0;
     else if (mod) return;
-    else if (e.code === 'Space') transport.toggle();
-    else if (e.code === 'KeyJ') void transport.shuttle(-1);
-    else if (e.code === 'KeyK') transport.pause();
-    else if (e.code === 'KeyL') void transport.shuttle(1);
+    else if (e.code === 'Space') active().toggle();
+    else if (e.code === 'KeyJ') void active().shuttle(-1);
+    else if (e.code === 'KeyK') active().pause();
+    else if (e.code === 'KeyL') void active().shuttle(1);
     else if (e.code === 'KeyS') split();
-    else if (e.key === 'Delete' || e.key === 'Backspace') remove();
-    else if (e.code === 'ArrowLeft') transport.seek(transport.time - 1 / fps);
-    else if (e.code === 'ArrowRight') transport.seek(transport.time + 1 / fps);
+    else if (e.code === 'ArrowLeft') active().seek(active().time - 1 / fps);
+    else if (e.code === 'ArrowRight') active().seek(active().time + 1 / fps);
     else if (e.code === 'KeyB') toggleBypass();
     else return;
     e.preventDefault();

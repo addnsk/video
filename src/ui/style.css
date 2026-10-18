@@ -322,3 +322,13 @@ input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid v
 .mixer summary h2 { display: inline; }
 .loudness-live { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9em; }
 .mixer-strip .send { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.edit-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.viewer-tabs .seg { max-width: 16ch; }
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg { border: 0; background: transparent; color: var(--muted); font: 500 12px var(--font-sans, inherit); padding: 5px 10px; min-height: 28px; cursor: pointer; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg + .seg { border-left: 1px solid var(--line); }
+.seg[aria-selected="true"], .seg[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg:disabled { opacity: 0.45; cursor: default; }
+.marker-row { display: grid; grid-template-columns: 12px auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+.marker-row .note { grid-column: 3 / 5; }
+.marker-row .swatch { width: 12px; height: 12px; border-radius: 3px; }

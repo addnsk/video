@@ -11,6 +11,7 @@ export class MediaPanel extends Panel {
   constructor(
     private session: EditorSession,
     private dropTarget: DropTarget,
+    private openSource: (assetId: string) => void,
   ) {
     super('media', t('mediaTitle'));
     session.store.on('change', ({ project, previous }) => {
@@ -41,6 +42,7 @@ export class MediaPanel extends Panel {
           : `${asset.codec} · ${asset.sampleRate / 1000} kHz · ${formatDuration(asset.end - asset.start)}`;
         const audioTrack = this.session.store.project.tracks.find((tr) => tr.kind === 'audio');
         const actions = h('div', { class: 'row' },
+          h('button', { class: 'btn', 'data-open-source': asset.id, onClick: () => this.openSource(asset.id) }, t('openInViewer')),
           asset.hasVideo && h('button', { class: 'btn', onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: this.session.videoTrackId })) }, t('addToTimeline')),
           asset.hasAudio && audioTrack && h('button', {
             class: 'btn',
@@ -56,6 +58,7 @@ export class MediaPanel extends Panel {
           proxy && h('small', { class: 'proxy' }, proxy),
           actions,
         );
+        element.addEventListener('dblclick', () => this.openSource(asset.id));
         dragSource(element, grip, {
           label: () => asset.name,
           move: (point) => this.dropTarget.hover(point, asset.id),

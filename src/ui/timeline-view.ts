@@ -8,6 +8,8 @@ import { t } from '../i18n';
 import { formatTimecode } from './dom';
 import type { DropPoint, DropTarget } from './drop-target';
 import type { Selection } from './selection';
+import type { TrimTool } from './edit-controls';
+import { rippleTrim, rollEdit, slideEdit, slipEdit, linkedIds } from '../core/editing';
 
 const RULER = 26;
 const GUTTER = 44;
@@ -18,12 +20,17 @@ const MAX_PPS = 800;
 const SNAP_PX = 8;
 const STEPS = [1 / 25, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200];
 const PEAK_RATE = 100;
+export const MARKER_PAINT: Record<string, string> = {
+  blue: '#3b82f6', cyan: '#06b6d4', green: '#22c55e', yellow: '#eab308', red: '#ef4444', pink: '#ec4899', purple: '#a855f7', fuchsia: '#d946ef',
+  rose: '#fb7185', lavender: '#c4b5fd', sky: '#7dd3fc', mint: '#6ee7b7', lemon: '#fde047', sand: '#d6c08f', cocoa: '#8b5e3c', cream: '#f5ecd7',
+};
 
 type Drag =
   | { kind: 'scrub' }
   | { kind: 'pan'; x0: number; scroll0: number }
   | { kind: 'trim'; placement: Placement; edge: 'in' | 'out'; x0: number; origin: number }
-  | { kind: 'move'; placement: Placement; x0: number; y: number; moved: boolean };
+  | { kind: 'move'; placement: Placement; x0: number; y: number; moved: boolean }
+  | { kind: 'edit'; tool: Exclude<TrimTool, 'select'>; placement: Placement; edge: 'in' | 'out' | null; x0: number; base: Project };
 
 interface Lane {
   track: Track;
@@ -55,6 +62,7 @@ export class TimelineView implements DropTarget {
     private canvas: HTMLCanvasElement,
     private session: EditorSession,
     private selection: Selection,
+    private tool: () => TrimTool = () => 'select',
   ) {
     this.ctx = canvas.getContext('2d')!;
     new ResizeObserver(() => this.draw()).observe(canvas);
@@ -64,6 +72,7 @@ export class TimelineView implements DropTarget {
     canvas.addEventListener('pointercancel', (e) => this.up(e));
     canvas.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
     session.store.on('change', () => this.draw());
+    session.marks.on('change', () => this.draw());
     session.on('peaks', () => this.draw());
     session.on('thumbnails', () => this.draw());
     selection.on('change', () => this.draw());
@@ -135,15 +144,19 @@ export class TimelineView implements DropTarget {
     if (!lane) return null;
     const grab = matchMedia('(pointer: coarse)').matches ? 16 : 7;
     const placements = placeTrack(lane.track);
-    for (let i = placements.length - 1; i >= 0; i--) {
-      const p = placements[i];
-      const x0 = this.x(p.start);
-      const x1 = this.x(p.end);
-      if (x < x0 - 2 || x > x1 + 2) continue;
-      const g = Math.min(grab, (x1 - x0) / 3);
-      return { placement: p, edge: x - x0 < g ? 'in' : x1 - x < g ? 'out' : null };
-    }
-    return null;
+    const inside = (slack: number) => {
+      for (let i = placements.length - 1; i >= 0; i--) {
+        const p = placements[i];
+        if (x >= this.x(p.start) - slack && x <= this.x(p.end) + slack) return p;
+      }
+      return null;
+    };
+    const p = inside(0) ?? inside(2);
+    if (!p) return null;
+    const x0 = this.x(p.start);
+    const x1 = this.x(p.end);
+    const g = Math.min(grab, (x1 - x0) / 3);
+    return { placement: p, edge: x - x0 < g ? 'in' : x1 - x < g ? 'out' : null };
   }
 
   private local(e: DropPoint) {
@@ -178,6 +191,13 @@ export class TimelineView implements DropTarget {
     }
     this.selection.set(hit.placement.item.id);
     const { item } = hit.placement;
+    const tool = this.tool();
+    if (tool !== 'select') {
+      const edge = tool === 'slip' || tool === 'slide' ? null : hit.edge;
+      if ((tool === 'ripple' || tool === 'roll') && !edge) this.drag = { kind: 'pan', x0: p.x, scroll0: this.scroll };
+      else this.drag = { kind: 'edit', tool, placement: hit.placement, edge, x0: p.x, base: this.project };
+      return;
+    }
     if (hit.edge) {
       const origin = hit.edge === 'in' ? (item.kind === 'media' ? item.source.in : 0) : item.kind === 'media' ? item.source.out : item.duration;
       this.drag = { kind: 'trim', placement: hit.placement, edge: hit.edge, x0: p.x, origin };
@@ -210,7 +230,9 @@ export class TimelineView implements DropTarget {
     const d = this.drag;
     if (!d) {
       const hit = this.hit(p.x, p.y);
-      this.canvas.style.cursor = p.x < GUTTER ? 'pointer' : p.y < RULER ? 'col-resize' : hit?.edge ? 'ew-resize' : hit ? 'grab' : 'default';
+      const tool = this.tool();
+      const body = tool === 'slip' || tool === 'slide' ? 'ew-resize' : 'grab';
+      this.canvas.style.cursor = p.x < GUTTER ? 'pointer' : p.y < RULER ? 'col-resize' : hit?.edge && tool !== 'slip' && tool !== 'slide' ? (tool === 'roll' ? 'col-resize' : 'ew-resize') : hit ? body : 'default';
       return;
     }
     if (d.kind === 'scrub') this.transport.seek(this.time(p.x));
@@ -225,6 +247,15 @@ export class TimelineView implements DropTarget {
       const track = this.project.tracks.find((tr) => tr.id === d.placement.track.id)!;
       const placed = placeTrack(track).find((x) => x.item.id === id);
       if (placed) this.transport.seek(d.edge === 'in' ? placed.start : placed.end - 1e-3);
+    } else if (d.kind === 'edit') {
+      const fps = this.project.settings?.fps ?? 25;
+      const delta = Math.round(((p.x - d.x0) / this.pps) * fps) / fps;
+      const id = d.placement.item.id;
+      const op =
+        d.tool === 'ripple' ? rippleTrim(id, d.edge!, delta) : d.tool === 'roll' ? rollEdit(id, d.edge!, delta) : d.tool === 'slip' ? slipEdit(id, delta) : slideEdit(id, delta);
+      this.session.store.dispatch(() => op(d.base), { coalesce: `edit:${d.tool}:${id}:${d.x0}` });
+      const placed = placeTrack(this.project.tracks.find((tr) => tr.id === d.placement.track.id)!).find((x) => x.item.id === id);
+      if (placed) this.transport.seek(d.edge === 'out' ? placed.end - 1e-3 : placed.start);
     } else if (d.kind === 'move') {
       if (!d.moved && Math.abs(p.x - d.x0) < 6 && Math.abs(p.y - d.y) < 6) return;
       d.moved = true;
@@ -334,6 +365,7 @@ export class TimelineView implements DropTarget {
     this.paintRuler(g, w);
     for (const lane of lanes) this.paintLane(g, lane, w);
     this.paintGhost(g);
+    this.paintMarks(g, height);
     if (!this.project.tracks.some((tr) => tr.items.length)) {
       const main = lanes.find((l) => l.track.magnetic)!;
       g.fillStyle = this.color('--muted');
@@ -350,6 +382,40 @@ export class TimelineView implements DropTarget {
       g.moveTo(px - 6, 0);
       g.lineTo(px + 7, 0);
       g.lineTo(px + 0.5, 9);
+      g.fill();
+    }
+  }
+
+  private paintMarks(g: CanvasRenderingContext2D, height: number) {
+    const { in: a, out: b } = this.session.marks.value;
+    if (a !== undefined || b !== undefined) {
+      const x0 = a !== undefined ? this.x(a) : GUTTER;
+      const x1 = b !== undefined ? this.x(b) : this.canvas.clientWidth;
+      g.fillStyle = this.color('--accent');
+      g.globalAlpha = 0.12;
+      g.fillRect(Math.max(GUTTER, x0), RULER, Math.max(0, x1 - Math.max(GUTTER, x0)), height - RULER);
+      g.globalAlpha = 1;
+      for (const [x, inEdge] of [[a !== undefined ? x0 : null, true], [b !== undefined ? x1 : null, false]] as const) {
+        if (x === null || x < GUTTER) continue;
+        g.fillRect(x - 1, 0, 2, height);
+        g.beginPath();
+        g.moveTo(x, RULER - 10);
+        g.lineTo(inEdge ? x + 7 : x - 7, RULER - 10);
+        g.lineTo(x, RULER);
+        g.fill();
+      }
+    }
+    for (const marker of this.project.markers ?? []) {
+      const x = this.x(marker.time);
+      if (x < GUTTER - 8 || x > this.canvas.clientWidth + 8) continue;
+      g.fillStyle = MARKER_PAINT[marker.color] ?? MARKER_PAINT.blue;
+      if (marker.duration > 0) g.fillRect(x, RULER - 6, Math.max(2, marker.duration * this.pps), 4);
+      g.beginPath();
+      g.moveTo(x - 5, 2);
+      g.lineTo(x + 5, 2);
+      g.lineTo(x + 5, 10);
+      g.lineTo(x, 15);
+      g.lineTo(x - 5, 10);
       g.fill();
     }
   }
@@ -399,6 +465,7 @@ export class TimelineView implements DropTarget {
   private paintItem(g: CanvasRenderingContext2D, lane: Lane, p: Placement, x0: number, x1: number) {
     const { item } = p;
     const selected = item.id === this.selection.id;
+    const partner = !selected && !!item.link && !!this.selection.id && linkedIds(this.project, this.selection.id).includes(item.id);
     const top = lane.top;
     const h = lane.height;
     const w = Math.max(0, x1 - x0 - 2);
@@ -407,12 +474,21 @@ export class TimelineView implements DropTarget {
     g.roundRect(x0 + 1, top, w, h, 4);
     g.fill();
     if (item.kind === 'media' && lane.track.kind === 'video') this.paintThumbnails(g, item, lane, x0, x1);
-    if (item.kind === 'media') this.paintWaveform(g, item, lane, x0, x1);
+    if (item.kind === 'media' && !item.videoOnly) this.paintWaveform(g, item, lane, x0, x1);
     if (item.effects.some((e) => e.enabled)) {
       g.fillStyle = this.color('--accent');
       g.fillRect(x0 + 1, top + h - 4, w, 4);
     }
     if (p.fadeIn > 0) this.paintTransition(g, lane, x0, this.x(p.start + p.fadeIn));
+    if (partner) {
+      g.strokeStyle = this.color('--accent');
+      g.setLineDash([4, 3]);
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.roundRect(x0 + 2, top + 1, Math.max(0, x1 - x0 - 4), h - 2, 4);
+      g.stroke();
+      g.setLineDash([]);
+    }
     if (selected) {
       g.strokeStyle = this.color('--accent');
       g.lineWidth = 2;
@@ -428,7 +504,8 @@ export class TimelineView implements DropTarget {
     g.textBaseline = 'middle';
     g.fillStyle = this.color('--fg');
     g.font = '500 12px "IBM Plex Sans", system-ui, sans-serif';
-    const label = item.kind === 'media' ? (this.project.assets[item.source.assetId]?.name ?? '') : `T  ${item.text.content.split('\n')[0]}`;
+    const name = item.kind === 'media' ? (this.project.assets[item.source.assetId]?.name ?? '') : `T  ${item.text.content.split('\n')[0]}`;
+    const label = item.link ? `⛓ ${name}` : name;
     g.fillText(label, x0 + 8, top + 13);
     if (h > 44) {
       const length = `${(p.end - p.start).toFixed(2)}s`;
