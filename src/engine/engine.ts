@@ -452,17 +452,18 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     if (!this.renderCacheEnabled || !this.compositor) return null;
     const surface = this.compositor.surface;
     const spaces = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => (item.kind === 'media' ? (this.project.assets[item.source.assetId]?.colorSpace ?? '') : ''));
-    const color = `${this.project.settings?.colorScience ?? 'display'}:${spaces.join(',')}`;
+    const variants = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => (item.kind === 'media' && this.pool.hasProxy(item.source.assetId) ? 'p' : 'o'));
+    const color = `${this.project.settings?.colorScience ?? 'display'}:${spaces.join(',')}:${variants.join('')}`;
     return frameKey(frame, { width: surface.width, height: surface.height, bypass, viewNode: this.viewNode, generation: this.renderGeneration, color });
   }
 
   private async presentCached(key: string | null): Promise<boolean> {
     if (!key || !this.compositor) return false;
     const memory = this.renderCache.peek(key);
-    if (memory) return this.compositor.present(memory);
+    if (memory) return this.compositor.present(memory, this.captureOption(true));
     if (!this.renderCache.onDisk(key)) return false;
     const bitmap = await this.renderCache.load(key);
-    return !!bitmap && this.compositor.present(bitmap);
+    return !!bitmap && this.compositor.present(bitmap, this.captureOption(true));
   }
 
   private remember(key: string | null, cost: number) {
@@ -485,7 +486,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     const time = Math.min(request.time, Math.max(0, projectDuration(this.project) - 1e-3));
     const frame = compositionAt(this.project, time);
     const started = performance.now();
-    const key = this.scopesEnabled ? null : this.cacheKey(frame, request.bypass);
+    const key = this.cacheKey(frame, request.bypass);
     if (await this.presentCached(key)) {
       metrics.time('still.cached', performance.now() - started);
       this.drawCompare();

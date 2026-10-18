@@ -44,13 +44,43 @@ export default {
     checks.check(after === before + 1, `an edit renders and caches a new frame instead of reusing the old one (${before} → ${after})`);
 
     await editor.run(() => montage.renderCache({ memoryBytes: 2.5e6 }));
-    await editor.previewColorAt(4, { x: 0.3, y: 0.4, size: 0.05 });
+    const fresh = await editor.previewColorAt(4, { x: 0.3, y: 0.4, size: 0.05 });
     await editor.previewColorAt(5, { x: 0.3, y: 0.4, size: 0.05 });
     await editor.settle(1500);
     await editor.run(() => montage.resetMetrics());
     const fromDisk = await editor.previewColorAt(4, { x: 0.3, y: 0.4, size: 0.05 });
     const diskStats = await editor.run(async () => (await montage.stats()).renderCache);
     checks.check((await hits()).disk >= 1, `evicted frames spill to disk and come back (${JSON.stringify(diskStats)}, ${fmt(fromDisk)})`);
+    checks.check(fromDisk.every((v, i) => v === fresh[i]), `a frame read back from disk is identical to the fresh render (${fmt(fromDisk)} vs ${fmt(fresh)})`);
+
+    await editor.run(() => montage.renderCache({ memoryBytes: 256e6 }));
+    await editor.previewColorAt(6, { x: 0.3, y: 0.4, size: 0.05 });
+    await editor.page.click('#scopes summary');
+    await editor.settle(300);
+    await editor.previewColorAt(2, { x: 0.3, y: 0.4, size: 0.05 });
+    await editor.previewColorAt(6, { x: 0.3, y: 0.4, size: 0.05 });
+    await editor.run(() => montage.resetMetrics());
+    await editor.previewColorAt(2, { x: 0.3, y: 0.4, size: 0.05 });
+    await editor.settle(400);
+    const scoped = JSON.stringify(await editor.run(async () => (await montage.stats()).metrics));
+    const lit = await editor.run(() => {
+      const c = document.querySelector('#scopes canvas');
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 120) n++;
+      return n;
+    });
+    checks.check(scoped.includes('renderCache.hit') && lit > 200, `open scopes keep using the cache and still draw (${lit} lit pixels)`);
+    await editor.page.click('#scopes summary');
+
+    const assetId = await editor.run(() => montage.clip(0).assetId);
+    await editor.run((id) => montage.proxy(id), assetId);
+    await editor.run(() => montage.resetMetrics());
+    await editor.until((id) => ['ready', 'failed'].includes(montage.proxies()[id]?.state), assetId, 180000);
+    await editor.run(() => montage.resetMetrics());
+    await editor.previewColorAt(2, { x: 0.3, y: 0.4, size: 0.05 });
+    const afterProxy = JSON.stringify(await editor.run(async () => (await montage.stats()).metrics));
+    checks.check(!afterProxy.includes('renderCache.hit'), 'a frame cached from the original is not reused once the proxy is in use');
 
     await editor.run(() => montage.renderCache(false));
     const off = await editor.run(async () => (await montage.stats()).renderCache);

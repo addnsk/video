@@ -375,7 +375,7 @@ export class Compositor {
   private presented: UploadTexture | null = null;
   passes = 0;
 
-  present(bitmap: ImageBitmap): boolean {
+  present(bitmap: ImageBitmap, capture?: RenderOptions['capture']): boolean {
     const gl = this.ctx.gl;
     if (this.ctx.lost || !bitmap.width) return false;
     this.presented ??= new UploadTexture(this.ctx);
@@ -387,6 +387,11 @@ export class Compositor {
     gl.useProgram(program);
     this.bindTexture(program, 'u_image', 0, texture);
     this.ctx.drawQuad();
+    if (capture) {
+      this.capture({ texture } as RenderTarget, capture);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, this.ctx.surface.width, this.ctx.surface.height);
+    }
     return true;
   }
 

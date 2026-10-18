@@ -12,11 +12,11 @@ export interface FrameEncoder {
   decode(blob: Blob): Promise<ImageBitmap>;
 }
 
-export const webpEncoder: FrameEncoder = {
+export const pngEncoder: FrameEncoder = {
   async encode(bitmap) {
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
     canvas.getContext('bitmaprenderer')!.transferFromImageBitmap(await createImageBitmap(bitmap));
-    return canvas.convertToBlob({ type: 'image/webp', quality: 0.92 });
+    return canvas.convertToBlob({ type: 'image/png' });
   },
   decode: (blob) => createImageBitmap(blob),
 };
@@ -39,7 +39,7 @@ export class RenderCache {
   constructor(
     private limits: RenderCacheLimits,
     private store: FrameStore | null = null,
-    private encoder: FrameEncoder = webpEncoder,
+    private encoder: FrameEncoder = pngEncoder,
   ) {}
 
   setLimits(limits: Partial<RenderCacheLimits>): void {

@@ -19,11 +19,8 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 
 ## Render cache
 
-- Only preview frames are cached; export always renders from scratch.
-- Disk entries are lossy WebP (quality 0.92), so a frame read back from disk can differ slightly from a fresh render.
-- Switching a clip between proxy and original media does not change the cache key; the previous image can show until the frame is edited.
-- When scopes are open, still frames are rendered every time (scopes need the live image); playback still uses the cache.
-- GPU time is not measured; a frame counts as heavy by CPU time or by the number of render passes.
+- Export never reuses cached preview frames: the cache holds 8-bit frames at preview resolution, while export renders full resolution in float.
+- Which frames are "heavy" is judged by CPU time and render passes, not GPU time: browsers expose GPU timer queries only behind flags (EXT_disjoint_timer_query is disabled in Chrome for security).
 
 ## Compositing (node graph)
 
