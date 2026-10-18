@@ -101,6 +101,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.stills.isStale = () => this.stillQueue.latest !== null || !!this.playback;
     this.governor = new MemoryGovernor(this.budget.memoryLimitBytes, () => resources.total());
     this.governor.register({ name: 'stillCache', bytes: () => this.stills.cachedBytes, trim: (keep) => this.stills.trim(keep) });
+    this.governor.register({ name: 'nodeCache', bytes: () => this.compositor?.nodeCacheBytes ?? 0, trim: () => this.compositor?.trimNodeCache() });
     this.governor.register({ name: 'idleTargets', bytes: () => this.compositor?.idleTargetBytes ?? 0, trim: () => this.compositor?.trimIdle() });
     this.governor.on('pressure', ({ level, bytes, limit }) => {
       this.stills.previewScale = this.governor.previewScale;

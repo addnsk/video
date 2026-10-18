@@ -38,6 +38,7 @@ export interface RenderOptions {
 }
 
 const CAPTURE_WIDTH = 320;
+const NODE_CACHE_ENTRIES = 12;
 
 const sources = new WeakMap<FilterDef | TransitionDef, string>();
 const sourceOf = (def: FilterDef | TransitionDef) => {
@@ -172,12 +173,73 @@ export class Compositor {
     const registry = this.registry;
     const graph = materialize(resolved.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
     const viewed = options.viewNode?.itemId === item.id && graph.nodes.some((n) => n.id === options.viewNode!.nodeId) ? options.viewNode.nodeId : OUTPUT_ID;
-    return renderGraph<RenderTarget>(graph, viewed, registry, {
-      source,
-      filter: (_def, effect, input) => this.applyFilter(effect, input),
-      node: (def, params, inputs) => this.renderNode(def, params, inputs),
-      release: (target) => this.targets.release(target),
-    });
+    return renderGraph<RenderTarget>(
+      graph,
+      viewed,
+      registry,
+      {
+        source,
+        filter: (_def, effect, input) => this.applyFilter(effect, input),
+        node: (def, params, inputs) => this.renderNode(def, params, inputs),
+        release: (target) => this.targets.release(target),
+        copy: (target) => this.copyTarget(target),
+      },
+      this.nodeCacheFor(),
+    );
+  }
+
+  private nodeCache = new Map<string, RenderTarget>();
+  private nodeCacheGeneration = -1;
+
+  private nodeCacheFor() {
+    if (this.nodeCacheGeneration !== this.ctx.generation) {
+      this.nodeCache.clear();
+      this.nodeCacheGeneration = this.ctx.generation;
+    }
+    const prefix = `${this.width}x${this.height}:${this.pixelScale}:`;
+    return {
+      get: (key: string) => {
+        const hit = this.nodeCache.get(prefix + key);
+        if (hit) {
+          this.nodeCache.delete(prefix + key);
+          this.nodeCache.set(prefix + key, hit);
+        }
+        return hit;
+      },
+      put: (key: string, target: RenderTarget) => {
+        this.nodeCache.set(prefix + key, target);
+        for (const [k, t] of this.nodeCache) {
+          if (this.nodeCache.size <= NODE_CACHE_ENTRIES) break;
+          this.nodeCache.delete(k);
+          this.targets.release(t);
+        }
+      },
+    };
+  }
+
+  get nodeCacheBytes(): number {
+    let bytes = 0;
+    for (const t of this.nodeCache.values()) bytes += t.width * t.height * (this.ctx.floatTargets ? 8 : 4);
+    return bytes;
+  }
+
+  trimNodeCache(): void {
+    for (const t of this.nodeCache.values()) this.targets.release(t);
+    this.nodeCache.clear();
+  }
+
+  private copyTarget(source: RenderTarget): RenderTarget {
+    const gl = this.ctx.gl;
+    const out = this.targets.acquire(this.width, this.height);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, out.framebuffer);
+    gl.viewport(0, 0, this.width, this.height);
+    const program = this.ctx.program(COPY);
+    gl.useProgram(program);
+    this.bindTexture(program, 'u_image', 0, source.texture);
+    gl.uniform1f(this.ctx.uniform(program, 'u_opacity'), 1);
+    gl.disable(gl.BLEND);
+    this.ctx.drawQuad();
+    return out;
   }
 
   private renderNode(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, RenderTarget>): RenderTarget {
@@ -437,6 +499,7 @@ export class Compositor {
   }
 
   dispose(): void {
+    this.trimNodeCache();
     this.fullFrame = null;
     for (const upload of this.uploads.values()) upload.dispose();
     this.uploads.clear();

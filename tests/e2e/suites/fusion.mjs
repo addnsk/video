@@ -192,8 +192,10 @@ export default {
     checks.check(added === 10, `clicking an edge handle inserts a point (${added / 2} points)`);
     await editor.page.click('#view-timeline');
 
+    const cachedBytes = await editor.run(async () => (await montage.stats()).memory.consumers.nodeCache);
+    checks.check(cachedBytes > 0, `static node results are cached (${Math.round(cachedBytes / 1024)} KB)`);
     const stats = await editor.stats();
-    checks.check((stats.resources.framebuffer?.live ?? 0) <= 12, `render targets stay pooled (${stats.resources.framebuffer?.live})`);
+    checks.check((stats.resources.framebuffer?.live ?? 0) <= 24, `render targets stay pooled, node cache included (${stats.resources.framebuffer?.live})`);
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);
     await editor.close();
   },

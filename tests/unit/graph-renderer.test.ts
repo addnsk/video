@@ -37,6 +37,7 @@ const runtime = (sourceAvailable = true) => {
     release: (image) => {
       if (!live.delete(image)) throw new Error(`double release of ${image.label}`);
     },
+    copy: (image) => make(`copy(${image.label})`),
   };
   return rt;
 };
@@ -88,5 +89,28 @@ describe('renderGraph', () => {
     const rt = runtime();
     renderGraph(g, 'output', lookup, rt);
     expect([...rt.live].map((i) => i.label)).toEqual(['background()']);
+  });
+
+  it('reuses cached results of static branches and copies a cached output', () => {
+    let g: NodeGraph = chainGraph([], () => 0);
+    g = addNode(g, { id: 'bg', type: 'background', params: { color: 1 }, enabled: true, position: [0, 0] });
+    g = addNode(g, { id: 'mix', type: 'merge', params: {}, enabled: true, position: [0, 0] });
+    g = connect(g, { from: 'bg', to: 'mix', input: 'background' });
+    g = connect(g, { from: 'source', to: 'mix', input: 'foreground' });
+    g = connect(g, { from: 'mix', to: 'output', input: 'input' });
+    const store = new Map<string, Image>();
+    const cache = { get: (k: string) => store.get(k), put: (k: string, v: Image) => void store.set(k, v) };
+    const rt = runtime();
+    renderGraph(g, 'output', lookup, rt, cache);
+    renderGraph(g, 'output', lookup, rt, cache);
+    expect(rt.calls.filter((c) => c === 'background')).toHaveLength(1);
+    expect(rt.calls.filter((c) => c === 'merge')).toHaveLength(2);
+    expect(store.size).toBe(1);
+    const bgOnly = connect(g, { from: 'bg', to: 'output', input: 'input' });
+    const out = renderGraph(bgOnly, 'output', lookup, rt, cache);
+    expect(out?.label).toBe('copy(background())');
+    const changed = renderGraph(connect(addNode(g, { id: 'bg2', type: 'background', params: { color: 2 }, enabled: true, position: [0, 0] }), { from: 'bg2', to: 'output', input: 'input' }), 'output', lookup, rt, cache);
+    expect(changed?.label).toBe('copy(background())');
+    expect(store.size).toBe(2);
   });
 });

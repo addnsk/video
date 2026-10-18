@@ -7,6 +7,12 @@ export interface GraphRuntime<T> {
   filter(def: FilterDef, effect: EffectInstance, input: T): T;
   node(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, T>): T;
   release(target: T): void;
+  copy(target: T): T;
+}
+
+export interface GraphCache<T> {
+  get(key: string): T | undefined;
+  put(key: string, target: T): void;
 }
 
 export interface NodeLookup {
@@ -14,12 +20,14 @@ export interface NodeLookup {
   node(type: string): NodeDef | undefined;
 }
 
-export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeLookup, runtime: GraphRuntime<T>): T | null {
+export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeLookup, runtime: GraphRuntime<T>, cache?: GraphCache<T>): T | null {
   const order = evaluationOrder(graph, outputId);
   const reachable = new Set(order);
   const uses = new Map<string, number>();
   for (const link of graph.links) if (reachable.has(link.to) && reachable.has(link.from)) uses.set(link.from, (uses.get(link.from) ?? 0) + 1);
   const results = new Map<string, T | null>();
+  const keys = new Map<string, string | null>();
+  const borrowed = new Set<T>();
   const refs = new Map<T, number>();
   const hold = (target: T | null, count: number) => {
     if (target !== null && count > 0) refs.set(target, (refs.get(target) ?? 0) + count);
@@ -30,7 +38,7 @@ export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeL
     if (left > 0) refs.set(target, left);
     else {
       refs.delete(target);
-      runtime.release(target);
+      if (!borrowed.has(target)) runtime.release(target);
     }
   };
 
@@ -43,9 +51,20 @@ export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeL
       if (value !== null) read.set(name, value);
     }
     const primary = read.get('source') ?? read.get('input') ?? read.values().next().value ?? null;
+    const inputKeys = [...inputs].map(([name, from]) => [name, keys.get(from)] as const);
+    const key =
+      node.type === SOURCE_NODE || inputKeys.some(([, k]) => k === null)
+        ? null
+        : `${node.type}:${node.enabled}:${JSON.stringify(node.params)}(${inputKeys.map(([n, k]) => `${n}=${k}`).join(',')})`;
+    keys.set(id, key);
+    const passThrough = node.type === OUTPUT_NODE || !node.enabled;
     let result: T | null;
-    if (node.type === SOURCE_NODE) result = runtime.source();
-    else if (node.type === OUTPUT_NODE || !node.enabled) result = primary;
+    const hit = key !== null && !passThrough && cache ? cache.get(key) : undefined;
+    if (hit !== undefined) {
+      result = hit;
+      borrowed.add(hit);
+    } else if (node.type === SOURCE_NODE) result = runtime.source();
+    else if (passThrough) result = primary;
     else {
       const filter = lookup.filter(node.type);
       const def = lookup.node(node.type);
@@ -53,11 +72,16 @@ export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeL
       if (filter) result = primary === null ? null : runtime.filter(filter, effect, primary);
       else if (def) result = runtime.node(def, node.params, read);
       else result = primary;
+      if (key !== null && cache && result !== null && result !== primary) {
+        cache.put(key, result);
+        borrowed.add(result);
+      }
     }
     results.set(id, result);
     hold(result, id === outputId ? 1 : (uses.get(id) ?? 0));
     for (const from of inputs.values()) drop(results.get(from) ?? null);
-    if (result !== null && !refs.has(result)) runtime.release(result);
+    if (result !== null && !refs.has(result) && !borrowed.has(result)) runtime.release(result);
   }
-  return results.get(outputId) ?? null;
+  const output = results.get(outputId) ?? null;
+  return output !== null && borrowed.has(output) ? runtime.copy(output) : output;
 }
