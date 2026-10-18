@@ -6,6 +6,7 @@ import { AudioMixer, OUTPUT_CHANNELS } from '../audio/mixer';
 import type { MemoryBudget } from '../device';
 import { SequentialFrames } from '../frames';
 import { GpuContext } from '../gpu/context';
+import { TextRasterizer } from '../text-raster';
 import { Compositor, type LutProvider } from '../gpu/compositor';
 import type { MediaPool } from '../media/media-pool';
 import { metrics } from '../metrics';
@@ -53,6 +54,7 @@ export async function exportProject(
   if (width > maxSize || height > maxSize) throw new Error(`This GPU renders at most ${maxSize} px; choose a smaller export resolution`);
   const compositor = new Compositor(gpu, context.registry, context.luts);
   compositor.setProject(project);
+  compositor.registerRasterizer('text', new TextRasterizer());
   const frames = new SequentialFrames(context.pool, context.text, 'master');
   const mixer = new AudioMixer(context.pool);
 
