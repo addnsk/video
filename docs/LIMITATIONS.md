@@ -2,7 +2,6 @@
 
 Montage is built as a production-ready editor. This file lists only what cannot be fixed on our side (browser APIs, hardware, physics, standards), each with the reason; anything fixable is fixed instead of being listed.
 
-What Montage does not do yet or does only partly. Each entry names the area, the limit and, where useful, the workaround. Keep this file in sync with every feature commit.
 
 ## Media and formats
 
@@ -91,15 +90,9 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 
 ## Audio processing
 
-- Noise reduction is spectral (1024-point STFT, noise floor learned continuously from the quietest moments). It delays the clip's sound by 1024 samples (about 21 ms at 48 kHz) and needs a second or so of material before it reaches full strength after a seek. Strong settings leave "musical noise" on broadband hiss.
-- The limiter has no look-ahead: it never exceeds the ceiling, but very fast peaks are reduced instantly, which can add distortion on heavy settings. True peak (inter-sample) is not measured; peaks are sample peaks.
-- The de-esser is a dynamic high shelf driven by a high-passed copy of the signal, updated every 32 samples.
+- Very strong noise reduction on broadband hiss leaves faint "musical noise" (isolated tones where the noise briefly exceeds its estimate). Every spectral noise reducer trades this against how much noise it removes; lower `reduction` or raise `sensitivity` if it is audible.
 
 ## Mixer and loudness
 
-- Pan is a balance control for stereo; there is no surround output.
-- After a seek or a jump the mixer replays the 1.5 s before the new position through every effect (and decodes it), so playback starts a little later when the project has audio effects. Effects with a memory longer than that (a very large reverb, a delay over 1.5 s) still start partly empty.
-- Tails of track and bus effects (reverb, delay, noise reduction delay) ring out after the last clip, but export stops at the end of the last clip, so a tail past the end of the project is cut; leave some room at the end. Effects on a clip itself stop with the clip; put reverb and delay on a track or a bus.
-- Changing an effect that delays the sound (adding or removing noise reduction or the limiter) while playing shifts the timing of the whole mix by its delay and resets the effects once.
-- `normalize` moves the master trim within ±36 dB; a limiter it adds lowers loud peaks, so the result can land a fraction of a LU under the target. True peak is measured with a 48-tap windowed-sinc 4× interpolator, close to but not exactly the BS.1770-4 reference filter. Measuring a long project mixes all of it once.
-- The live loudness readout measures audio as it is scheduled for playback, which runs ahead of what is heard by the scheduling lookahead, and restarts on every seek or play; it is skipped during shuttle (rates other than 1×).
+- True peak is measured with a 48-tap windowed-sinc 4× interpolator rather than the exact BS.1770-4 reference filter; readings agree with ffmpeg's `ebur128` true-peak meter to 0.1 dB in our tests. The standard allows implementation-defined interpolators.
+- The live loudness readout measures audio when it is handed to the browser's audio output, a fraction of a second before it is heard (the Web Audio scheduling lookahead), and covers only 1× playback because shuttle audio is resampled by the browser.

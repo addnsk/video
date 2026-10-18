@@ -136,3 +136,45 @@ describe('mixer graph', () => {
     for (let i = 0; i < jumped.length; i += 61) expect(jumped[i]).toBeCloseTo(reference[i], 4);
   });
 });
+
+describe('mixer tails and transitions', () => {
+  it('lets clip effects ring out after the clip ends, after clip volume', async () => {
+    const project = sequence(
+      addAsset({ ...audioAsset('short'), end: 0.3 }),
+      insertItem('short', { trackId: 'a1', start: 0, id: 's' }),
+      upsertEffect('s', 'delay', { time: 400, feedback: 0, mix: 100 }),
+    )(emptyProject());
+    const out = await render(new AudioMixer(fakePool({ short: clickAt(0.1) })), project, 0, 1);
+    expect(peaks(out, 0.5).map((i) => Math.round(i / 48))).toEqual([500]);
+  });
+
+  it('warms up for as long as the effects remember', async () => {
+    const project = setStripEffect('a1', 'delay', { time: 1900, feedback: 0, mix: 100 })(twoTracks());
+    const signals = { a: (t: number) => Math.sin(2 * Math.PI * 220 * t) * 0.5, b: () => 0 };
+    const continuous = await render(new AudioMixer(fakePool(signals)), project, 0, 3.5);
+    const jumped = await render(new AudioMixer(fakePool(signals)), project, 3, 3.5);
+    const reference = continuous.subarray(RATE * 3);
+    for (let i = 0; i < jumped.length; i += 61) expect(jumped[i]).toBeCloseTo(reference[i], 4);
+  });
+
+  it('crossfades when an effect with latency is added during playback', async () => {
+    const signals = { a: (t: number) => Math.sin(2 * Math.PI * 220 * t) * 0.5, b: () => 0 };
+    const mixer = new AudioMixer(fakePool(signals));
+    const plain = twoTracks();
+    const delayed = setStripEffect('a1', 'denoise', { reduction: 0 })(plain);
+    const first = await render(mixer, plain, 0, 1);
+    const second = await render(mixer, delayed, 1, 2);
+    const joined = new Float32Array([...first, ...second]);
+    let jump = 0;
+    for (let i = RATE - 10; i < RATE + RATE / 2; i++) jump = Math.max(jump, Math.abs(joined[i + 1] - joined[i]));
+    const slope = 0.5 * 2 * Math.PI * 220 / RATE;
+    expect(jump).toBeLessThan(slope * 1.5);
+  });
+
+  it('reports how long the mix rings after the last clip', () => {
+    const mixer = new AudioMixer(fakePool({}));
+    expect(mixer.tailSeconds(twoTracks(), RATE)).toBe(0);
+    const verb = sequence(addBus('Verb', 'v'), setStripEffect('v', 'reverb', { size: 0.5 }))(twoTracks());
+    expect(mixer.tailSeconds(verb, RATE)).toBeGreaterThan(3);
+  });
+});

@@ -129,6 +129,19 @@ export default {
     });
     const wet = await integrated(editor);
     checks.check(wet > plain + 0.5, `a send to a reverb bus adds to the mix (${plain.toFixed(2)} → ${wet.toFixed(2)} LUFS)`);
+    const tailed = await editor.run(async () => {
+      const r = await montage.render({ height: 360, prores: 'proxy' });
+      const bytes = new Uint8Array(await r.file.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(binary);
+    });
+    const tailPath = join(mkdtempSync(join(tmpdir(), 'montage-mixer-')), 'tail.mov');
+    writeFileSync(tailPath, Buffer.from(tailed, 'base64'));
+    const streams = JSON.parse(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type,duration', '-of', 'json', tailPath]).stdout.toString()).streams;
+    const videoLength = Number(streams.find((x) => x.codec_type === 'video').duration);
+    const audioLength = Number(streams.find((x) => x.codec_type === 'audio').duration);
+    checks.check(audioLength > videoLength + 1 && audioLength < videoLength + 8, `the reverb tail rings out past the last frame in the export (video ${videoLength}s, audio ${audioLength}s)`);
     const group = await editor.run(() => montage.mixer.addBus('Group'));
     await editor.run(({ reverb, group }) => montage.mixer.route(reverb, group), { reverb, group });
     checks.near(await integrated(editor), wet, 0.1, 'routing the reverb bus through a group bus keeps the level');

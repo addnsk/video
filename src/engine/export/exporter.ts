@@ -27,6 +27,7 @@ export interface ExportContext {
 
 export class ExportCanceled extends Error {}
 
+const SILENCE = 3e-5;
 const AUDIO_CHUNK_SECONDS = 2;
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 
@@ -71,10 +72,15 @@ export async function exportProject(
   const frameCount = Math.max(1, Math.round(duration * fps));
   let audioCursor = 0;
 
-  const writeAudioUntil = async (limit: number) => {
+  const tail = mixer.tailSeconds(project, rate);
+  const writeAudioUntil = async (limit: number, ringOut = false) => {
     while (audio && audioCursor < limit) {
-      const end = Math.min(duration, audioCursor + AUDIO_CHUNK_SECONDS);
+      const end = Math.min(limit, audioCursor + AUDIO_CHUNK_SECONDS);
       const planar = await mixer.mix(project, audioCursor, end, rate);
+      if (ringOut && planar.every((ch) => ch.every((v) => Math.abs(v) < SILENCE))) {
+        audioCursor = limit;
+        break;
+      }
       const frameLength = planar[0].length;
       const data = new Float32Array(frameLength * OUTPUT_CHANNELS);
       planar.forEach((ch, c) => data.set(ch, c * frameLength));
@@ -98,6 +104,7 @@ export async function exportProject(
       onProgress((i + 1) / frameCount);
     }
     await writeAudioUntil(duration);
+    if (tail > 0) await writeAudioUntil(duration + tail, true);
     await video.finish();
     audio?.close();
     await output.finalize();

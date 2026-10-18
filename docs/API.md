@@ -363,6 +363,8 @@ Audio effects run in the engine's mixer per clip, in the order they were added. 
 | `reverb` | Reverb | `size`, `damping`, `width` (0–1), `predelay` (ms), `mix` (% wet) |
 | `limiter` | Limiter | `ceiling` (dBTP), `release` (ms). Looks 1.5 ms ahead and limits the true (inter-sample) peak |
 
+Clip volume and fades are applied before the clip's effects. Effects that ring (reverb, delay) keep sounding after their clip ends, and an export carries that tail past the last video frame until it falls below −90 dBFS. After a seek the mixer replays as much audio before the new position as the effects remember (up to 12 s), so playback sounds the same as if it had run from the start; adding or removing an effect that delays the sound while playing crossfades over 30 ms.
+
 Effects that delay the sound (noise reduction, limiter) are compensated: the mixer shifts everything else so clips, tracks and buses stay in sync with each other and with the picture.
 
 ```js
