@@ -54,6 +54,7 @@ export class TimelineView {
     canvas.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
     session.store.on('change', () => this.draw());
     session.on('peaks', () => this.draw());
+    session.on('thumbnails', () => this.draw());
     selection.on('change', () => this.draw());
     session.transport.on('time', (time) => {
       if (session.transport.playing) this.follow(time);
@@ -357,6 +358,7 @@ export class TimelineView {
     g.beginPath();
     g.roundRect(x0 + 1, top, w, h, 4);
     g.fill();
+    if (item.kind === 'media' && lane.track.kind === 'video') this.paintThumbnails(g, item, lane, x0, x1);
     if (item.kind === 'media') this.paintWaveform(g, item, lane, x0, x1);
     if (item.effects.some((e) => e.enabled)) {
       g.fillStyle = this.color('--accent');
@@ -381,9 +383,36 @@ export class TimelineView {
     const label = item.kind === 'media' ? (this.project.assets[item.source.assetId]?.name ?? '') : `T  ${item.text.content.split('\n')[0]}`;
     g.fillText(label, x0 + 8, top + 13);
     if (h > 44) {
-      g.fillStyle = this.color('--muted');
+      const length = `${(p.end - p.start).toFixed(2)}s`;
       g.font = '11px "IBM Plex Mono", ui-monospace, monospace';
-      g.fillText(`${(p.end - p.start).toFixed(2)}s`, x0 + 8, top + 29);
+      g.fillStyle = this.color('--label-backdrop');
+      g.fillRect(x0 + 5, top + 22, g.measureText(length).width + 6, 14);
+      g.fillStyle = this.color('--fg');
+      g.fillText(length, x0 + 8, top + 29);
+    }
+    g.restore();
+  }
+
+  private paintThumbnails(g: CanvasRenderingContext2D, item: Extract<Item, { kind: 'media' }>, lane: Lane, x0: number, x1: number) {
+    const strip = this.session.thumbnails(item.source.assetId);
+    const sample = strip?.frames.find((f) => f);
+    if (!strip || !sample) return;
+    const top = lane.top + 18;
+    const h = lane.height - 18;
+    const tile = (sample.width / sample.height) * h;
+    const from = Math.max(x0 + 1, GUTTER);
+    const to = Math.min(x1 - 1, this.canvas.clientWidth);
+    if (to <= from || h <= 8) return;
+    g.save();
+    g.beginPath();
+    g.roundRect(x0 + 1, lane.top, Math.max(0, x1 - x0 - 2), lane.height, 4);
+    g.clip();
+    g.globalAlpha *= 0.85;
+    for (let x = x0 + 1 + Math.max(0, Math.floor((from - x0 - 1) / tile)) * tile; x < to; x += tile) {
+      const source = item.source.in + (x - x0 + tile / 2) / this.pps;
+      const index = Math.min(strip.frames.length - 1, Math.max(0, Math.floor((source - strip.start) / strip.interval)));
+      const frame = strip.frames[index];
+      if (frame) g.drawImage(frame, x, top, tile, h);
     }
     g.restore();
   }

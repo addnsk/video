@@ -10,6 +10,7 @@ import type { ExportSettings } from '../engine/export/exporter';
 import type { EngineEvents, ExportTarget } from '../engine/protocol';
 import type { EngineClient } from './engine-client';
 import type { PickedFile } from './file-picker';
+import { AssetDataCache } from './asset-data';
 import { LutLibrary } from './luts';
 import { Transport } from './transport';
 
@@ -20,8 +21,18 @@ export interface SessionEvents extends Record<string, unknown> {
   media: { missing: readonly string[] };
   imported: { meta: AssetMeta; file: File; handle?: FileSystemFileHandle };
   peaks: string;
+  thumbnails: string;
   error: string;
 }
+
+export interface ThumbnailStrip {
+  readonly start: number;
+  readonly interval: number;
+  readonly frames: readonly (ImageBitmap | null)[];
+}
+
+const THUMBNAIL_HEIGHT = 96;
+const MAX_THUMBNAILS = 60;
 
 export interface ExportResult {
   readonly file: File | null;
@@ -38,12 +49,29 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly transport: Transport;
   readonly files = new Map<string, File>();
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
-  private peakData = new Map<string, Float32Array | null>();
+  private peakData: AssetDataCache<Float32Array>;
+  private thumbnailData: AssetDataCache<ThumbnailStrip>;
   private exportProgress = new Map<string, (fraction: number) => void>();
 
   constructor(readonly engine: EngineClient) {
     super();
     registerBuiltins(this.registry);
+    this.peakData = new AssetDataCache<Float32Array>(
+      {
+        available: (id) => this.files.has(id) && !!this.store.project.assets[id]?.hasAudio,
+        load: async (id) => (await this.engine.remote.peaks(id)) as Float32Array,
+      },
+      (id) => this.emit('peaks', id),
+    );
+    this.thumbnailData = new AssetDataCache<ThumbnailStrip>(
+      {
+        available: (id) => this.files.has(id) && !!this.store.project.assets[id]?.hasVideo,
+        load: (id) => this.loadThumbnails(id),
+        dispose: (strip) => strip.frames.forEach((f) => f?.close()),
+      },
+      (id) => this.emit('thumbnails', id),
+      this.engine.budget.deviceClass === 'desktop' ? 48 : 12,
+    );
     this.transport = new Transport(engine, this.store);
     this.store.on('change', ({ project }) => void engine.remote.setProject(project));
     this.registry.on('change', (def) => void engine.remote.setEffects([def]));
@@ -135,15 +163,21 @@ export class EditorSession extends Emitter<SessionEvents> {
   }
 
   peaks(assetId: string): Float32Array | null {
-    if (this.peakData.has(assetId)) return this.peakData.get(assetId)!;
-    this.peakData.set(assetId, null);
-    if (this.files.has(assetId) && this.store.project.assets[assetId]?.hasAudio) {
-      void this.engine.remote.peaks(assetId).then((data) => {
-        this.peakData.set(assetId, data as Float32Array);
-        this.emit('peaks', assetId);
-      });
-    } else this.peakData.delete(assetId);
-    return null;
+    return this.peakData.get(assetId);
+  }
+
+  thumbnails(assetId: string): ThumbnailStrip | null {
+    return this.thumbnailData.get(assetId);
+  }
+
+  private async loadThumbnails(assetId: string): Promise<ThumbnailStrip> {
+    const meta = this.store.project.assets[assetId];
+    const duration = meta.end - meta.start;
+    const count = Math.max(1, Math.min(MAX_THUMBNAILS, Math.ceil(duration)));
+    const interval = duration / count;
+    const times = Array.from({ length: count }, (_, i) => meta.start + (i + 0.5) * interval);
+    const frames = (await this.engine.remote.thumbnails(assetId, times, THUMBNAIL_HEIGHT)) as (ImageBitmap | null)[];
+    return { start: meta.start, interval, frames };
   }
 
   requestProxy(assetId: string): void {

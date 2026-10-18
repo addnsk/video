@@ -55,4 +55,5 @@ export interface EngineMethods {
   stats(): EngineStats;
   setScopes(enabled: boolean): void;
   peaks(assetId: string): Promise<unknown>;
+  thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;
 }

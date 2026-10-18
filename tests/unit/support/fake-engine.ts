@@ -24,6 +24,7 @@ export class FakeEngine implements EngineClient {
       renderStill: () => true,
       exportVideo: () => new File([new Uint8Array(4)], 'out.mp4'),
       peaks: () => new Float32Array([0, 1]),
+      thumbnails: (_: string, times: number[]) => times.map(() => null),
       stats: () => ({ budget: this.budget, resources: {}, frameCacheBytes: 0, floatTargets: true }),
     };
     this.remote = new Proxy({} as Remote<EngineMethods>, {

@@ -24,6 +24,7 @@ import { analyze } from './scopes';
 import { TextRenderer } from './text';
 import { loadFonts } from './fonts';
 import { computePeaks } from './audio/peaks';
+import { decodeThumbnails } from './media/thumbnails';
 
 const SCOPE_INTERVAL_MS = 120;
 
@@ -69,6 +70,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private stills!: StillFrames;
   private text = new TextRenderer();
   private peakCache = new Map<string, Promise<Float32Array>>();
+  private thumbnailQueue: Promise<unknown> = Promise.resolve();
   private gpu: GpuContext | null = null;
   private compositor: Compositor | null = null;
   private project: Project = emptyProject();
@@ -213,6 +215,13 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     }
     const peaks = await pending;
     return peaks.slice();
+  }
+
+  async thumbnails(assetId: string, times: number[], height: number) {
+    const run = this.thumbnailQueue.then(() => decodeThumbnails(this.pool.acquire(assetId, 'preview'), times, height));
+    this.thumbnailQueue = run.catch(() => undefined);
+    const bitmaps = await run;
+    return transfer(bitmaps, bitmaps.filter((b): b is ImageBitmap => !!b));
   }
 
   setScopes(enabled: boolean): void {

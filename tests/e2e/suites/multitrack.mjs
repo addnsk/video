@@ -17,6 +17,17 @@ export default {
     checks.check(layout.main.join() === 'red.mov,blue.mov', `video goes to the main track (${layout.main})`);
     checks.check(layout.audio.join() === 'music.wav', `audio-only media goes to the audio track (${layout.audio})`);
 
+    await editor.settle(2500);
+    const timelineRed = await editor.run(() => {
+      const canvas = document.querySelector('#timeline');
+      const g = canvas.getContext('2d');
+      const data = g.getImageData(0, 0, canvas.width, canvas.height).data;
+      let red = 0;
+      for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] < 40 && data[i + 2] < 40) red++;
+      return red;
+    });
+    checks.check(timelineRed > 500, `timeline clips show frame thumbnails (${timelineRed} red pixels)`);
+
     const pip = await editor.run(() => {
       const blue = montage.clip(1);
       montage.remove(1);

@@ -38,6 +38,26 @@ describe('session import', () => {
     expect(engine.called('attach')).toHaveLength(1);
   });
 
+  it('loads peaks and thumbnails once per asset', async () => {
+    const { session, engine } = await setup(['a.mov', 'song.wav']);
+    const [video, audio] = Object.values(session.store.project.assets);
+    const ready: string[] = [];
+    session.on('thumbnails', (id) => ready.push(id));
+    expect(session.thumbnails(video.id)).toBeNull();
+    expect(session.thumbnails(audio.id)).toBeNull();
+    await flush();
+    const strip = session.thumbnails(video.id)!;
+    expect(strip.frames).toHaveLength(10);
+    expect(strip.interval).toBe(1);
+    expect(engine.called('thumbnails')[0].args[1]).toEqual(Array.from({ length: 10 }, (_, i) => i + 0.5));
+    expect(ready).toEqual([video.id]);
+    session.peaks(audio.id);
+    session.peaks(audio.id);
+    await flush();
+    expect(session.peaks(audio.id)).toEqual(new Float32Array([0, 1]));
+    expect(engine.called('peaks')).toHaveLength(1);
+  });
+
   it('pushes every project change to the engine', async () => {
     const { engine, montage } = await setup();
     const before = engine.called('setProject').length;
