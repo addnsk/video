@@ -19,6 +19,7 @@ import { formatTimecode, h } from './dom';
 import { openExportDialog } from './export-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
+import { MixerPanel } from './panels/mixer-panel';
 import { ScopesPanel } from './panels/scopes-panel';
 import { StillsPanel } from './panels/stills-panel';
 import { ItemPanel } from './panels/item-panel';
@@ -118,6 +119,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new TransitionPanel(session, selection).element,
     new ColorPanel(session, selection).element,
     new StillsPanel(session, selection).element,
+    new MixerPanel(session).element,
     new MediaPanel(session, timeline).element,
     new ScriptPanel(api).element,
   );

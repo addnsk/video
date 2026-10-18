@@ -310,3 +310,13 @@ input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid v
 .still img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; border: 2px solid transparent; cursor: pointer; }
 .still.active img { border-color: var(--accent); }
 .still figcaption { font: 500 11px var(--font-ui); color: var(--muted); }
+.mixer summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.mixer summary::before { content: '▸'; color: var(--muted); font-size: 11px; }
+.mixer[open] summary::before { content: '▾'; }
+.mixer-strips { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.mixer-strip { border: 1px solid var(--line, #2a2d33); border-radius: 6px; padding: 6px 8px; }
+.mixer-strip.editing { border-color: var(--accent, #6aa0ff); }
+.mixer-strip.master { background: rgba(255, 255, 255, 0.03); }
+.mixer-strip .row, .loudness .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mixer-strip label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.mixer summary h2 { display: inline; }

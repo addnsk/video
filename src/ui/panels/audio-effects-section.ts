@@ -1,5 +1,5 @@
-import type { Item } from '../../core/model';
-import { replaceEffect, upsertEffect } from '../../core/operations';
+import type { EffectInstance, Item, ParamValues } from '../../core/model';
+import { replaceEffect, upsertEffect, type Operation } from '../../core/operations';
 import { AUDIO_EFFECTS } from '../../effects/audio/builtin';
 import { numberParam, type AudioEffectDef } from '../../effects/audio/types';
 import type { Store } from '../../core/store';
@@ -7,27 +7,41 @@ import { t } from '../../i18n';
 import { Slider } from '../components/slider';
 import { h } from '../dom';
 
+export interface EffectsBinding {
+  readonly key: string;
+  set(type: string, params: ParamValues | null): Operation;
+}
+
 interface Row {
   def: AudioEffectDef;
   element: HTMLDetailsElement;
   sliders: Map<string, Slider>;
 }
 
+export const itemEffects = (itemId: string): EffectsBinding => ({
+  key: itemId,
+  set: (type, params) => (params ? upsertEffect(itemId, type, params) : replaceEffect(itemId, type, null)),
+});
+
 export class AudioEffectsSection {
   readonly element: HTMLDivElement;
   private rows: Row[];
-  private itemId: string | null = null;
+  private binding: EffectsBinding | null = null;
 
-  constructor(private store: Store) {
+  constructor(
+    private store: Store,
+    private prefix = 'audio',
+    title: string = t('audioEffects'),
+  ) {
     this.rows = AUDIO_EFFECTS.map((def) => this.row(def));
-    this.element = h('div', { class: 'group audio-effects' }, h('h3', {}, t('audioEffects')), ...this.rows.map((r) => r.element));
+    this.element = h('div', { class: 'group audio-effects' }, h('h3', {}, title), ...this.rows.map((r) => r.element));
   }
 
   private row(def: AudioEffectDef): Row {
     const sliders = new Map<string, Slider>();
     for (const spec of def.params) {
       sliders.set(spec.name, new Slider({
-        id: `audio-${def.id}-${spec.name}`,
+        id: `${this.prefix}-${def.id}-${spec.name}`,
         label: spec.label ?? spec.name,
         min: spec.min ?? 0,
         max: spec.max ?? 1,
@@ -36,12 +50,13 @@ export class AudioEffectsSection {
         neutral: Number(spec.default),
         format: (v) => `${+v.toFixed(1)}`,
         onInput: (value) => {
-          if (this.itemId) this.store.dispatch(upsertEffect(this.itemId, def.id, { [spec.name]: value }), { coalesce: `audio:${this.itemId}:${def.id}:${spec.name}` });
+          const binding = this.binding;
+          if (binding) this.store.dispatch(binding.set(def.id, { [spec.name]: value }), { coalesce: `${this.prefix}:${binding.key}:${def.id}:${spec.name}` });
         },
       }));
     }
-    const reset = h('button', { class: 'btn small', id: `audio-${def.id}-reset`, onClick: () => this.itemId && this.store.dispatch(replaceEffect(this.itemId, def.id, null)) }, t('reset'));
-    const element = h('details', { class: 'audio-effect', id: `audio-${def.id}` },
+    const reset = h('button', { class: 'btn small', id: `${this.prefix}-${def.id}-reset`, onClick: () => this.binding && this.store.dispatch(this.binding.set(def.id, null)) }, t('reset'));
+    const element = h('details', { class: 'audio-effect', id: `${this.prefix}-${def.id}` },
       h('summary', {}, def.name),
       ...[...sliders.values()].map((s) => s.element),
       reset,
@@ -49,12 +64,16 @@ export class AudioEffectsSection {
     return { def, element, sliders };
   }
 
-  sync(item: Item | null): void {
-    this.itemId = item?.id ?? null;
+  bind(binding: EffectsBinding | null, effects: readonly EffectInstance[]): void {
+    this.binding = binding;
     for (const { def, element, sliders } of this.rows) {
-      const instance = item?.effects.find((e) => e.type === def.id);
+      const instance = effects.find((e) => e.type === def.id);
       element.classList.toggle('active', !!instance);
       for (const spec of def.params) sliders.get(spec.name)!.set(numberParam(instance?.params ?? {}, spec));
     }
+  }
+
+  sync(item: Item | null): void {
+    this.bind(item ? itemEffects(item.id) : null, item?.effects ?? []);
   }
 }
