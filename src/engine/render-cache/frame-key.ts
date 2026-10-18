@@ -24,17 +24,19 @@ function layerKey(layer: LayerFrame): unknown {
     transform: resolved.transform,
     opacity: resolved.opacity,
     graph: item.graph ?? null,
+    nested: layer.nested ? layersKey(layer.nested) : null,
   };
 }
 
+function layersKey(frame: CompositionFrame): unknown {
+  return frame.layers.map((layer) => ({
+    base: layerKey(layer.base),
+    transition: layer.transition && { incoming: layerKey(layer.transition.incoming), type: layer.transition.transition, progress: Math.round(layer.transition.progress * TIME_STEP) },
+  }));
+}
+
 export function describeFrame(frame: CompositionFrame, context: FrameKeyContext): string {
-  return JSON.stringify({
-    c: context,
-    l: frame.layers.map((layer) => ({
-      base: layerKey(layer.base),
-      transition: layer.transition && { incoming: layerKey(layer.transition.incoming), type: layer.transition.transition, progress: Math.round(layer.transition.progress * TIME_STEP) },
-    })),
-  });
+  return JSON.stringify({ c: context, l: layersKey(frame) });
 }
 
 export function hashString(text: string): string {

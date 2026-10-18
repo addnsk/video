@@ -1,5 +1,6 @@
 import type { Project } from '../core/model';
-import { placeTrack, type CompositionFrame, type LayerFrame, type Placement } from '../core/timeline';
+import { allLayersOf, placeTrack, type CompositionFrame, type LayerFrame, type Placement } from '../core/timeline';
+export { allLayersOf } from '../core/timeline';
 import type { MemoryBudget } from './device';
 import { downscale, type FrameImage, type OwnedFrame } from './media/frame';
 import { FrameCache } from './media/frame-cache';
@@ -12,8 +13,7 @@ export interface OutputSize {
   readonly height: number;
 }
 
-export const layersOf = (frame: CompositionFrame): LayerFrame[] =>
-  frame.layers.flatMap((l) => (l.transition ? [l.base, l.transition.incoming] : [l.base]));
+export const layersOf = (frame: CompositionFrame): LayerFrame[] => allLayersOf(frame).filter((l) => !l.nested);
 
 export interface FrameSource {
   load(project: Project, frame: CompositionFrame, size: OutputSize): Promise<Map<string, FrameImage> | null>;

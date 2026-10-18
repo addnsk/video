@@ -2,6 +2,7 @@ import { PROPERTY, valueAt } from '../../core/animation';
 import { carriesAudio, sourceTimeAt, type MediaItem, type Project } from '../../core/model';
 import { effectiveAnimations } from '../../core/presets';
 import { audibleAt, type Placement } from '../../core/timeline';
+import { nestedProject } from '../../core/timeline-data';
 import type { MediaPool } from '../media/media-pool';
 import { resources } from '../resources';
 import { audioEffect } from '../../effects/audio/builtin';
@@ -151,7 +152,7 @@ export class AudioMixer {
     const longest = Math.max(0, ...tails.values()) + this.longestClipTail(project, rate);
     const placements = audibleAt(project, Math.max(0, s0 - longest), s1).filter((p) => {
       const item = p.item;
-      return carriesAudio(item, project.assets) && this.pool.has(item.source.assetId);
+      return carriesAudio(item, project.assets) && (this.pool.has(item.source.assetId) || !!project.assets[item.source.assetId].timeline);
     });
     const tracks = new Map<string, Planar>();
     for (const p of placements) {
@@ -164,10 +165,14 @@ export class AudioMixer {
       const item = p.item as MediaItem;
       const ahead = clipLatency(item, rate) / rate;
       const buffer = tracks.get(p.track.id)!;
-      if (p.end > s0 + ahead) await this.mixPlacement(p, item, buffer, s0 + ahead, s1 + ahead, rate);
+      if (p.end > s0 + ahead) {
+        if (project.assets[item.source.assetId].timeline) await this.mixNested(project, p, item, buffer, s0 + ahead, s1 + ahead, rate);
+        else await this.mixPlacement(p, item, buffer, s0 + ahead, s1 + ahead, rate);
+      }
       this.ringOut(p, item, buffer, s0 + ahead, s1 + ahead, rate);
     }));
     for (const [id, state] of this.chains) if (!state.used) this.chains.delete(id);
+    for (const id of this.children.keys()) if (!live.some((p) => p.item.id === id)) this.children.delete(id);
     const inputs = new Map<string, Planar>(plan.nodes.filter((n) => n.kind !== 'track').map((n) => [n.id, silence(OUTPUT_CHANNELS, frames)]));
     this.strips.begin();
     for (const node of plan.nodes) {
@@ -185,6 +190,24 @@ export class AudioMixer {
     }
     this.strips.end();
     return inputs.get(MASTER)!;
+  }
+
+  private children = new Map<string, AudioMixer>();
+
+  private async mixNested(project: Project, placement: Placement, item: MediaItem, out: Planar, t0: number, t1: number, rate: number) {
+    const inner = nestedProject(project, item.source.assetId, item.id);
+    if (!inner) return;
+    let child = this.children.get(item.id);
+    if (!child) this.children.set(item.id, (child = new AudioMixer(this.pool)));
+    const { start, end } = placement;
+    const from = sourceTimeAt(item, Math.max(0, t0 - start));
+    const to = sourceTimeAt(item, Math.min(end, t1) - start);
+    if (to <= from) return;
+    const planar = await child.mix(inner, from, to, rate / item.speed);
+    const timelineTime = start + (from - item.source.in) / item.speed;
+    applyEnvelope(planar, timelineTime, rate, envelopeFor(placement));
+    this.applyEffects(item, planar, timelineTime, rate);
+    mixInto(out, planar, Math.round((timelineTime - t0) * rate), timelineTime, rate, UNITY_ENVELOPE);
   }
 
   private async mixPlacement(placement: Placement, item: MediaItem, out: Planar, t0: number, t1: number, rate: number) {

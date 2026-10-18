@@ -142,6 +142,7 @@ export interface AssetMeta {
   readonly hasAudio: boolean;
   readonly sampleRate: number;
   readonly channels: number;
+  readonly timeline?: string;
 }
 
 export type ColorScience = 'display' | 'aces';
@@ -163,6 +164,14 @@ export interface Marker {
   readonly note: string;
 }
 
+export interface TimelineData {
+  readonly id: string;
+  readonly name: string;
+  readonly tracks: readonly Track[];
+  readonly markers?: readonly Marker[];
+  readonly mix?: Mix;
+}
+
 export interface Project {
   readonly version: 2;
   readonly settings: ProjectSettings | null;
@@ -171,6 +180,8 @@ export interface Project {
   readonly stills?: readonly Still[];
   readonly mix?: Mix;
   readonly markers?: readonly Marker[];
+  readonly timeline?: { readonly id: string; readonly name: string };
+  readonly timelines?: Readonly<Record<string, TimelineData>>;
 }
 
 export const IDENTITY_TRANSFORM: Transform = { x: 0, y: 0, scale: 1, rotation: 0 };

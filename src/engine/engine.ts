@@ -16,7 +16,7 @@ import type { LoudnessReading } from '../effects/audio/loudness';
 import { budgetFor, type MemoryBudget } from './device';
 import { ExportCanceled, exportProject, type ExportSettings } from './export/exporter';
 import { fileHandleSink, storageSink } from './export/sinks';
-import { SequentialFrames, StillFrames } from './frames';
+import { SequentialFrames, StillFrames, allLayersOf } from './frames';
 import { GpuContext } from './gpu/context';
 import { Compositor, type FullFrame, type ViewNode } from './gpu/compositor';
 import { MediaPool } from './media/media-pool';
@@ -490,8 +490,8 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private cacheKey(frame: ReturnType<typeof compositionAt>, bypass: boolean): string | null {
     if (!this.renderCacheEnabled || !this.compositor) return null;
     const surface = this.compositor.surface;
-    const spaces = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => itemColorSpace(item, this.project.assets) ?? '');
-    const variants = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => (item.kind === 'media' && this.pool.hasProxy(item.source.assetId) ? 'p' : 'o'));
+    const spaces = allLayersOf(frame).map(({ placement: { item } }) => itemColorSpace(item, this.project.assets) ?? '');
+    const variants = allLayersOf(frame).map(({ placement: { item } }) => (item.kind === 'media' && this.pool.hasProxy(item.source.assetId) ? 'p' : 'o'));
     const color = `${this.project.settings?.colorScience ?? 'display'}:${spaces.join(',')}:${variants.join('')}`;
     return frameKey(frame, { width: surface.width, height: surface.height, bypass, viewNode: this.viewNode, generation: this.renderGeneration, color });
   }

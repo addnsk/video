@@ -31,6 +31,7 @@ import { TransitionPanel } from './panels/transition-panel';
 import { Selection } from './selection';
 import { TimelineView } from './timeline-view';
 import { EditControls } from './edit-controls';
+import { TimelineSwitcher } from './timeline-switcher';
 
 export interface AppHandle {
   readonly fit: () => void;
@@ -112,7 +113,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     const created = store.project.tracks.flatMap((tr) => tr.items).find((i) => !before.has(i.id));
     if (created) selection.set(created.id);
   };
+  const switcher = new TimelineSwitcher(session, selection, api);
   const timelineTools = h('div', { class: 'timeline-tools' },
+    switcher.element,
     h('button', { class: 'btn small', id: 'add-title', onClick: addTitle }, t('addTitle')),
     h('button', { class: 'btn small', id: 'add-video-track', onClick: () => store.dispatch(addTrack('video')) }, t('addVideoTrack')),
     h('button', { class: 'btn small', id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }, t('addAudioTrack')),
@@ -137,7 +140,14 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new StillsPanel(session, selection).element,
     new MixerPanel(session).element,
     new MarkersPanel(session).element,
-    new MediaPanel(session, timeline, (assetId) => session.source.open(assetId)).element,
+    new MediaPanel(session, timeline, (assetId) => session.source.open(assetId), (timelineId) => {
+      try {
+        const result = api.edit.insert({ asset: api.timelines.asset(timelineId), in: 0, at: transport.time });
+        selection.set(result.video);
+      } catch (error) {
+        toast((error as Error).message, 'error');
+      }
+    }).element,
     new ScriptPanel(api).element,
   );
 

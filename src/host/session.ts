@@ -139,7 +139,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   }
 
   get missing(): string[] {
-    return Object.keys(this.store.project.assets).filter((id) => !this.files.has(id));
+    return Object.values(this.store.project.assets).filter((a) => !a.timeline && !this.files.has(a.id)).map((a) => a.id);
   }
 
   async importAndPlace(picked: Iterable<PickedFile>, onError: (file: File, error: Error) => void): Promise<AssetMeta[]> {

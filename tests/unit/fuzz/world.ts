@@ -36,6 +36,7 @@ import {
 } from '../../../src/core/operations';
 import { addMarker, deleteItems, insertEdit, linkItems, overwriteEdit, rippleTrim, rollEdit, slideEdit, slipEdit } from '../../../src/core/editing';
 import { createMediaItem } from '../../../src/core/operations';
+import { addTimeline, ensureNestedAsset, nestItems, nestedAssetId, switchTimeline, timelineList, canNest } from '../../../src/core/timelines';
 import { Store } from '../../../src/core/store';
 import { findPlacement, projectDuration } from '../../../src/core/timeline';
 import { registerBuiltins } from '../../../src/effects/builtin';
@@ -128,6 +129,10 @@ export const action = fc.oneof(
   { weight: 3, arbitrary: fc.record({ kind: fc.constant('editTrim' as const), item: k, mode: fc.constantFrom('ripple' as const, 'roll' as const, 'slip' as const, 'slide' as const), out: fc.boolean(), d: unit }) },
   { weight: 1, arbitrary: fc.record({ kind: fc.constant('link' as const), from: k, to: k }) },
   { weight: 1, arbitrary: fc.record({ kind: fc.constant('marker' as const), at: unit }) },
+  { weight: 1, arbitrary: fc.record({ kind: fc.constant('newTimeline' as const) }) },
+  { weight: 2, arbitrary: fc.record({ kind: fc.constant('switchTimeline' as const), which: k }) },
+  { weight: 2, arbitrary: fc.record({ kind: fc.constant('nestTimeline' as const), which: k, track: k, at: unit }) },
+  { weight: 1, arbitrary: fc.record({ kind: fc.constant('compound' as const), from: k, to: k }) },
   { weight: 3, arbitrary: fc.record({ kind: fc.constant('undo' as const) }) },
   { weight: 2, arbitrary: fc.record({ kind: fc.constant('redo' as const) }) },
 );
@@ -300,6 +305,22 @@ export function toOperation(project: Project, a: Action): Operation | 'undo' | '
     }
     case 'marker':
       return addMarker({ time: a.at * duration });
+    case 'newTimeline':
+      return addTimeline(undefined);
+    case 'switchTimeline': {
+      const target = pick(timelineList(project), a.which)!;
+      return switchTimeline(target.id);
+    }
+    case 'nestTimeline': {
+      const target = pick(timelineList(project).filter((t) => !t.active && canNest(project, t.id)), a.which);
+      if (!target || !track) return null;
+      const id = nestedAssetId(target.id);
+      return (p: Project) => insertItem(id, { trackId: track.id, start: a.at * duration })(ensureNestedAsset(target.id)(p));
+    }
+    case 'compound': {
+      const [from, to] = [pick(all, a.from), pick(all, a.to)];
+      return from && to ? nestItems([...new Set([from.id, to.id])]) : null;
+    }
     case 'textStyle':
       return item?.kind === 'text' ? setTextStyle(item.id, { size: 0.02 + a.size * 0.2 }) : null;
   }

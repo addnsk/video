@@ -1,6 +1,6 @@
 import { resolveItem } from '../../core/resolve';
 import type { ColorScience, EffectInstance, Item, ParamValue, ParamValues, Project, Transform } from '../../core/model';
-import type { CompositionFrame, LayerFrame, TrackFrame } from '../../core/timeline';
+import { allLayersOf, type CompositionFrame, type LayerFrame, type TrackFrame } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';
 import { defaultParams, type FilterDef, type NodeDef, type ParamSpec, type TransitionDef } from '../../effects/types';
 import type { FrameImage } from '../media/frame';
@@ -139,15 +139,8 @@ export class Compositor {
       : { width: even(surface.width), height: even(surface.width / aspect) };
   }
 
-  render(frame: CompositionFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions = {}): void {
-    const gl = this.ctx.gl;
-    if (this.ctx.lost) return;
-    const size = this.size;
-    this.width = size.width;
-    this.height = size.height;
-    this.pixelScale = this.project ? size.height / this.project.height : 1;
+  private composite(frame: CompositionFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions): RenderTarget | null {
     let accumulator: RenderTarget | null = null;
-    this.passes = 0;
     for (const layer of frame.layers) {
       if (options.isolate && layer.base.placement.item.id !== options.isolate) continue;
       const result = this.renderTrack(layer, images, options);
@@ -164,6 +157,18 @@ export class Compositor {
       this.blend(result, accumulator, opacity);
       this.targets.release(result);
     }
+    return accumulator;
+  }
+
+  render(frame: CompositionFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions = {}): void {
+    const gl = this.ctx.gl;
+    if (this.ctx.lost) return;
+    const size = this.size;
+    this.width = size.width;
+    this.height = size.height;
+    this.pixelScale = this.project ? size.height / this.project.height : 1;
+    this.passes = 0;
+    let accumulator = this.composite(frame, images, options);
     if (accumulator && !options.workingSpace) accumulator = this.outputTransform(accumulator);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, this.ctx.surface.width, this.ctx.surface.height);
@@ -213,17 +218,39 @@ export class Compositor {
     return out;
   }
 
+  private nestedSource(layer: LayerFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions, transform: Transform): (() => RenderTarget) | null {
+    const inner = this.composite(layer.nested!, images, { ...options, isolate: undefined });
+    if (!inner) return null;
+    const fitted = this.fit(inner.texture, this.width, this.height, transform);
+    this.targets.release(inner);
+    let used = false;
+    return () => {
+      if (!used) {
+        used = true;
+        return fitted;
+      }
+      return this.copyTarget(fitted);
+    };
+  }
+
   private renderLayer(layer: LayerFrame, images: ReadonlyMap<string, FrameImage>, options: RenderOptions): RenderTarget | null {
     const { item } = layer.placement;
-    const image = images.get(item.id);
-    if (!image) return null;
-    let upload = this.uploads.get(item.id);
-    if (!upload) this.uploads.set(item.id, (upload = new UploadTexture(this.ctx)));
-    const texture = upload.upload(image.source, image.width, image.height, image.key);
     const resolved = resolveItem(item, layer.local);
+    let source: () => RenderTarget;
+    if (layer.nested) {
+      const nested = this.nestedSource(layer, images, options, resolved.transform);
+      if (!nested) return null;
+      source = nested;
+    } else {
+      const image = images.get(item.id);
+      if (!image) return null;
+      let upload = this.uploads.get(item.id);
+      if (!upload) this.uploads.set(item.id, (upload = new UploadTexture(this.ctx)));
+      const texture = upload.upload(image.source, image.width, image.height, image.key);
+      source = () => this.inputTransform(item, this.fit(texture, image.width, image.height, resolved.transform));
+    }
     this.nodeTime = layer.sourceTime;
     this.localTime = layer.local;
-    const source = () => this.inputTransform(item, this.fit(texture, image.width, image.height, resolved.transform));
     if (options.bypassFilters) return source();
     const registry = this.registry;
     const graph = materialize(resolved.effects, item.graph, registry);
@@ -641,11 +668,7 @@ export class Compositor {
   }
 
   private collect(frame: CompositionFrame) {
-    const visible = new Set<string>();
-    for (const layer of frame.layers) {
-      visible.add(layer.base.placement.item.id);
-      if (layer.transition) visible.add(layer.transition.incoming.placement.item.id);
-    }
+    const visible = new Set(allLayersOf(frame).map((l) => l.placement.item.id));
     for (const [id, upload] of this.uploads) {
       if (visible.has(id)) continue;
       upload.dispose();

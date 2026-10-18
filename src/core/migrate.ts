@@ -25,14 +25,17 @@ function migrateAsset(raw: AssetMeta & { hasVideo?: boolean }): AssetMeta {
 }
 
 export function migrateProject(raw: unknown): Project {
-  const p = raw as { version?: number; settings?: Project['settings']; assets?: Record<string, AssetMeta>; tracks?: Track[]; stills?: Project['stills']; mix?: Project['mix']; markers?: Project['markers'] };
-  const tracks = (p.tracks ?? []).map((t) => ({
-    id: t.id,
-    kind: t.kind,
-    magnetic: !!t.magnetic,
-    muted: !!t.muted,
-    items: t.items.map((i) => migrateItem(i as never)),
-  }));
+  const p = raw as { version?: number; settings?: Project['settings']; assets?: Record<string, AssetMeta>; tracks?: Track[]; stills?: Project['stills']; mix?: Project['mix']; markers?: Project['markers']; timeline?: Project['timeline']; timelines?: Record<string, { id: string; name: string; tracks: Track[]; markers?: Project['markers']; mix?: Project['mix'] }> };
+  const migrateTracks = (list: Track[]) =>
+    list.map((t) => ({
+      id: t.id,
+      kind: t.kind,
+      magnetic: !!t.magnetic,
+      muted: !!t.muted,
+      items: t.items.map((i) => migrateItem(i as never)),
+    }));
+  const tracks = migrateTracks(p.tracks ?? []);
+  const timelines = p.timelines && Object.fromEntries(Object.entries(p.timelines).map(([k, v]) => [k, { ...v, tracks: migrateTracks(v.tracks) }]));
   if ((p.version ?? 1) < 2 && !tracks.some((t) => t.kind === 'video' && !t.magnetic)) tracks.splice(1, 0, { id: 'v2', kind: 'video', magnetic: false, muted: false, items: [] });
   return {
     version: 2,
@@ -42,5 +45,7 @@ export function migrateProject(raw: unknown): Project {
     ...(p.stills ? { stills: p.stills } : {}),
     ...(p.mix ? { mix: p.mix } : {}),
     ...(p.markers?.length ? { markers: p.markers } : {}),
+    ...(p.timeline ? { timeline: p.timeline } : {}),
+    ...(timelines && Object.keys(timelines).length ? { timelines } : {}),
   };
 }

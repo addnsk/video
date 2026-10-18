@@ -95,6 +95,25 @@ montage.edit.unlink(video);                   // unlinks the whole group
 montage.edit.linked(video);                   // [video, audio]
 ```
 
+### Timelines and compound clips
+
+A project holds several timelines; one is open at a time and the rest of the API (clips, edits, markers, mixer, export) works on it. Project settings (size, frame rate, color science) are shared by all timelines.
+
+```js
+montage.timelines.list();                     // [{ id, name, active }]
+const b = montage.timelines.create('Alt cut');          // opens it; { open: false } keeps the current one
+montage.timelines.open(b);
+montage.timelines.rename(b, 'Alt cut v2');
+const copy = montage.timelines.duplicate(b);  // new ids for clips, links and markers
+montage.timelines.remove(copy);               // not the open one; clips that nest it are removed too
+
+const asset = montage.timelines.asset(b);     // the timeline as a media asset
+montage.edit.insert({ asset, in: 0, at: 4 }); // nest it like any clip: trims, slips, speed and effects apply to its whole picture and sound
+const { timeline, clip } = montage.timelines.compound([clipA, clipB], 'Scene 1');   // replace clips (and their linked clips) with one nested timeline
+```
+
+A nested clip renders its timeline at the source time, including its own tracks, transitions, nodes and mixer. When the nested timeline becomes shorter, clips that use it are trimmed to fit. A timeline cannot be nested inside itself, directly or through other timelines.
+
 ### Markers
 
 ```js

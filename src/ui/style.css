@@ -332,3 +332,11 @@ input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid v
 .marker-row { display: grid; grid-template-columns: 12px auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-bottom: 6px; }
 .marker-row .note { grid-column: 3 / 5; }
 .marker-row .swatch { width: 12px; height: 12px; border-radius: 3px; }
+.timeline-switcher { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.timeline-switcher select { min-height: 28px; max-width: 18ch; }
+.panel h3.sub { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 4px 0 6px; }
+details.menu { position: relative; }
+details.menu > summary { list-style: none; display: inline-flex; align-items: center; cursor: pointer; }
+details.menu > summary::-webkit-details-marker { display: none; }
+details.menu .menu-list { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; display: flex; flex-direction: column; gap: 4px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 18ch; box-shadow: 0 8px 24px rgb(0 0 0 / 0.35); }
+details.menu .menu-list .btn { justify-content: flex-start; }

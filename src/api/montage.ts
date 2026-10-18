@@ -60,6 +60,7 @@ import type { ExportSettings } from '../engine/export/exporter';
 import type { LogSource } from '../core/log';
 import type { EditorSession } from '../host/session';
 import { createEditApi } from './edit-api';
+import { createTimelinesApi } from './timelines-api';
 import { createLoudnessApi, createMixerApi } from './mixer-api';
 import { pickQualifier } from '../host/qualifier-pick';
 
@@ -375,6 +376,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     track: (ref: ItemRef, request: TrackRequest): Promise<FramePoint[]> => trackPoint(session, resolve(ref).item.id, request),
     mixer: createMixerApi(session),
     ...createEditApi(session, (ref) => resolve(ref).item.id),
+    timelines: createTimelinesApi(session, (ref) => resolve(ref).item.id),
     ...createLoudnessApi(session),
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),

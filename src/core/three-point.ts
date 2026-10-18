@@ -63,5 +63,6 @@ export function sourceProject(timeline: Project, assetId: string): Project {
     { id: 'v1', kind: 'video', magnetic: true, muted: false, items: asset.hasVideo ? [item] : [] },
     { id: 'a1', kind: 'audio', magnetic: false, muted: false, items: asset.hasVideo ? [] : [item] },
   ];
-  return { version: 2, settings, assets: { [assetId]: asset }, tracks };
+  const { mix: _mix, markers: _markers, ...rest } = timeline;
+  return { ...rest, settings, tracks };
 }

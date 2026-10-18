@@ -225,6 +225,21 @@ export const en = {
   markerNote: 'Note',
   markerColor: 'Color',
   markerRemove: 'Remove',
+  timelineSelect: 'Timeline',
+  timelineNew: '+ Timeline',
+  timelineRename: 'Rename',
+  timelineRenamePrompt: 'Timeline name',
+  timelineDuplicate: 'Duplicate',
+  timelineDelete: 'Delete timeline',
+  timelineLast: 'The only timeline cannot be deleted',
+  timelineDeleteConfirm: 'Delete "{name}"? Clips that use it as a nested timeline are removed too.',
+  compoundClip: 'Compound clip',
+  compoundNeedsSelection: 'Select a clip first',
+  compoundPrompt: 'Name of the compound clip',
+  compoundDefault: 'Compound clip',
+  mediaTimelines: 'Timelines',
+  timelineInsert: 'Insert at playhead',
+  timelineMenu: 'Timeline actions',
 };
 
 export type Strings = typeof en;

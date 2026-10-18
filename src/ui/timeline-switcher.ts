@@ -1,0 +1,65 @@
+import type { MontageApi } from '../api/montage';
+import type { EditorSession } from '../host/session';
+import { t } from '../i18n';
+import { toast } from './components/toast';
+import { h } from './dom';
+import type { Selection } from './selection';
+
+export class TimelineSwitcher {
+  readonly element: HTMLElement;
+  private select: HTMLSelectElement;
+
+  constructor(
+    private session: EditorSession,
+    private selection: Selection,
+    private api: MontageApi,
+  ) {
+    this.select = h('select', { id: 'timeline-select', 'aria-label': t('timelineSelect'), onChange: () => this.attempt(() => this.api.timelines.open(this.select.value)) });
+    const button = (id: string, label: string, run: () => void) => h('button', { class: 'btn small', id, onClick: () => this.attempt(run) }, label);
+    const menu = h('div', { class: 'menu-list' },
+      button('timeline-new', t('timelineNew'), () => this.api.timelines.create()),
+      button('timeline-rename', t('timelineRename'), () => {
+        const active = this.api.timelines.active();
+        const name = prompt(t('timelineRenamePrompt'), active.name);
+        if (name) this.api.timelines.rename(active.id, name);
+      }),
+      button('timeline-duplicate', t('timelineDuplicate'), () => this.api.timelines.open(this.api.timelines.duplicate())),
+      button('timeline-delete', t('timelineDelete'), () => {
+        const others = this.api.timelines.list().filter((x) => !x.active);
+        if (!others.length) throw new Error(t('timelineLast'));
+        const active = this.api.timelines.active();
+        if (!confirm(t('timelineDeleteConfirm', { name: active.name }))) return;
+        this.api.timelines.open(others[0].id);
+        this.api.timelines.remove(active.id);
+      }),
+      button('compound-clip', t('compoundClip'), () => {
+        if (!this.selection.id) throw new Error(t('compoundNeedsSelection'));
+        const name = prompt(t('compoundPrompt'), t('compoundDefault'));
+        if (name === null) return;
+        const result = this.api.timelines.compound([this.selection.id], name || undefined);
+        this.selection.set(result.clip);
+      }),
+    );
+    const details = h('details', { class: 'menu' }, h('summary', { class: 'btn small', id: 'timeline-menu', 'aria-label': t('timelineMenu') }, '⋯'), menu);
+    menu.addEventListener('click', () => details.removeAttribute('open'));
+    this.element = h('div', { class: 'timeline-switcher' }, this.select, details);
+    session.store.on('change', ({ project, previous }) => {
+      if (project.timeline !== previous.timeline || project.timelines !== previous.timelines) this.render();
+    });
+    this.render();
+  }
+
+  private attempt(run: () => void) {
+    try {
+      run();
+    } catch (error) {
+      toast((error as Error).message, 'error');
+      this.render();
+    }
+  }
+
+  private render() {
+    const list = this.api.timelines.list();
+    this.select.replaceChildren(...list.map((x) => h('option', { value: x.id, selected: x.active }, x.name)));
+  }
+}

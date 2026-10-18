@@ -1,5 +1,6 @@
 import type { AssetMeta } from '../../core/model';
 import { insertItem } from '../../core/operations';
+import { canNest, timelineList } from '../../core/timelines';
 import type { EditorSession } from '../../host/session';
 import { t } from '../../i18n';
 import { dragSource } from '../components/drag-source';
@@ -12,10 +13,11 @@ export class MediaPanel extends Panel {
     private session: EditorSession,
     private dropTarget: DropTarget,
     private openSource: (assetId: string) => void,
+    private insertTimeline: (timelineId: string) => void,
   ) {
     super('media', t('mediaTitle'));
     session.store.on('change', ({ project, previous }) => {
-      if (project.assets !== previous.assets) this.render();
+      if (project.assets !== previous.assets || project.timeline !== previous.timeline || project.timelines !== previous.timelines) this.render();
     });
     session.on('proxy', () => this.render());
     this.render();
@@ -29,12 +31,26 @@ export class MediaPanel extends Panel {
   }
 
   private render() {
-    const assets = Object.values(this.session.store.project.assets);
+    const project = this.session.store.project;
+    const assets = Object.values(project.assets).filter((a) => !a.timeline);
+    const timelines = timelineList(project).filter((x) => !x.active && canNest(project, x.id));
     if (!assets.length) {
       this.body.replaceChildren(h('p', { class: 'hint' }, t('mediaEmpty')));
       return;
     }
+    const timelineRows = timelines.length
+      ? [
+          h('h3', { class: 'sub' }, t('mediaTimelines')),
+          ...timelines.map((x) =>
+            h('div', { class: 'media-item', 'data-timeline': x.id },
+              h('b', {}, x.name),
+              h('div', { class: 'row' }, h('button', { class: 'btn', 'data-insert-timeline': x.id, onClick: () => this.insertTimeline(x.id) }, t('timelineInsert'))),
+            ),
+          ),
+        ]
+      : [];
     this.body.replaceChildren(
+      ...timelineRows,
       ...assets.map((asset) => {
         const proxy = this.proxyLabel(asset);
         const details = asset.hasVideo

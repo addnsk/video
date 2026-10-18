@@ -1,5 +1,6 @@
 import type { Item, Project, Track, TransitionInstance } from './model';
 import { itemLength, sourceTimeAt } from './model';
+import { nestedProject } from './timeline-data';
 
 export interface Placement {
   readonly item: Item;
@@ -15,6 +16,7 @@ export interface LayerFrame {
   readonly placement: Placement;
   readonly local: number;
   readonly sourceTime: number;
+  readonly nested?: CompositionFrame;
 }
 
 export interface TransitionFrame {
@@ -112,7 +114,27 @@ export function trackFrameAt(track: Track, time: number): TrackFrame | null {
   return null;
 }
 
+function withNested(project: Project, layer: LayerFrame): LayerFrame {
+  const { item } = layer.placement;
+  if (item.kind !== 'media' || !project.assets[item.source.assetId]?.timeline) return layer;
+  const inner = nestedProject(project, item.source.assetId, item.id);
+  return inner ? { ...layer, nested: compositionAt(inner, layer.sourceTime) } : layer;
+}
+
+const nestFrame = (project: Project, frame: TrackFrame): TrackFrame =>
+  ({
+    ...frame,
+    base: withNested(project, frame.base),
+    transition: frame.transition && { ...frame.transition, incoming: withNested(project, frame.transition.incoming) },
+  });
+
 export function compositionAt(project: Project, time: number): CompositionFrame {
+  const frame = flatCompositionAt(project, time);
+  if (!frame.layers.some((l) => [l.base, l.transition?.incoming].some((x) => x?.placement.item.kind === 'media' && project.assets[x.placement.item.source.assetId]?.timeline))) return frame;
+  return { time, layers: frame.layers.map((l) => nestFrame(project, l)) };
+}
+
+function flatCompositionAt(project: Project, time: number): CompositionFrame {
   const layers: TrackFrame[] = [];
   for (const track of project.tracks) {
     if (track.kind !== 'video' || track.muted) continue;
@@ -135,3 +157,10 @@ export function audibleAt(project: Project, t0: number, t1: number): Placement[]
   }
   return out;
 }
+
+export const topLayersOf = (frame: CompositionFrame): LayerFrame[] =>
+  frame.layers.flatMap((l) => (l.transition ? [l.base, l.transition.incoming] : [l.base]));
+
+export const allLayersOf = (frame: CompositionFrame): LayerFrame[] =>
+  topLayersOf(frame).flatMap((l) => (l.nested ? [l, ...allLayersOf(l.nested)] : [l]));
+
