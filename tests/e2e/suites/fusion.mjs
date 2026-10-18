@@ -156,6 +156,42 @@ export default {
     await editor.page.click('#viewing-node');
     checks.check((await color(EDGE, keyTime))[2] > 200, 'leaving node view shows the output again');
 
+    const maskId = await editor.run(() => montage.batch(() => {
+      montage.graph.disable(0);
+      const bg = montage.graph.add(0, 'background', { color: [0, 0, 1, 1] });
+      const mask = montage.graph.add(0, 'polygon-mask', { spline: false, feather: 0 });
+      const merge = montage.graph.add(0, 'merge');
+      montage.graph.connect(0, bg, merge, 'background');
+      montage.graph.connect(0, 'source', merge, 'foreground');
+      montage.graph.connect(0, mask, merge, 'mask');
+      montage.graph.connect(0, merge, 'output');
+      montage.select(0);
+      return mask;
+    }));
+    const inMask = await color(CENTER, 0.5);
+    checks.check(inMask[0] > 200, `polygon mask reveals the clip inside (${fmt(inMask)})`);
+    await editor.page.click('#view-nodes');
+    let mp = await ports();
+    while (!mp[maskId]) {
+      await editor.settle(200);
+      mp = await ports();
+    }
+    const nodeBox = await editor.page.locator('#node-canvas').boundingBox();
+    await editor.page.mouse.click(nodeBox.x + mp[maskId].center[0], nodeBox.y + mp[maskId].center[1]);
+    await editor.until(() => getComputedStyle(document.querySelector('#mask-overlay')).display !== 'none');
+    checks.check((await editor.page.locator('#mask-overlay .mask-point').count()) === 4, 'selecting a polygon mask shows its points on the viewer');
+    const handle = await editor.page.locator('#mask-overlay .mask-point').nth(2).boundingBox();
+    await editor.page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await editor.page.mouse.down();
+    await editor.page.mouse.move(handle.x + 120, handle.y + 60, { steps: 6 });
+    await editor.page.mouse.up();
+    const moved = await editor.run((id) => montage.graph.get(0).nodes.find((n) => n.id === id).params.points, maskId);
+    checks.check(moved[4] > 0.3 && moved[5] > 0.3, `dragging a point on the viewer moves it (${moved.slice(4, 6).map((v) => v.toFixed(2))})`);
+    await editor.page.locator('#mask-overlay .mask-add').first().click();
+    const added = await editor.run((id) => montage.graph.get(0).nodes.find((n) => n.id === id).params.points.length, maskId);
+    checks.check(added === 10, `clicking an edge handle inserts a point (${added / 2} points)`);
+    await editor.page.click('#view-timeline');
+
     const stats = await editor.stats();
     checks.check((stats.resources.framebuffer?.live ?? 0) <= 12, `render targets stay pooled (${stats.resources.framebuffer?.live})`);
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);

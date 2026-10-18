@@ -9,6 +9,7 @@ import {
   setNodeEnabled,
   setNodeParams,
 } from '../core/graph-operations';
+import { Emitter } from '../core/emitter';
 import { createId } from '../core/ids';
 import type { Item } from '../core/model';
 import type { Operation } from '../core/operations';
@@ -26,7 +27,7 @@ type Drag =
   | { kind: 'link'; from: string; x: number; y: number }
   | { kind: 'pan'; x0: number; y0: number; view: Viewport };
 
-export class NodeEditor {
+export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: string } | null }> {
   readonly element: HTMLElement;
   private canvas: HTMLCanvasElement;
   private inspector: HTMLDivElement;
@@ -46,6 +47,7 @@ export class NodeEditor {
     private session: EditorSession,
     private selection: Selection,
   ) {
+    super();
     this.canvas = h('canvas', { id: 'node-canvas', tabindex: 0 });
     this.inspector = h('div', { class: 'node-inspector', id: 'node-inspector' });
     this.hint = h('p', { class: 'hint node-hint' }, t('nodesHint'));
@@ -253,7 +255,23 @@ export class NodeEditor {
     this.draw();
   }
 
+  private announced = '';
+
+  private announce(item: Item | null) {
+    const target = this.visible && item && this.selectedNode ? { itemId: item.id, nodeId: this.selectedNode } : null;
+    const key = target ? `${target.itemId}:${target.nodeId}` : '';
+    if (key === this.announced) return;
+    this.announced = key;
+    this.emit('select', target);
+  }
+
+  get selected(): { itemId: string; nodeId: string } | null {
+    const item = this.item;
+    return this.visible && item && this.selectedNode ? { itemId: item.id, nodeId: this.selectedNode } : null;
+  }
+
   private renderInspector(item: Item | null) {
+    this.announce(item);
     const node = item && this.selectedNode ? nodeById(this.graph(item), this.selectedNode) : undefined;
     const key = node ? `${item!.id}:${node.id}:${node.enabled}` : '';
     if (key === this.inspectedKey && node) return;

@@ -330,13 +330,19 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
         const graph = materialize(item.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
         return { editable: !!item.graph, nodes: graph.nodes, links: graph.links };
       },
-      add(ref: ItemRef, type: string, params: Record<string, ParamValue> = {}, position: [number, number] = [0, 200]): string {
+      add(ref: ItemRef, type: string, params: Record<string, ParamValue> = {}, position?: [number, number]): string {
         if (!registry.isVisual(type)) throw new Error(`Unknown node "${type}". Available: ${[...registry.nodes(), ...registry.filters()].map((d) => d.id).join(', ')}`);
         const itemId = resolve(ref).item.id;
         const id = createId('fx');
         void store.transaction(() => {
           apply(enableGraph(itemId, registry));
-          apply(addGraphNode(itemId, type, params, position, id));
+          const { item } = resolve(itemId);
+          const existing = materialize(item.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t)).nodes;
+          const free = (): [number, number] => {
+            const row = existing.filter((n) => n.position[1] >= 150);
+            return [row.length ? Math.max(...row.map((n) => n.position[0])) + 180 : 0, 200];
+          };
+          apply(addGraphNode(itemId, type, params, position ?? free(), id));
         });
         return id;
       },

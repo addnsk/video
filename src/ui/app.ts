@@ -5,6 +5,7 @@ import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
 import type { ProjectPersistence } from '../host/persistence/project-persistence';
 import type { EditorSession } from '../host/session';
 import { LevelMeter } from './components/level-meter';
+import { MaskOverlay } from './mask-overlay';
 import { NodeEditor } from './node-editor';
 import { languageSelect } from './components/language-select';
 import { offlineBanner } from './components/offline-banner';
@@ -112,6 +113,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
 
   const nodeEditor = new NodeEditor(session, selection);
+  const maskOverlay = new MaskOverlay(session, screen);
+  nodeEditor.on('select', (target) => maskOverlay.show(target));
   const viewing = h('button', { class: 'viewing', id: 'viewing-node', hidden: true, onClick: () => session.viewNode(null) });
   screen.append(viewing);
   session.on('view', (target) => {
@@ -125,6 +128,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const showView = (view: 'timeline' | 'nodes') => {
     timelinePane.hidden = view !== 'timeline';
     nodeEditor.show(view === 'nodes');
+    maskOverlay.show(nodeEditor.selected);
     for (const tab of viewTabs.children) tab.setAttribute('aria-selected', String((tab as HTMLElement).dataset.view === view));
     if (view === 'timeline') timeline.draw();
   };

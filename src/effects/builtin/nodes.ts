@@ -291,7 +291,7 @@ export const POLYGON_MASK: NodeDef = {
   inputs: [],
   params: [
     { name: 'points', label: 'Points', type: 'points', default: [-0.25, -0.25, 0.25, -0.25, 0.25, 0.25, -0.25, 0.25], max: MAX_MASK_POINTS },
-    { name: 'smooth', label: 'Smooth curve', type: 'bool', default: true },
+    { name: 'spline', label: 'Smooth curve', type: 'bool', default: true },
     float('feather', 'Feather', 0.01, 0, 0.3, 0.002),
     { name: 'invert', label: 'Invert', type: 'bool', default: false },
   ],

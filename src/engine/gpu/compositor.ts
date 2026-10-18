@@ -334,7 +334,8 @@ export class Compositor {
           break;
         case 'points': {
           const raw = (Array.isArray(value) ? value : spec.default) as number[];
-          const points = values.smooth === true ? catmullRom(raw, true, 8, spec.max) : raw.slice(0, spec.max * 2);
+          const spline = values.spline ?? specs.find((s) => s.name === 'spline')?.default;
+          const points = spline === true ? catmullRom(raw, true, 8, spec.max) : raw.slice(0, spec.max * 2);
           const data = new Float32Array(spec.max * 2);
           data.set(points);
           gl.uniform2fv(this.ctx.uniform(program, `${spec.name}[0]`), data);
