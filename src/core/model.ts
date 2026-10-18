@@ -27,9 +27,16 @@ export interface Transform {
   readonly rotation: number;
 }
 
+export type Easing = 'linear' | 'in' | 'out' | 'inOut';
+
+export type PresetPhase = 'in' | 'out' | 'whole';
+
+export type ItemPresets = Readonly<Partial<Record<PresetPhase, string>>>;
+
 export interface Keyframe {
   readonly t: number;
   readonly v: number;
+  readonly ease?: Easing;
 }
 
 export type Animations = Readonly<Record<string, readonly Keyframe[]>>;
@@ -53,6 +60,7 @@ interface ItemBase {
   readonly opacity: number;
   readonly transform: Transform;
   readonly animations: Animations;
+  readonly presets: ItemPresets;
 }
 
 export interface MediaItem extends ItemBase {

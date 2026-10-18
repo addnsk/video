@@ -1,4 +1,4 @@
-import { resolveItem } from '../../core/animation';
+import { resolveItem } from '../../core/resolve';
 import type { EffectInstance, ParamValue, ParamValues, Transform } from '../../core/model';
 import type { CompositionFrame, LayerFrame, TrackFrame } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';

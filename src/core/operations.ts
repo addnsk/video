@@ -6,6 +6,7 @@ import type {
   Item,
   MediaItem,
   ParamValues,
+  PresetPhase,
   Project,
   TextItem,
   TextStyle,
@@ -64,6 +65,7 @@ const baseItem = (id: string, start: number) => ({
   opacity: 1,
   transform: IDENTITY_TRANSFORM,
   animations: {},
+  presets: {},
 });
 
 function placeInto(project: Project, track: Track, item: Item, index?: number): Project {
@@ -191,15 +193,19 @@ export const splitAt = (time: number, trackId: string, rightId = createId('item'
   const leftAnimations = shiftAnimations(item.animations, 0, local);
   const rightAnimations = shiftAnimations(item.animations, local, length - local);
   const effects = item.effects.map((e) => ({ ...e, id: createId('fx') }));
+  const { out: _out, ...leftPresets } = item.presets;
+  const { in: _in, ...rightPresets } = item.presets;
+  const head = { animations: leftAnimations, presets: leftPresets };
+  const tail = { id: rightId, start: layer.placement.start + local, transitionIn: null, effects, animations: rightAnimations, presets: rightPresets };
   const [left, right]: [Item, Item] =
     item.kind === 'media'
       ? [
-          { ...item, source: { ...item.source, out: sourceTimeAt(item, local) }, animations: leftAnimations },
-          { ...item, id: rightId, source: { ...item.source, in: sourceTimeAt(item, local) }, start: layer.placement.start + local, transitionIn: null, effects, animations: rightAnimations },
+          { ...item, ...head, source: { ...item.source, out: sourceTimeAt(item, local) } },
+          { ...item, ...tail, source: { ...item.source, in: sourceTimeAt(item, local) } },
         ]
       : [
-          { ...item, duration: local, animations: leftAnimations },
-          { ...item, id: rightId, duration: length - local, start: layer.placement.start + local, transitionIn: null, effects, animations: rightAnimations },
+          { ...item, ...head, duration: local },
+          { ...item, ...tail, duration: length - local },
         ];
   const items = track.items.slice();
   items.splice(items.indexOf(item), 1, left, right);
@@ -241,6 +247,15 @@ export const deleteKeyframe = (itemId: string, path: string, t: number): Operati
     if (keys.length) animations[path] = keys;
     else delete animations[path];
     return { ...item, animations };
+  });
+
+export const setPreset = (itemId: string, phase: PresetPhase, presetId: string | null): Operation => (project) =>
+  mapItem(project, itemId, (item) => {
+    if ((item.presets[phase] ?? null) === presetId) return item;
+    const presets = { ...item.presets };
+    if (presetId) presets[phase] = presetId;
+    else delete presets[phase];
+    return { ...item, presets };
   });
 
 export const clearAnimation = (itemId: string, path: string): Operation => (project) =>

@@ -65,6 +65,21 @@ export default {
     await editor.run(({ title }) => montage.place(title, 'v2', 3), extra);
     checks.check(isBlue(await editor.previewColorAt(1.5, CENTER)), 'title moved later on another track');
 
+    const popped = await editor.run(({ title }) => {
+      montage.place(title, 'v2', 0);
+      montage.animate(title, 'in', 'pop');
+      montage.animate(title, 'out', 'fade-out');
+      return montage.clip(title).presets;
+    }, extra);
+    checks.check(popped.in === 'pop' && popped.out === 'fade-out', 'presets are stored on the title');
+    const hiddenAtStart = await editor.previewColorAt(0.01, CENTER);
+    const shownInMiddle = await editor.previewColorAt(1, CENTER);
+    checks.check(isRed(hiddenAtStart) && shownInMiddle[1] > 180, 'pop preset hides the title at its start and shows it later');
+    await editor.run(({ title }) => montage.select(title), extra);
+    checks.check((await editor.page.inputValue('#preset-in')) === 'pop', 'item panel shows the in preset');
+    await editor.page.selectOption('#preset-in', '');
+    checks.check(!(await editor.run(({ title }) => montage.clip(title).presets.in, extra)), 'choosing None removes the preset');
+
     const durations = await editor.run(async () => {
       const withAudio = (await montage.render({ height: 360, quality: 'medium' })).file?.size ?? 0;
       return { withAudio, duration: montage.duration };

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PROPERTY, resolveItem, valueAt } from '../../src/core/animation';
+import { PROPERTY, valueAt } from '../../src/core/animation';
+import { resolveItem } from '../../src/core/resolve';
 import { migrateProject } from '../../src/core/migrate';
 import { emptyProject } from '../../src/core/model';
 import {

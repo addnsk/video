@@ -1,6 +1,7 @@
 import { PROPERTY, keyAt, valueAt } from '../../core/animation';
-import { MAX_SPEED, MIN_SPEED, type Item, type TextStyle } from '../../core/model';
-import { clearAnimation, deleteKeyframe, setItemProps, setKeyframe, setSpeed, setTextStyle, type ItemProps } from '../../core/operations';
+import { MAX_SPEED, MIN_SPEED, type Item, type PresetPhase, type TextStyle } from '../../core/model';
+import { ANIMATION_PRESETS } from '../../core/presets';
+import { clearAnimation, deleteKeyframe, setItemProps, setKeyframe, setPreset, setSpeed, setTextStyle, type ItemProps } from '../../core/operations';
 import { findPlacement, type Placement } from '../../core/timeline';
 import { TEXT_FONTS } from '../../engine/fonts';
 import type { EditorSession } from '../../host/session';
@@ -53,6 +54,8 @@ export class ItemPanel extends Panel {
   private renderedText = '';
   private speed: Slider;
   private audioEffects: AudioEffectsSection;
+  private presets = new Map<PresetPhase, HTMLSelectElement>();
+  private presetBox: HTMLDivElement;
 
   constructor(
     private session: EditorSession,
@@ -124,7 +127,26 @@ export class ItemPanel extends Panel {
     );
 
     this.audioEffects = new AudioEffectsSection(session.store);
-    this.body.append(this.hint, this.textBox, this.speed.element, properties, h('p', { class: 'hint' }, t('keyframeHint')), this.audioEffects.element);
+    const phases: { phase: PresetPhase; label: 'animationIn' | 'animationOut' | 'animationWhole' }[] = [
+      { phase: 'in', label: 'animationIn' },
+      { phase: 'out', label: 'animationOut' },
+      { phase: 'whole', label: 'animationWhole' },
+    ];
+    this.presetBox = h('div', { class: 'group presets' },
+      ...phases.map(({ phase, label }) => {
+        const select = h('select', { id: `preset-${phase}` },
+          h('option', { value: '' }, t('animationNone')),
+          ...ANIMATION_PRESETS.filter((p) => p.phase === phase).map((p) => h('option', { value: p.id }, p.name)),
+        );
+        select.addEventListener('change', () => {
+          const p = this.placement;
+          if (p) this.session.store.dispatch(setPreset(p.item.id, phase, select.value || null));
+        });
+        this.presets.set(phase, select);
+        return h('label', { class: 'field' }, t(label), select);
+      }),
+    );
+    this.body.append(this.hint, this.textBox, this.speed.element, this.presetBox, properties, h('p', { class: 'hint' }, t('keyframeHint')), this.audioEffects.element);
     session.store.on('change', () => this.sync());
     selection.on('change', () => this.sync());
     let pending = false;
@@ -176,6 +198,8 @@ export class ItemPanel extends Panel {
     this.speed.element.hidden = p?.item.kind !== 'media';
     if (p?.item.kind === 'media') this.speed.set(Math.log2(p.item.speed));
     this.audioEffects.element.hidden = !p || !hasAudio(p, this.session);
+    this.presetBox.hidden = !p || !isVisual(p);
+    for (const [phase, select] of this.presets) select.value = p?.item.presets[phase] ?? '';
     this.audioEffects.sync(p?.item ?? null);
     for (const { def, slider } of this.rows.values()) {
       const visible = !!p && def.visible(p, this.session);

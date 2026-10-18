@@ -150,6 +150,19 @@ vec4 transition(vec2 uv) {
 });
 ```
 
+## Animation presets
+
+Presets animate opacity, position and scale relative to the clip's own values. They are stored on the clip and computed while rendering, so they follow trims, speed changes and splits (the left part keeps the in animation, the right part the out animation). Keyframes set by hand stay outside the preset windows.
+
+```js
+montage.animationPresets();                 // [{ id, name, phase: 'in' | 'out' | 'whole', duration }]
+const t = montage.title('Hello', { duration: 4 });
+montage.animate(t.id, 'in', 'rise');        // fade-in, rise, pop, slide-left
+montage.animate(t.id, 'out', 'fade-out');   // fade-out, sink, shrink
+montage.animate(0, 'whole', 'ken-burns');   // ken-burns, drift
+montage.animate(t.id, 'in', null);
+```
+
 ## Audio effects
 
 Audio effects run in the engine's mixer per clip, in order: low cut, equalizer, compressor. Parameters are in hertz and decibels.

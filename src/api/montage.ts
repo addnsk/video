@@ -1,6 +1,7 @@
 import { PROPERTY, effectProperty } from '../core/animation';
 import type { AssetMeta, Item, ParamValue, ParamValues, TextStyle, TrackKind, Transform } from '../core/model';
-import { itemLength } from '../core/model';
+import { itemLength, type PresetPhase } from '../core/model';
+import { ANIMATION_PRESETS, animationPreset } from '../core/presets';
 import {
   addTrack,
   clearAnimation,
@@ -18,6 +19,7 @@ import {
   setKeyframe,
   setTextStyle,
   setTrackMuted,
+  setPreset,
   setSpeed,
   setTransition,
   setVolume,
@@ -56,6 +58,7 @@ export interface ClipInfo {
   readonly transform: Transform;
   readonly text: TextStyle | null;
   readonly animations: Item['animations'];
+  readonly presets: Item['presets'];
   readonly effects: readonly { type: string; params: ParamValues }[];
   readonly transition: { type: string; duration: number; params: ParamValues } | null;
 }
@@ -127,6 +130,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     transform: item.transform,
     text: item.kind === 'text' ? item.text : null,
     animations: item.animations,
+    presets: item.presets,
     effects: item.effects.map((e) => ({ type: e.type, params: e.params })),
     transition: item.transitionIn && { ...item.transitionIn, duration: fadeIn },
   });
@@ -226,6 +230,15 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       apply(clearAnimation(resolve(ref).item.id, PROPERTY[property as keyof typeof PROPERTY] ?? property));
     },
     effectProperty,
+    animate(ref: ItemRef, phase: PresetPhase, presetId: string | null) {
+      const preset = presetId ? animationPreset(presetId) : null;
+      if (presetId && preset?.phase !== phase) {
+        const known = ANIMATION_PRESETS.filter((p) => p.phase === phase).map((p) => p.id).join(', ');
+        throw new Error(`Unknown ${phase} animation "${presetId}". Available: ${known}`);
+      }
+      apply(setPreset(resolve(ref).item.id, phase, presetId));
+    },
+    animationPresets: () => ANIMATION_PRESETS.map(({ id, name, phase, duration }) => ({ id, name, phase, duration })),
     split(time: number): ClipInfo | null {
       const id = createId('item');
       apply(splitAt(time, session.videoTrackId, id));

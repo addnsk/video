@@ -1,5 +1,6 @@
 import { PROPERTY, valueAt } from '../../core/animation';
 import { sourceTimeAt, type MediaItem, type Project } from '../../core/model';
+import { effectiveAnimations } from '../../core/presets';
 import { audibleAt, type Placement } from '../../core/timeline';
 import type { MediaPool } from '../media/media-pool';
 import { resources } from '../resources';
@@ -17,7 +18,7 @@ export const OUTPUT_CHANNELS = 2;
 
 function envelopeFor(placement: Placement): Envelope {
   const { start, end, fadeIn, fadeOut, item } = placement;
-  const keys = item.animations[PROPERTY.volume];
+  const keys = effectiveAnimations(item)[PROPERTY.volume];
   return {
     gain(t) {
       let g = keys ? valueAt(keys, t - start, item.volume) : item.volume;

@@ -89,4 +89,19 @@ log('Saved:', result.name, result.file ? (result.file.size / 1048576).toFixed(1)
 log(stats.budget.deviceClass, 'cache', (stats.frameCacheBytes / 1048576).toFixed(1), 'MB');
 for (const [kind, s] of Object.entries(stats.resources)) log(kind, 'live', s.live, 'peak', s.peak, (s.bytes / 1048576).toFixed(1), 'MB');`,
   },
+  {
+    name: 'Animated lower third',
+    code: `const title = montage.title('Name Surname', { start: montage.time, duration: 4, size: 0.06, background: '#000000b3' });
+montage.set(title.id, { transform: { y: 0.32 } });
+montage.animate(title.id, 'in', 'rise');
+montage.animate(title.id, 'out', 'fade-out');
+log('Title at', title.start.toFixed(2), 's');`,
+  },
+  {
+    name: 'Voice cleanup on every clip',
+    code: `montage.audioEffect('all', 'highpass', { cutoff: 90 });
+montage.audioEffect('all', 'eq', { low: -2, mid: 1.5, high: 3 });
+montage.audioEffect('all', 'compressor', { threshold: -22, ratio: 3, makeup: 4 });
+log('Audio chain applied to', montage.clips().length, 'clips');`,
+  },
 ];

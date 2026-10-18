@@ -13,6 +13,7 @@ function migrateItem(raw: Loose<Item> & Record<string, unknown>): Item {
     opacity: Number(raw.opacity ?? 1),
     transform: { ...IDENTITY_TRANSFORM, ...(raw.transform as object) },
     animations: (raw.animations as Item['animations']) ?? {},
+    presets: (raw.presets as Item['presets']) ?? {},
   };
   if (raw.kind === 'text') return { ...base, kind: 'text', duration: Number(raw.duration), text: raw.text as never };
   return { ...base, kind: 'media', source: raw.source as never, speed: Number(raw.speed ?? 1) };
