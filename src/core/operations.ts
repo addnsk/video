@@ -90,19 +90,25 @@ export interface InsertOptions {
   id?: string;
 }
 
-export const insertItem = (assetId: string, options: InsertOptions): Operation => (project) => {
-  const asset = project.assets[assetId];
-  if (!asset) throw new Error(`Unknown asset ${assetId}`);
+export function createMediaItem(asset: AssetMeta, options: Omit<InsertOptions, 'trackId' | 'index'> = {}): MediaItem {
   const sourceIn = Math.max(asset.start, options.in ?? asset.start);
   const sourceOut = Math.min(asset.end, options.out ?? asset.end);
   if (sourceOut - sourceIn < MIN_LENGTH) throw new Error('Empty source range');
-  const item: MediaItem = {
+  return {
     ...baseItem(options.id ?? createId('item'), options.start ?? 0),
     kind: 'media',
-    source: { assetId, in: sourceIn, out: sourceOut },
+    source: { assetId: asset.id, in: sourceIn, out: sourceOut },
   };
-  return placeInto(project, requireTrack(project, options.trackId), item, options.index);
+}
+
+export const insertItem = (assetId: string, options: InsertOptions): Operation => (project) => {
+  const asset = project.assets[assetId];
+  if (!asset) throw new Error(`Unknown asset ${assetId}`);
+  return placeInto(project, requireTrack(project, options.trackId), createMediaItem(asset, options), options.index);
 };
+
+export const placeItem = (item: Item, trackId: string, position: { start?: number; index?: number } = {}): Operation => (project) =>
+  placeInto(project, requireTrack(project, trackId), { ...item, start: Math.max(0, position.start ?? item.start) }, position.index);
 
 export const insertText = (
   trackId: string,

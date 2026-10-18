@@ -146,6 +146,20 @@ select {
 .media-item b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-item small { grid-column: 1; color: var(--muted); font: 11px var(--font-mono); }
 .media-item .row { grid-column: 1 / -1; }
+.media-item { cursor: grab; }
+.media-item .grip {
+  grid-column: 2; grid-row: 1; touch-action: none; cursor: grab; color: var(--muted);
+  font-size: 18px; line-height: 1; padding: 6px 8px; margin: -6px -6px -6px 0; border-radius: 4px;
+}
+.media-item .grip:hover { color: var(--fg); background: var(--line); }
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; max-width: 240px;
+  padding: 6px 10px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line);
+  font: 500 12px var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45); opacity: 0.9;
+}
+.drag-ghost.accepted { border-color: var(--accent); }
+body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; }
 
 .toast {
   position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);

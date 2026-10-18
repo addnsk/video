@@ -101,7 +101,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new ItemPanel(session, selection).element,
     new TransitionPanel(session, selection).element,
     new ColorPanel(session, selection).element,
-    new MediaPanel(session).element,
+    new MediaPanel(session, timeline).element,
     new ScriptPanel(api).element,
   );
 

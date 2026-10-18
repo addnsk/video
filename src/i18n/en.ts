@@ -43,6 +43,7 @@ export const en = {
   mediaTitle: 'Media',
   mediaEmpty: 'Nothing imported yet.',
   addToTimeline: 'Add',
+  dragToTimeline: 'Drag to the timeline',
   proxyQueued: 'proxy queued',
   proxyBuilding: 'proxy {percent}%',
   proxyReady: 'proxy ready',

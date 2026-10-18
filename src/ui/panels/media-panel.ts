@@ -2,11 +2,16 @@ import type { AssetMeta } from '../../core/model';
 import { insertItem } from '../../core/operations';
 import type { EditorSession } from '../../host/session';
 import { t } from '../../i18n';
+import { dragSource } from '../components/drag-source';
 import { formatDuration, h } from '../dom';
+import type { DropTarget } from '../drop-target';
 import { Panel } from './panel';
 
 export class MediaPanel extends Panel {
-  constructor(private session: EditorSession) {
+  constructor(
+    private session: EditorSession,
+    private dropTarget: DropTarget,
+  ) {
     super('media', t('mediaTitle'));
     session.store.on('change', ({ project, previous }) => {
       if (project.assets !== previous.assets) this.render();
@@ -43,12 +48,21 @@ export class MediaPanel extends Panel {
           }, t('addAudio')),
           asset.hasVideo && !this.session.proxies.has(asset.id) && h('button', { class: 'btn', onClick: () => this.session.requestProxy(asset.id) }, t('makeProxy')),
         );
-        return h('div', { class: 'media-item' },
+        const grip = h('span', { class: 'grip', role: 'button', 'aria-label': t('dragToTimeline'), title: t('dragToTimeline') }, '⠿');
+        const element = h('div', { class: 'media-item', 'data-asset': asset.id },
           h('b', { title: asset.name }, asset.name),
+          grip,
           h('small', {}, details),
           proxy && h('small', { class: 'proxy' }, proxy),
           actions,
         );
+        dragSource(element, grip, {
+          label: () => asset.name,
+          move: (point) => this.dropTarget.hover(point, asset.id),
+          drop: (point) => void this.dropTarget.drop(point, asset.id),
+          cancel: () => this.dropTarget.leave(),
+        });
+        return element;
       }),
     );
   }

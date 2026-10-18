@@ -5,10 +5,12 @@ import {
   addTrack,
   clearAnimation,
   copyEffects,
+  createMediaItem,
   deleteKeyframe,
   insertItem,
   insertText,
   moveToTrack,
+  placeItem,
   removeItem,
   removeTrack,
   replaceEffect,
@@ -54,6 +56,23 @@ describe('text operations', () => {
     const split = splitAt(3, 'v2', 'r')(p);
     expect(track(split, 'v2').items.map((i) => i.id)).toEqual(['t', 'r']);
     expect(item(split, 'r').start).toBe(3);
+  });
+});
+
+describe('media items', () => {
+  it('creates items clamped to the asset and places them', () => {
+    const created = createMediaItem(asset('a', 10), { in: -1, out: 20, start: -3 });
+    expect(created.source).toEqual({ assetId: 'a', in: 0, out: 10 });
+    expect(created.start).toBe(0);
+    expect(() => createMediaItem(asset('a', 10), { in: 5, out: 5 })).toThrow('Empty source range');
+    const p = sequence(placeItem({ ...created, id: 'front' }, 'v1', { index: 0 }), placeItem({ ...created, id: 'pip' }, 'v2', { start: 4 }))(base());
+    expect(track(p, 'v1').items.map((i) => i.id)).toEqual(['front', 'one', 'two']);
+    expect(item(p, 'pip').start).toBe(4);
+  });
+
+  it('refuses items a track cannot hold', () => {
+    const song = createMediaItem({ ...asset('music', 30), hasVideo: false });
+    expect(() => placeItem(song, 'v2')(sequence(addAsset({ ...asset('music', 30), hasVideo: false }))(base()))).toThrow('cannot hold');
   });
 });
 

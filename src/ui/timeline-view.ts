@@ -1,10 +1,12 @@
 import type { Item, Project, Track } from '../core/model';
 import { accepts, itemLength } from '../core/model';
-import { moveItem, moveToTrack, setTrackMuted, trimItem } from '../core/operations';
+import { createId } from '../core/ids';
+import { createMediaItem, moveItem, moveToTrack, placeItem, setTrackMuted, trimItem } from '../core/operations';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
 import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
 import { formatTimecode } from './dom';
+import type { DropPoint, DropTarget } from './drop-target';
 import type { Selection } from './selection';
 
 const RULER = 26;
@@ -21,7 +23,7 @@ type Drag =
   | { kind: 'scrub' }
   | { kind: 'pan'; x0: number; scroll0: number }
   | { kind: 'trim'; placement: Placement; edge: 'in' | 'out'; x0: number; origin: number }
-  | { kind: 'move'; placement: Placement; x0: number; y: number; moved: boolean; drop: number; start: number; lane: Lane | null };
+  | { kind: 'move'; placement: Placement; x0: number; y: number; moved: boolean };
 
 interface Lane {
   track: Track;
@@ -30,11 +32,20 @@ interface Lane {
   label: string;
 }
 
-export class TimelineView {
+interface Ghost {
+  item: Item;
+  ignore: string | null;
+  lane: Lane;
+  start: number;
+  drop: number;
+}
+
+export class TimelineView implements DropTarget {
   private pps = 40;
   private scroll = 0;
   private ctx: CanvasRenderingContext2D;
   private drag: Drag | null = null;
+  private ghost: Ghost | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
   private pinch: { distance: number; pps: number } | null = null;
   private style = getComputedStyle(document.documentElement);
@@ -135,7 +146,7 @@ export class TimelineView {
     return null;
   }
 
-  private local(e: PointerEvent | WheelEvent) {
+  private local(e: DropPoint) {
     const r = this.canvas.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
@@ -171,11 +182,11 @@ export class TimelineView {
       const origin = hit.edge === 'in' ? (item.kind === 'media' ? item.source.in : 0) : item.kind === 'media' ? item.source.out : item.duration;
       this.drag = { kind: 'trim', placement: hit.placement, edge: hit.edge, x0: p.x, origin };
     } else {
-      this.drag = { kind: 'move', placement: hit.placement, x0: p.x, y: p.y, moved: false, drop: -1, start: hit.placement.start, lane: null };
+      this.drag = { kind: 'move', placement: hit.placement, x0: p.x, y: p.y, moved: false };
     }
   }
 
-  private snap(time: number, ignore: string): number {
+  private snap(time: number, ignore: string | null): number {
     const candidates = [this.transport.time, 0];
     for (const track of this.project.tracks)
       for (const p of placeTrack(track)) if (p.item.id !== ignore) candidates.push(p.start, p.end);
@@ -216,18 +227,8 @@ export class TimelineView {
     } else if (d.kind === 'move') {
       if (!d.moved && Math.abs(p.x - d.x0) < 6 && Math.abs(p.y - d.y) < 6) return;
       d.moved = true;
-      const lane = this.laneAt(p.y);
-      d.lane = lane && accepts(lane.track, d.placement.item, this.project.assets) ? lane : null;
-      const target = d.lane?.track ?? d.placement.track;
-      const raw = d.placement.start + (p.x - d.x0) / this.pps;
-      const length = itemLength(d.placement.item);
-      const snapped = this.snap(raw, d.placement.item.id);
-      const snappedEnd = this.snap(raw + length, d.placement.item.id);
-      d.start = Math.max(0, snapped !== raw ? snapped : snappedEnd - length);
-      if (target.magnetic) {
-        const at = this.time(p.x);
-        d.drop = placeTrack(target).filter((x) => x.item.id !== d.placement.item.id && at > (x.start + x.end) / 2).length;
-      }
+      const { item, start, track } = d.placement;
+      this.ghost = this.target(p, item, start + (p.x - d.x0) / this.pps, item.id, track);
       this.draw();
     }
   }
@@ -237,15 +238,59 @@ export class TimelineView {
     if (this.pointers.size < 2) this.pinch = null;
     const d = this.drag;
     this.drag = null;
+    const ghost = this.ghost;
+    this.ghost = null;
     if (d?.kind === 'move') {
       if (!d.moved) this.transport.seek(this.time(this.local(e).x));
-      else {
-        const target = d.lane?.track ?? d.placement.track;
+      else if (ghost) {
+        const target = ghost.lane.track;
         const id = d.placement.item.id;
-        if (target.id === d.placement.track.id && target.magnetic) this.session.store.dispatch(moveItem(id, d.drop));
-        else this.session.store.dispatch(moveToTrack(id, target.id, target.magnetic ? { index: d.drop } : { start: d.start }));
+        if (target.id === d.placement.track.id && target.magnetic) this.session.store.dispatch(moveItem(id, ghost.drop));
+        else this.session.store.dispatch(moveToTrack(id, target.id, target.magnetic ? { index: ghost.drop } : { start: ghost.start }));
       }
     }
+    this.draw();
+  }
+
+  private target(p: { x: number; y: number }, item: Item, raw: number, ignore: string | null, home: Track | null): Ghost | null {
+    const hovered = this.laneAt(p.y);
+    const lane =
+      hovered && accepts(hovered.track, item, this.project.assets) ? hovered : (home && this.lanes().find((l) => l.track.id === home.id)) || null;
+    if (!lane) return null;
+    const length = itemLength(item);
+    const snapped = this.snap(raw, ignore);
+    const snappedEnd = this.snap(raw + length, ignore);
+    const start = Math.max(0, snapped !== raw ? snapped : snappedEnd - length);
+    const at = this.time(p.x);
+    const drop = lane.track.magnetic ? placeTrack(lane.track).filter((x) => x.item.id !== ignore && at > (x.start + x.end) / 2).length : -1;
+    return { item, ignore, lane, start, drop };
+  }
+
+  hover(point: DropPoint, assetId: string): boolean {
+    const r = this.canvas.getBoundingClientRect();
+    const asset = this.project.assets[assetId];
+    const inside = point.clientX >= r.left && point.clientX <= r.right && point.clientY >= r.top && point.clientY <= r.bottom;
+    const p = this.local(point);
+    this.ghost = inside && asset && p.x >= GUTTER ? this.target(p, createMediaItem(asset), this.time(p.x), null, null) : null;
+    this.draw();
+    return !!this.ghost;
+  }
+
+  drop(point: DropPoint, assetId: string): string | null {
+    const ghost = this.hover(point, assetId) ? this.ghost : null;
+    this.ghost = null;
+    this.draw();
+    if (!ghost) return null;
+    const item = { ...ghost.item, id: createId('item') };
+    const track = ghost.lane.track;
+    this.session.store.dispatch(placeItem(item, track.id, track.magnetic ? { index: ghost.drop } : { start: ghost.start }));
+    this.selection.set(item.id);
+    return item.id;
+  }
+
+  leave(): void {
+    if (!this.ghost) return;
+    this.ghost = null;
     this.draw();
   }
 
@@ -263,6 +308,8 @@ export class TimelineView {
     this.queued = true;
     requestAnimationFrame(() => {
       this.queued = false;
+      this.canvas.dataset.pps = String(this.pps);
+      this.canvas.dataset.scroll = String(this.scroll);
       this.paint();
     });
   }
@@ -454,18 +501,18 @@ export class TimelineView {
   }
 
   private paintGhost(g: CanvasRenderingContext2D) {
-    const d = this.drag;
-    if (d?.kind !== 'move' || !d.moved) return;
-    const lane = d.lane ?? this.lanes().find((l) => l.track.id === d.placement.track.id)!;
+    const ghost = this.ghost;
+    if (!ghost) return;
+    const { lane } = ghost;
     g.fillStyle = this.color('--accent');
     if (lane.track.magnetic) {
-      const others = placeTrack(lane.track).filter((x) => x.item.id !== d.placement.item.id);
-      const at = d.drop > 0 ? others[d.drop - 1].end : 0;
+      const others = placeTrack(lane.track).filter((x) => x.item.id !== ghost.ignore);
+      const at = ghost.drop > 0 ? others[ghost.drop - 1].end : 0;
       g.fillRect(this.x(at) - 1.5, lane.top - 3, 3, lane.height + 6);
       return;
     }
-    const x0 = this.x(d.start);
-    const x1 = this.x(d.start + itemLength(d.placement.item));
+    const x0 = this.x(ghost.start);
+    const x1 = this.x(ghost.start + itemLength(ghost.item));
     g.globalAlpha = 0.5;
     g.beginPath();
     g.roundRect(x0, lane.top, Math.max(2, x1 - x0), lane.height, 4);
