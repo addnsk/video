@@ -101,6 +101,13 @@ export default {
     checks.check(!undone, 'graph edits undo');
     await editor.run(() => montage.graph.disable(0));
     checks.check((await color(CENTER, 1.5))[0] > 200, 'disabling the graph restores the plain clip');
+    const kept = await editor.run(() => {
+      montage.graph.enable(0);
+      const links = montage.graph.get(0).links.length;
+      montage.graph.disable(0);
+      return links;
+    });
+    checks.check(kept > 1, `enabling the graph again brings back its wiring (${kept} links)`);
 
     await editor.run(() => montage.select(1));
     await editor.page.click('#view-nodes');
@@ -157,7 +164,8 @@ export default {
     checks.check((await color(EDGE, keyTime))[2] > 200, 'leaving node view shows the output again');
 
     const maskId = await editor.run(() => montage.batch(() => {
-      montage.graph.disable(0);
+      montage.graph.enable(0);
+      for (const n of montage.graph.get(0).nodes) if (n.id !== 'source' && n.id !== 'output') montage.graph.remove(0, n.id);
       const bg = montage.graph.add(0, 'background', { color: [0, 0, 1, 1] });
       const mask = montage.graph.add(0, 'polygon-mask', { spline: false, feather: 0 });
       const merge = montage.graph.add(0, 'merge');

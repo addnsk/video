@@ -41,10 +41,10 @@ vec3 rgbOf(vec3 hsv) {
 }
 
 vec4 effect(vec4 color, vec2 uv) {
-  vec3 c = clamp(color.rgb, 0.0, 1.0);
+  vec3 c = color.rgb;
   c = vec3(curve(master, c.r), curve(master, c.g), curve(master, c.b));
   c = vec3(curve(red, c.r), curve(green, c.g), curve(blue, c.b));
-  vec3 hsv = hsvOf(c);
+  vec3 hsv = hsvOf(max(c, 0.0));
   float hue = hsv.x;
   float shift = curve(hueHue, hue) - 0.5;
   float satScale = curve(hueSat, hue) * 2.0 * curve(lumSat, dot(c, CURVE_LUMA)) * 2.0;

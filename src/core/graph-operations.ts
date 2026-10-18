@@ -2,6 +2,7 @@ import {
   GraphError,
   OUTPUT_ID,
   connect,
+  graphWithNode,
   graphWithoutNode,
   materialize,
   toItemGraph,
@@ -19,14 +20,20 @@ const everything: GraphTypes = { stageOf: () => 0, isVisual: () => true, chainab
 export const enableGraph = (itemId: string, context: GraphContext): Operation =>
   updateItem(itemId, (item) => {
     if (item.graph) return item;
-    return { ...item, graph: toItemGraph(materialize(item.effects, undefined, context)) };
+    const { parkedGraph, ...rest } = item;
+    if (!parkedGraph) return { ...rest, graph: toItemGraph(materialize(item.effects, undefined, context)) };
+    const known = new Set(Object.keys(parkedGraph.positions));
+    const restored = item.effects
+      .filter((e) => context.isVisual(e.type) && context.chainable(e.type) && e.enabled && !known.has(e.id))
+      .reduce((graph, e) => graphWithNode(graph, e.id), parkedGraph);
+    return { ...rest, graph: restored };
   });
 
 export const disableGraph = (itemId: string): Operation =>
   updateItem(itemId, (item) => {
     if (!item.graph) return item;
-    const { graph: _graph, ...rest } = item;
-    return rest;
+    const { graph, ...rest } = item;
+    return { ...rest, parkedGraph: graph };
   });
 
 const requireGraph = (item: Item) => {

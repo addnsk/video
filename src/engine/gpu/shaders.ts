@@ -75,7 +75,12 @@ ${FINITE_HELPER}
 uniform sampler2D u_source;
 vec4 sampleSource(vec2 uv) { return texture(u_source, uv); }
 ${WORKING_HELPER}
-float curve(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }
+float curveAt(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }
+float curve(sampler2D c, float x) {
+  if (x > 1.0) return curveAt(c, 1.0) + (x - 1.0) * (curveAt(c, 1.0) - curveAt(c, 1.0 - 1.0 / 255.0)) * 255.0;
+  if (x < 0.0) return curveAt(c, 0.0) + x * (curveAt(c, 1.0 / 255.0) - curveAt(c, 0.0)) * 255.0;
+  return curveAt(c, x);
+}
 ${def.params.map(uniformDeclaration).join('\n')}
 ${def.glsl}
 void main() {
@@ -96,7 +101,12 @@ vec3 fromWorkingLinear(vec3 l) {
   return mix(10.5402377416545 * l + 0.0729055341958355, (log2(max(l, 1e-10)) + 9.72) / 17.52, step(0.0078125, l));
 }`;
 
-const CURVE_HELPER = 'float curve(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }';
+const CURVE_HELPER = `float curveAt(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }
+float curve(sampler2D c, float x) {
+  if (x > 1.0) return curveAt(c, 1.0) + (x - 1.0) * (curveAt(c, 1.0) - curveAt(c, 1.0 - 1.0 / 255.0)) * 255.0;
+  if (x < 0.0) return curveAt(c, 0.0) + x * (curveAt(c, 1.0 / 255.0) - curveAt(c, 0.0)) * 255.0;
+  return curveAt(c, x);
+}`;
 
 export const nodeInputUniform = (name: string): string => `u_in_${name}`;
 export const nodeHasUniform = (name: string): string => `u_has_${name}`;

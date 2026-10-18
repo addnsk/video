@@ -63,6 +63,19 @@ export default {
     await page.locator('#mask-overlay .mask-point').nth(1).dblclick();
     points = (await nodeParams(mask)).points;
     checks.check(points.length === 24, `double-clicking a vertex removes it (${points.length / 6} vertices)`);
+    const animatedKeys = () => editor.run((id) => Object.keys(montage.clip(0).animations).filter((k) => k.startsWith(`node.${id}.points.`)).length, mask);
+    await editor.run((id) => {
+      montage.graph.keyframe(0, id, 'points.0', 0, -0.2);
+      montage.graph.keyframe(0, id, 'points.0', 1, -0.3);
+    }, mask);
+    await page.locator('#mask-overlay .mask-add').first().click();
+    const afterAdd = await animatedKeys();
+    points = (await nodeParams(mask)).points;
+    checks.check(points.length === 30 && afterAdd === 7, `a vertex can be added to an animated mask; it gets keys for every coordinate (${points.length / 6} vertices, ${afterAdd} animated coordinates)`);
+    await page.locator('#mask-overlay .mask-point').nth(1).dblclick();
+    points = (await nodeParams(mask)).points;
+    checks.check(points.length === 24 && (await animatedKeys()) === 1, 'and removed again with its keys');
+    await editor.run((id) => montage.clearKeyframes(0, `node.${id}.points.0`), mask);
 
     const blur = await editor.run(() => montage.graph.add(0, 'blur'));
     await selectNode(blur);

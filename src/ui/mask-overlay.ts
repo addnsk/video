@@ -1,3 +1,4 @@
+import { insertMaskVertex, removeMaskVertex } from '../core/mask-operations';
 import { nodeProperty } from '../core/graph';
 import { setNodeParams } from '../core/graph-operations';
 import type { Item } from '../core/model';
@@ -106,9 +107,8 @@ export class MaskOverlay {
       add.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         const [fx, fy] = this.toFrame(e.clientX, e.clientY);
-        const next = [...points];
-        next.splice((i + 1) * stride, 0, ...(bezier ? [fx, fy, 0, 0, 0, 0] : [fx, fy]));
-        if (!ctx.animated) this.commit(next, []);
+        const target = this.target!;
+        this.session.store.dispatch(insertMaskVertex(target.itemId, { nodeId: target.nodeId, after: i, stride, vertex: bezier ? [fx, fy, 0, 0, 0, 0] : [fx, fy], time: ctx.local }));
       });
       this.element.append(add);
     });
@@ -142,10 +142,9 @@ export class MaskOverlay {
       const anchor = handle(x, y, i, 'anchor');
       anchor.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        if (n <= 3 || ctx.animated) return;
-        const next = [...points];
-        next.splice(i * stride, stride);
-        this.commit(next, []);
+        if (n <= 3) return;
+        const target = this.target!;
+        this.session.store.dispatch(removeMaskVertex(target.itemId, target.nodeId, i, stride));
       });
       this.element.append(anchor);
     });

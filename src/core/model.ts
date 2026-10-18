@@ -89,6 +89,7 @@ interface ItemBase {
   readonly animations: Animations;
   readonly presets: ItemPresets;
   readonly graph?: ItemGraph;
+  readonly parkedGraph?: ItemGraph;
   readonly gradeVersions?: Readonly<Record<string, GradeSnapshot>>;
   readonly gradeVersion?: string;
 }

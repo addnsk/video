@@ -183,7 +183,7 @@ montage.graph.keyframe(0, merge, 'opacity', 0, 0);
 montage.graph.toggle(0, merge, false);
 montage.graph.get(0);                                    // { editable, nodes, links }
 montage.graph.view(0, merge);                            // show one node's result in the viewer; view(null) returns to the output
-montage.graph.disable(0);                                // back to the plain effect chain
+montage.graph.disable(0);                                // back to the plain effect chain; enable() brings the wiring back
 ```
 
 Built-in nodes:
@@ -216,6 +216,8 @@ montage.colorSpace({ asset: id }, 'logc3');   // by asset id
 montage.colorSpace(2, 'vlog', { clip: true }); // only this clip; it overrides the media setting
 montage.colorSpace(2, null, { clip: true });   // back to the media setting
 ```
+
+Curves and the color warper keep values above 1 and below 0 (curves continue the slope of their ends). Mask vertices can be added and removed on animated masks: a new vertex gets keys at every existing key time, placed halfway along its edge, and a removed vertex takes its keys with it.
 
 Generator nodes (background, gradient, noise, text) take their colors as display values: in `aces` they are converted into ACEScct, so they look the same in both working spaces. Values below black (negative light from log footage under the noise floor) are kept through the whole chain instead of being clipped.
 

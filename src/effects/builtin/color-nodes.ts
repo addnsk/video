@@ -62,7 +62,7 @@ float band(float v, float lo, float hi, float soft) {
 }
 vec4 process(vec2 uv) {
   vec4 c = input_source(uv);
-  vec3 hsv = toHsv(clamp(c.rgb, 0.0, 1.0));
+  vec3 hsv = toHsv(max(c.rgb, 0.0));
   float m = 1.0;
   if (useHue) m *= 1.0 - smoothstep(hueWidth, hueWidth + max(hueSoft, 1e-4), hueDistance(hsv.x, hueCenter));
   if (useSat) m *= band(hsv.y, satLow, satHigh, satSoft);
@@ -187,8 +187,8 @@ export const COLOR_WARPER: FilterDef = {
   glsl: `${HSV}
 vec4 effect(vec4 color, vec2 uv) {
   vec3 c = max(color.rgb, 0.0);
-  vec3 hsv = toHsv(min(c, vec3(1.0)));
-  float scale = max(c.r, max(c.g, c.b)) > 1.0 ? max(c.r, max(c.g, c.b)) : 1.0;
+  vec3 below = min(color.rgb, 0.0);
+  vec3 hsv = toHsv(c);
   vec3 controls[6] = vec3[6](red, yellow, green, cyan, blue, magenta);
   vec3 sum = vec3(0.0);
   for (int i = 0; i < 6; i++) {
@@ -197,7 +197,7 @@ vec4 effect(vec4 color, vec2 uv) {
   }
   float amount = smoothstep(0.0, 0.15, hsv.y);
   vec3 warped = vec3(fract(hsv.x + sum.x / 6.0 * amount), clamp(hsv.y * (1.0 + sum.y * amount), 0.0, 1.0), hsv.z * exp2(sum.z * amount));
-  return vec4(fromHsv(warped) * scale, color.a);
+  return vec4(fromHsv(warped) + below, color.a);
 }
 `,
 };

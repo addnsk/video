@@ -104,6 +104,13 @@ export default {
     expect('neutral color warper is identity', await chain([0.3, 0.6, 0.9], [['color-warper', {}]]), [0.3, 0.6, 0.9]);
     checks.check(!failures.length, `grade, curves and wheels match their formulas (${failures.join('; ')})`);
 
+    failures.length = 0;
+    const down = ['grade', { exposure: -1 }];
+    expect('identity curves keep values above 1', await chain([1.6, 1.2, 0.8], [['curves', {}], down]), [0.8, 0.6, 0.4], 4e-3);
+    expect('a curve continues its end slope above 1', await chain([1.6, 1.6, 1.6], [['curves', { master: [0, 0, 1, 0.5] }], down]), [0.4, 0.4, 0.4], 6e-3);
+    expect('neutral color warper keeps values above 1', await chain([1.6, 1.2, 0.8], [['color-warper', {}], down]), [0.8, 0.6, 0.4]);
+    checks.check(!failures.length, `curves and the color warper keep HDR values (${failures.join('; ')})`);
+
     const perClip = await editor.run(async () => {
       const assetId = montage.clip(0).assetId;
       montage.colorSpace({ asset: assetId }, 'rec709');

@@ -84,3 +84,26 @@ describe('graph operations', () => {
     expect(() => addGraphNode('d', 'blur', {}, [0, 0])(p)).toThrow('no node graph');
   });
 });
+
+describe('parking the node graph', () => {
+  it('restores custom wiring after disable and enable, chaining effects added meanwhile', async () => {
+    const { enableGraph, disableGraph, addGraphNode, connectNodes } = await import('../../src/core/graph-operations');
+    const { sequence, insertItem, addAsset, upsertEffect } = await import('../../src/core/operations');
+    const { emptyProject } = await import('../../src/core/model');
+    const { findPlacement } = await import('../../src/core/timeline');
+    const { asset } = await import('./fixtures');
+    const types = { stageOf: () => 0, isVisual: () => true, chainable: (t: string) => t !== 'background' };
+    let project = sequence(addAsset(asset('a')), insertItem('a', { trackId: 'v1', id: 'x' }), enableGraph('x', types), addGraphNode('x', 'background', {}, [10, 10], 'bg'))(emptyProject());
+    project = connectNodes('x', { from: 'bg', to: 'output', input: 'input' })(project);
+    const wired = findPlacement(project, 'x')!.item.graph!;
+    project = sequence(disableGraph('x'), upsertEffect('x', 'blur', { radius: 2 }))(project);
+    expect(findPlacement(project, 'x')!.item.graph).toBeUndefined();
+    project = enableGraph('x', types)(project);
+    const graph = findPlacement(project, 'x')!.item.graph!;
+    expect(graph.links).toEqual(expect.arrayContaining(wired.links.filter((l) => l.to !== 'output')));
+    const blur = findPlacement(project, 'x')!.item.effects.find((e) => e.type === 'blur')!.id;
+    expect(graph.links).toContainEqual({ from: 'bg', to: blur, input: 'source' });
+    expect(graph.links).toContainEqual({ from: blur, to: 'output', input: 'input' });
+    expect(findPlacement(project, 'x')!.item.parkedGraph).toBeUndefined();
+  });
+});

@@ -27,9 +27,6 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 - Nodes render in project frame space at preview resolution; there is no per-node resolution or region of interest yet.
 - No 3D scenes, cameras or lights.
 - Masks are closed shapes; open strokes and paint are not supported. Bezier and polygon masks are flattened to at most 128 points.
-- Rotoscoping keyframes are per coordinate; adding or removing vertices on an animated mask is blocked.
-- A graph with nothing connected to the output renders transparent black.
-- With the node graph disabled, nodes without a `source` input (generators, merges, mixers, masks) stay in the clip but are not rendered; enabling the graph again shows them unconnected.
 - Node templates are stored in the browser (localStorage), not in the project file; export them as JSON with `montage.templates.get` to move them.
 
 ## Color
@@ -42,7 +39,6 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 - Grade versions and stills copy node keyframes but not keyframed clip transforms or opacity.
 - Spatial noise reduction is a bilateral filter, not non-local means; strong settings soften fine texture.
 
-- Curves, qualifiers and the color warper work on display-referred values clipped to 0..1; HDR wheels and grade keep values above 1.
 - Qualifiers have no blur or clean-up of their own; follow them with a `matte` node.
 - There is no color-picker on the viewer for qualifiers yet; colors are set as parameters.
 
