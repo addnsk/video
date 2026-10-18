@@ -15,19 +15,9 @@ What Montage still needs, in the order we plan to build it. Each phase ends with
 - 3D scenes in compositing.
 - AI features (masks, voice isolation, reframing, optical-flow retiming): a separate track after this roadmap.
 
-## Phase 0. UI foundation
+## Phase 1. Limits, memory and performance
 
-The current UI is hand-written DOM. Before adding graph editors and node inspectors we move it to React.
-
-- React 18 with `useSyncExternalStore` bindings over `Store`, `Transport`, `EditorSession` and `EventLog`; no second state store.
-- Canvas-heavy views (viewer, timeline, scopes, curves, wheels) stay imperative components wrapped in React.
-- A design system: tokens (color, spacing, type), light and dark themes, components (buttons, sliders, numeric drag fields, menus, popovers, dialogs, tabs, panels) built on accessible headless primitives.
-- Workspace layout: resizable, dockable panels; pages like Resolve (Edit, Fusion, Color, Fairlight, Deliver) sharing one project; a dedicated phone layout.
-- Keyboard map and command palette.
-- Migration panel by panel, with e2e suites kept green; the old DOM UI is removed at the end.
-
-## Phase 1. Memory and performance
-
+- Benchmark suite first: find where we hit limits (decode throughput per codec and resolution, upload and render cost per effect, memory per open source, cache hit rates, playback frame drops, export speed) on desktop and phone profiles, recorded per run so regressions show up.
 - Global memory governor: one budget across frame cache, textures, render targets, audio buffers, thumbnails and graph intermediates; pressure levels that shrink caches and lower preview resolution.
 - Render cache: cached composited frames for heavy ranges (in memory within budget, spilled to OPFS), invalidated by graph and project hashes.
 - Long 4K projects: streaming everything, bounded decoders, proxy policy per device class, measured in a long-timeline stress suite.
@@ -60,19 +50,19 @@ The current UI is hand-written DOM. Before adding graph editors and node inspect
 - Noise reduction (spatial, then temporal within the memory budget), sharpen.
 - Stills gallery, split-screen and wipe comparison, grade versions, copy and apply grades.
 
-## Phase 5. Edit page
+## Phase 5. Audio (Fairlight-like)
+
+- Mixer with buses, track-level effects and automation.
+- Loudness: LUFS metering, normalization targets for platforms, master limiter.
+- Voice cleanup: noise reduction, de-esser, gate.
+
+## Phase 6. Edit page
 
 - Source viewer with In and Out, three-point editing, insert and overwrite.
 - Ripple, roll, slip and slide trims; trim mode.
 - Markers, linked audio and video, nested timelines, several timelines per project.
 - Bins, search, clip metadata.
 - Multicam.
-
-## Phase 6. Audio (Fairlight-like)
-
-- Mixer with buses, track-level effects and automation.
-- Loudness: LUFS metering, normalization targets for platforms, master limiter.
-- Voice cleanup: noise reduction, de-esser, gate.
 
 ## Phase 7. Deliver and interchange
 
@@ -84,3 +74,14 @@ The current UI is hand-written DOM. Before adding graph editors and node inspect
 ## Phase 8. AI track
 
 Separate planning later: masks, voice isolation, transcription for subtitles, reframing, speed warp.
+
+## Phase 9. Interface redesign
+
+The current UI is hand-written DOM. After the AI track we move it to React; until then new features get functional UI in the current DOM layer.
+
+- React 18 with `useSyncExternalStore` bindings over `Store`, `Transport`, `EditorSession` and `EventLog`; no second state store.
+- Canvas-heavy views (viewer, timeline, scopes, curves, wheels) stay imperative components wrapped in React.
+- A design system: tokens (color, spacing, type), light and dark themes, components (buttons, sliders, numeric drag fields, menus, popovers, dialogs, tabs, panels) built on accessible headless primitives.
+- Workspace layout: resizable, dockable panels; pages like Resolve (Edit, Fusion, Color, Fairlight, Deliver) sharing one project; a dedicated phone layout.
+- Keyboard map and command palette.
+- Migration panel by panel, with e2e suites kept green; the old DOM UI is removed at the end.
