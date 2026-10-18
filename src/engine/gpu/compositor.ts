@@ -12,6 +12,7 @@ import { sampleCurve } from '../../effects/curves';
 import { bezierPath, catmullRom } from '../../effects/points';
 import { RasterTextures, type Rasterizer } from './raster';
 import { needsInputTransform } from '../../effects/color-management';
+import { itemColorSpace } from '../../core/model';
 import { CurveTextures, LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
 
 export interface LutProvider {
@@ -88,10 +89,17 @@ export class Compositor {
   }
 
   private inputTransform(item: Item, input: RenderTarget): RenderTarget {
-    const space = item.kind === 'media' ? this.assets[item.source.assetId]?.colorSpace : undefined;
+    const space = itemColorSpace(item, this.assets);
     if (!needsInputTransform(this.colorScience, space)) return input;
     const out = this.applyFilter({ id: 'input-transform', type: 'input-transform', enabled: true, params: { space: space ?? 'rec709', science: this.colorScience } }, input);
     if (out !== input) this.targets.release(input);
+    return out;
+  }
+
+  private generated(def: NodeDef, output: RenderTarget): RenderTarget {
+    if (def.category !== 'generator' || this.colorScience !== 'aces') return output;
+    const out = this.applyFilter({ id: 'input-transform', type: 'input-transform', enabled: true, params: { space: 'rec709', science: 'aces' } }, output);
+    if (out !== output) this.targets.release(output);
     return out;
   }
 
@@ -221,7 +229,7 @@ export class Compositor {
       {
         source,
         filter: (_def, effect, input) => this.applyFilter(effect, input),
-        node: (def, params, inputs, nodeId) => this.renderNode(def, params, inputs, `${item.id}:${nodeId}`),
+        node: (def, params, inputs, nodeId) => this.generated(def, this.renderNode(def, params, inputs, `${item.id}:${nodeId}`)),
         release: (target) => this.targets.release(target),
         copy: (target) => this.copyTarget(target),
       },

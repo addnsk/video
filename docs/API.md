@@ -213,7 +213,11 @@ montage.colorScience('aces');
 montage.colorSpace(0);                        // input space of clip 0's media
 montage.colorSpace(0, 'slog3');               // set it for that media (all its clips)
 montage.colorSpace({ asset: id }, 'logc3');   // by asset id
+montage.colorSpace(2, 'vlog', { clip: true }); // only this clip; it overrides the media setting
+montage.colorSpace(2, null, { clip: true });   // back to the media setting
 ```
+
+Generator nodes (background, gradient, noise, text) take their colors as display values: in `aces` they are converted into ACEScct, so they look the same in both working spaces. Values below black (negative light from log footage under the noise floor) are kept through the whole chain instead of being clipped.
 
 In the color panel the same choices are the Working space and Input color space selects. The `grade` filter keeps its legacy `inputTransform` parameter for old projects; new imports use the input color space instead.
 

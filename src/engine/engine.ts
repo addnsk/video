@@ -9,6 +9,7 @@ import type { Lut3D } from '../effects/cube';
 import { EffectRegistry } from '../effects/registry';
 import type { EffectDef } from '../effects/types';
 import { AudioMixer } from './audio/mixer';
+import { itemColorSpace } from '../core/model';
 import { scanLoudness } from './audio/loudness-scan';
 import type { LoudnessReading } from '../effects/audio/loudness';
 import { budgetFor, type MemoryBudget } from './device';
@@ -451,7 +452,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private cacheKey(frame: ReturnType<typeof compositionAt>, bypass: boolean): string | null {
     if (!this.renderCacheEnabled || !this.compositor) return null;
     const surface = this.compositor.surface;
-    const spaces = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => (item.kind === 'media' ? (this.project.assets[item.source.assetId]?.colorSpace ?? '') : ''));
+    const spaces = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => itemColorSpace(item, this.project.assets) ?? '');
     const variants = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => (item.kind === 'media' && this.pool.hasProxy(item.source.assetId) ? 'p' : 'o'));
     const color = `${this.project.settings?.colorScience ?? 'display'}:${spaces.join(',')}:${variants.join('')}`;
     return frameKey(frame, { width: surface.width, height: surface.height, bypass, viewNode: this.viewNode, generation: this.renderGeneration, color });

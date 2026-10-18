@@ -1,6 +1,6 @@
 import { PROPERTY, effectProperty } from '../core/animation';
 import type { AssetMeta, ColorScience, Item, ParamValue, ParamValues, TextStyle, TrackKind, Transform } from '../core/model';
-import { itemLength, type PresetPhase } from '../core/model';
+import { itemColorSpace, itemLength, type PresetPhase } from '../core/model';
 import { ANIMATION_PRESETS, animationPreset } from '../core/presets';
 import {
   addTrack,
@@ -21,6 +21,7 @@ import {
   setTrackMuted,
   setPreset,
   setAssetColorSpace,
+  setItemColorSpace,
   setColorScience,
   setSpeed,
   setTransition,
@@ -286,18 +287,29 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       return store.project.settings?.colorScience ?? 'display';
     },
     colorSpaces: () => INPUT_SPACES.map(({ id, label, kind }) => ({ id, label, kind })),
-    colorSpace(target: ItemRef | { asset: string }, space?: string): string {
-      const assetId = typeof target === 'object' ? target.asset : (() => {
-        const { item } = resolve(target);
-        if (item.kind !== 'media') throw new Error('Titles have no input color space');
-        return item.source.assetId;
-      })();
-      if (!store.project.assets[assetId]) throw new Error(`No asset ${assetId}`);
-      if (space) {
-        if (!INPUT_SPACES.some((s) => s.id === space)) throw new Error(`Unknown color space "${space}". Available: ${INPUT_SPACES.map((s) => s.id).join(', ')}`);
-        apply(setAssetColorSpace(assetId, space));
+    colorSpace(target: ItemRef | { asset: string }, space?: string | null, options: { clip?: boolean } = {}): string {
+      const valid = (id: string) => {
+        if (!INPUT_SPACES.some((s) => s.id === id)) throw new Error(`Unknown color space "${id}". Available: ${INPUT_SPACES.map((s) => s.id).join(', ')}`);
+      };
+      if (typeof target === 'object') {
+        if (!store.project.assets[target.asset]) throw new Error(`No asset ${target.asset}`);
+        if (space) {
+          valid(space);
+          apply(setAssetColorSpace(target.asset, space));
+        }
+        return store.project.assets[target.asset].colorSpace ?? DEFAULT_INPUT_SPACE;
       }
-      return store.project.assets[assetId].colorSpace ?? DEFAULT_INPUT_SPACE;
+      const { item } = resolve(target);
+      if (item.kind !== 'media') throw new Error('Titles have no input color space');
+      if (options.clip) {
+        if (space) valid(space);
+        if (space !== undefined) apply(setItemColorSpace(item.id, space));
+      } else if (space) {
+        valid(space);
+        apply(setAssetColorSpace(item.source.assetId, space));
+      }
+      const current = resolve(item.id).item;
+      return itemColorSpace(current, store.project.assets) ?? DEFAULT_INPUT_SPACE;
     },
     grade(target: ItemTarget, patch: GradePatch) {
       void store.transaction(() => {

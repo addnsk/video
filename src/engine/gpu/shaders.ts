@@ -65,8 +65,12 @@ function uniformDeclaration(spec: ParamSpec): string {
   return `uniform ${GLSL_TYPES[spec.type]} ${spec.name};`;
 }
 
+const FINITE_HELPER = `float finiteOrZero(float v) { return isnan(v) || isinf(v) ? 0.0 : v; }
+vec3 finiteOrZero(vec3 v) { return vec3(finiteOrZero(v.x), finiteOrZero(v.y), finiteOrZero(v.z)); }`;
+
 export function filterSource(def: FilterDef): string {
   return `${HEADER}
+${FINITE_HELPER}
 uniform sampler2D u_source;
 vec4 sampleSource(vec2 uv) { return texture(u_source, uv); }
 ${WORKING_HELPER}
@@ -76,7 +80,7 @@ ${def.glsl}
 void main() {
   vec4 color = texture(u_source, v_uv);
   vec4 result = effect(color, v_uv);
-  outColor = vec4(max(result.rgb, 0.0), color.a);
+  outColor = vec4(finiteOrZero(result.rgb), color.a);
 }`;
 }
 

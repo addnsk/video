@@ -1,5 +1,6 @@
 import type { ColorScience, Item, ParamValue, ParamValues } from '../../core/model';
-import { copyEffects, replaceEffect, setAssetColorSpace, setColorScience, upsertEffect } from '../../core/operations';
+import { copyEffects, replaceEffect, setAssetColorSpace, setColorScience, setItemColorSpace, upsertEffect } from '../../core/operations';
+import { itemColorSpace } from '../../core/model';
 import { DEFAULT_INPUT_SPACE, INPUT_SPACES } from '../../effects/color-management';
 import { loadGradeVersion, saveGradeVersion } from '../../core/grades';
 import { findPlacement, placeTrack } from '../../core/timeline';
@@ -26,6 +27,7 @@ const WHEELS = [
 export class ColorPanel extends Panel {
   private hint = h('p', { class: 'hint' }, t('colorHint'));
   private input: HTMLSelectElement;
+  private inputClip: HTMLInputElement;
   private science: HTMLSelectElement;
   private version: HTMLSelectElement;
   private sliders = new Map<string, Slider>();
@@ -43,6 +45,7 @@ export class ColorPanel extends Panel {
     const grade = session.registry.filter('grade')!;
     this.input = h('select', { id: 'color-input-space', onChange: () => this.setInputSpace(this.input.value) },
       ...INPUT_SPACES.map((s) => h('option', { value: s.id }, s.label)));
+    this.inputClip = h('input', { type: 'checkbox', id: 'color-input-clip', onChange: () => this.setInputSpace(this.input.value) });
     this.science = h('select', { id: 'color-science', onChange: () => session.store.dispatch(setColorScience(this.science.value as ColorScience)) },
       h('option', { value: 'display' }, t('colorScienceDisplay')),
       h('option', { value: 'aces' }, t('colorScienceAces')));
@@ -104,11 +107,12 @@ export class ColorPanel extends Panel {
     const resetButton = h('button', { class: 'btn', onClick: () => this.reset() }, t('reset'));
     const allButton = h('button', { class: 'btn', onClick: () => this.applyToAll() }, t('applyToAll'));
 
-    this.controls = [this.input, loadButton, removeButton, resetButton, allButton];
+    this.controls = [this.input, this.inputClip, loadButton, removeButton, resetButton, allButton];
     this.body.append(
       this.hint,
       h('label', { class: 'field' }, t('colorScience'), this.science),
       h('label', { class: 'field' }, t('colorInputSpace'), this.input),
+      h('label', { class: 'check' }, this.inputClip, t('colorInputClipOnly')),
       h('div', { class: 'row' }, h('label', { class: 'field' }, t('versionTitle'), this.version), saveVersion),
       wheelRow,
       sliderBox,
@@ -150,7 +154,13 @@ export class ColorPanel extends Panel {
 
   private setInputSpace(space: string) {
     const item = this.item;
-    if (item?.kind === 'media') this.session.store.dispatch(setAssetColorSpace(item.source.assetId, space));
+    if (item?.kind !== 'media') return;
+    const { store } = this.session;
+    if (this.inputClip.checked) store.dispatch(setItemColorSpace(item.id, space));
+    else store.transaction(() => {
+      store.dispatch(setItemColorSpace(item.id, null));
+      store.dispatch(setAssetColorSpace(item.source.assetId, space));
+    });
   }
 
   private setGrade(name: string, value: ParamValue | WheelValue) {
@@ -214,8 +224,10 @@ export class ColorPanel extends Panel {
     for (const c of this.controls) (c as HTMLButtonElement).disabled = !item;
     const grade = this.params('grade');
     const asset = item?.kind === 'media' ? this.session.store.project.assets[item.source.assetId] : undefined;
-    this.input.value = asset?.colorSpace ?? DEFAULT_INPUT_SPACE;
+    this.input.value = (item && itemColorSpace(item, this.session.store.project.assets)) ?? DEFAULT_INPUT_SPACE;
     this.input.disabled = !asset;
+    this.inputClip.checked = item?.kind === 'media' && !!item.colorSpace;
+    this.inputClip.disabled = !asset;
     this.science.value = this.session.store.project.settings?.colorScience ?? 'display';
     const versions = Object.keys(item?.gradeVersions ?? {});
     const options = ['', ...versions];

@@ -97,7 +97,11 @@ export interface MediaItem extends ItemBase {
   readonly kind: 'media';
   readonly source: SourceRange;
   readonly speed: number;
+  readonly colorSpace?: string;
 }
+
+export const itemColorSpace = (item: Item, assets: Project['assets']): string | undefined =>
+  item.kind === 'media' ? (item.colorSpace ?? assets[item.source.assetId]?.colorSpace) : undefined;
 
 export interface TextItem extends ItemBase {
   readonly kind: 'text';

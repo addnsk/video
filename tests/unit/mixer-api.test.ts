@@ -68,3 +68,21 @@ describe('mixer api', () => {
     expect(await montage.loudness()).toMatchObject({ integrated: -Infinity });
   });
 });
+
+describe('input color space per clip', () => {
+  it('overrides one clip and falls back to the media setting when cleared', async () => {
+    const engine = new FakeEngine();
+    const session = new EditorSession(engine);
+    await session.importAndPlace([{ file: file('a.mov') }], () => undefined);
+    const montage = createMontageApi(session);
+    const assetId = montage.clip(0).assetId!;
+    montage.add(assetId);
+    const [first, second] = montage.clips();
+    montage.colorSpace({ asset: assetId }, 'slog3');
+    expect(montage.colorSpace(1, 'logc3', { clip: true })).toBe('logc3');
+    expect(montage.colorSpace(0)).toBe('slog3');
+    expect(montage.colorSpace(second.id)).toBe('logc3');
+    expect(montage.colorSpace(1, null, { clip: true })).toBe('slog3');
+    expect(() => montage.colorSpace(first.id, 'nope', { clip: true })).toThrow(/Unknown color space/);
+  });
+});

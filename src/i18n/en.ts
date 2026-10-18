@@ -199,6 +199,7 @@ export const en = {
   mixerSendOff: 'off',
   mixerPreFader: 'Pre-fader',
   mixerTrim: 'Trim (dB)',
+  colorInputClipOnly: 'This clip only',
 };
 
 export type Strings = typeof en;

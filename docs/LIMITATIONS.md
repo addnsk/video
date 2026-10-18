@@ -35,10 +35,7 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 ## Color
 
 - ACES uses a fitted RRT/ODT (Rec.709 output only); there is no ACES HDR output transform, so HDR export from an ACES project carries tone-mapped SDR highlights.
-- Values below black (negative scene light from log codes under the noise floor) are clipped to 0 by every filter.
 - Input transforms are math approximations of the vendor curves (ARRI LogC3 at EI 800 only); no camera-specific IDT matrices beyond the gamut primaries.
-- Generator nodes (background, text node, gradient) are not color managed: in ACES their colors pass through the output transform and look slightly different from `display`.
-- The input color space is per media file, not per clip.
 - Temporal noise reduction is recursive (it reuses its previous output, no motion estimation); it needs frames rendered in order, so a still after a jump and the first frame of playback get spatial-only quality, and moving areas get no temporal cleanup.
 - Wipe comparison is a vertical wipe against a still (no split-screen layouts, no angle, no comparison with the ungraded frame other than the Compare button).
 - Stills are low resolution (270 lines, JPEG) and live inside the project file, which grows by roughly 20–40 KB per still.

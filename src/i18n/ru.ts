@@ -201,4 +201,5 @@ export const ru: Strings = {
   mixerSendOff: 'выкл.',
   mixerPreFader: 'До фейдера',
   mixerTrim: 'Вход (дБ)',
+  colorInputClipOnly: 'Только этот клип',
 };

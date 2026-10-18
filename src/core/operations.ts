@@ -353,6 +353,13 @@ export const sequence = (...ops: Operation[]): Operation => (project) => ops.red
 export const setColorScience = (science: ColorScience): Operation => (project) =>
   project.settings && (project.settings.colorScience ?? 'display') !== science ? { ...project, settings: { ...project.settings, colorScience: science } } : project;
 
+export const setItemColorSpace = (itemId: string, colorSpace: string | null): Operation => (project) =>
+  mapItem(project, itemId, (item) => {
+    if (item.kind !== 'media' || (item.colorSpace ?? null) === colorSpace) return item;
+    const { colorSpace: _old, ...rest } = item;
+    return colorSpace ? { ...rest, colorSpace } : rest;
+  });
+
 export const setAssetColorSpace = (assetId: string, colorSpace: string): Operation => (project) => {
   const asset = project.assets[assetId];
   if (!asset || asset.colorSpace === colorSpace) return project;
