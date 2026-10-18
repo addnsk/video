@@ -188,7 +188,7 @@ Built-in nodes: `polygon-mask` (animatable `points` as x, y pairs in frame units
 
 ### Tracking
 
-`track` follows a point through a media clip with normalized cross-correlation on a reduced-size luma copy of each frame. The point is in frame units centered on the frame with y up (the convention of `center` and `offset` node params). It returns `[{ t, x, y }]` in clip time; frames with a weak match are dropped. `apply` writes keyframes: `{ node, param }` drives a vec2 node param (a mask, text or transform follows the point), `'stabilize'` animates the clip position against the motion. Clip rotation is not taken into account.
+`track` follows a point through a media clip with normalized cross-correlation on a reduced-size luma copy of each frame. The point is in frame units centered on the frame from -0.5 to 0.5 with y down (the convention of clip positions and of `center` and `offset` node params). It returns `[{ t, x, y }]` in clip time; frames with a weak match are dropped. `apply` writes keyframes: `{ node, param }` drives a vec2 node param (a mask, text or transform follows the point), `'stabilize'` animates the clip position against the motion. Clip rotation is not taken into account.
 
 ```js
 await montage.track(0, { x: -0.27, y: 0, from: 0, to: 2 });

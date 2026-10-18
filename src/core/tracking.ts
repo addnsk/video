@@ -24,7 +24,7 @@ export function sourceToFrame(item: MediaItem, asset: AssetMeta, settings: Proje
   const scale = Math.min(settings.width / asset.width, settings.height / asset.height) * item.transform.scale;
   return {
     x: item.transform.x + ((point.x - 0.5) * asset.width * scale) / settings.width,
-    y: item.transform.y - ((point.y - 0.5) * asset.height * scale) / settings.height,
+    y: item.transform.y + ((point.y - 0.5) * asset.height * scale) / settings.height,
   };
 }
 
@@ -32,7 +32,7 @@ export function frameToSource(item: MediaItem, asset: AssetMeta, settings: Proje
   const scale = Math.min(settings.width / asset.width, settings.height / asset.height) * item.transform.scale;
   return {
     x: 0.5 + ((point.x - item.transform.x) * settings.width) / (asset.width * scale),
-    y: 0.5 - ((point.y - item.transform.y) * settings.height) / (asset.height * scale),
+    y: 0.5 + ((point.y - item.transform.y) * settings.height) / (asset.height * scale),
   };
 }
 

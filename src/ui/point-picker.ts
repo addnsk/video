@@ -38,6 +38,6 @@ export class PointPicker {
     const aspect = this.aspect();
     const w = r.width / r.height > aspect ? r.height * aspect : r.width;
     const hgt = r.width / r.height > aspect ? r.height : r.width / aspect;
-    return { x: (clientX - r.left - (r.width - w) / 2) / w - 0.5, y: 0.5 - (clientY - r.top - (r.height - hgt) / 2) / hgt };
+    return { x: (clientX - r.left - (r.width - w) / 2) / w - 0.5, y: (clientY - r.top - (r.height - hgt) / 2) / hgt - 0.5 };
   }
 }

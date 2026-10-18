@@ -12,7 +12,7 @@ describe('tracking', () => {
   it('maps source points to frame space and back', () => {
     const frame = sourceToFrame(item, asset, settings, { x: 0.75, y: 0.25 });
     expect(frame.x).toBeCloseTo(0.225);
-    expect(frame.y).toBeCloseTo(0.075);
+    expect(frame.y).toBeCloseTo(-0.175);
     const back = frameToSource(item, asset, settings, frame);
     expect(back.x).toBeCloseTo(0.75);
     expect(back.y).toBeCloseTo(0.25);
