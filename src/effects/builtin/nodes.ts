@@ -175,7 +175,9 @@ vec4 process(vec2 uv) {
   vec2 p = uv - 0.5;
   p.x *= aspect();
   float a = radians(angle);
-  float t = shape == 1 ? length(p) / (0.5 * length(vec2(aspect(), 1.0))) : dot(p, vec2(cos(a), sin(a))) + 0.5;
+  vec2 dir = vec2(cos(a), sin(a));
+  float extent = abs(dir.x) * aspect() + abs(dir.y);
+  float t = shape == 1 ? length(p) / (0.5 * length(vec2(aspect(), 1.0))) : dot(p, dir) / extent + 0.5;
   return mix(from, to, clamp(t, 0.0, 1.0));
 }`,
     },
