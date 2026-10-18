@@ -5,6 +5,7 @@ import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
 import type { ProjectPersistence } from '../host/persistence/project-persistence';
 import type { EditorSession } from '../host/session';
 import { LevelMeter } from './components/level-meter';
+import { NodeEditor } from './node-editor';
 import { languageSelect } from './components/language-select';
 import { offlineBanner } from './components/offline-banner';
 import { projectMenu } from './project-menu';
@@ -110,7 +111,22 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new ScriptPanel(api).element,
   );
 
-  root.replaceChildren(bar, h('section', { class: 'viewer' }, screen, transportBar), h('section', { class: 'timeline' }, timelineTools, timelineCanvas), inspector);
+  const nodeEditor = new NodeEditor(session, selection);
+  const timelinePane = h('div', { class: 'timeline-pane' }, timelineTools, timelineCanvas);
+  const viewTabs = h('div', { class: 'view-tabs', role: 'tablist' });
+  const showView = (view: 'timeline' | 'nodes') => {
+    timelinePane.hidden = view !== 'timeline';
+    nodeEditor.show(view === 'nodes');
+    for (const tab of viewTabs.children) tab.setAttribute('aria-selected', String((tab as HTMLElement).dataset.view === view));
+    if (view === 'timeline') timeline.draw();
+  };
+  viewTabs.append(
+    h('button', { class: 'tab', role: 'tab', id: 'view-timeline', dataset: { view: 'timeline' }, onClick: () => showView('timeline') }, t('viewTimeline')),
+    h('button', { class: 'tab', role: 'tab', id: 'view-nodes', dataset: { view: 'nodes' }, onClick: () => showView('nodes') }, t('viewNodes')),
+  );
+  showView('timeline');
+
+  root.replaceChildren(bar, h('section', { class: 'viewer' }, screen, transportBar), h('section', { class: 'timeline' }, viewTabs, timelinePane, nodeEditor.element), inspector);
 
   function toggleBypass() {
     transport.bypass = !transport.bypass;

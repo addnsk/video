@@ -102,6 +102,34 @@ export default {
     await editor.run(() => montage.graph.disable(0));
     checks.check((await color(CENTER, 1.5))[0] > 200, 'disabling the graph restores the plain clip');
 
+    await editor.run(() => montage.select(0));
+    await editor.page.click('#view-nodes');
+    await editor.page.selectOption('#node-add', 'invert');
+    await editor.settle(300);
+    const ports = async () => JSON.parse(await editor.page.getAttribute('#node-canvas', 'data-ports'));
+    const box = await editor.page.locator('#node-canvas').boundingBox();
+    const drag = async (from, to) => {
+      await editor.page.mouse.move(box.x + from.x, box.y + from.y);
+      await editor.page.mouse.down();
+      await editor.page.mouse.move(box.x + to.x, box.y + to.y, { steps: 8 });
+      await editor.page.mouse.up();
+    };
+    let p = await ports();
+    const invertId = Object.keys(p).find((id) => p[id].type === 'invert');
+    await drag(p.source.output, p[invertId].inputs[0]);
+    await drag(p[invertId].output, p.output.inputs[0]);
+    const links = await editor.run(() => montage.graph.get(0).links);
+    checks.check(links.some((l) => l.from === 'source' && l.to === invertId) && links.some((l) => l.from === invertId && l.to === 'output'), 'node editor connects nodes by dragging between ports');
+    const [nr, ng] = await color(CENTER, 0.5);
+    checks.check(nr < 50 && ng > 200, 'graph edited in the UI renders');
+    p = await ports();
+    await editor.page.mouse.click(box.x + p[invertId].center[0], box.y + p[invertId].center[1]);
+    checks.check(await editor.page.isVisible('#node-enabled'), 'clicking a node opens its inspector');
+    await editor.page.keyboard.press('Delete');
+    checks.check(!(await editor.run((id) => montage.graph.get(0).nodes.some((n) => n.id === id), invertId)), 'Delete removes the selected node');
+    await editor.page.click('#view-timeline');
+    checks.check(await editor.page.isVisible('#timeline'), 'switching back shows the timeline');
+
     const stats = await editor.stats();
     checks.check((stats.resources.framebuffer?.live ?? 0) <= 12, `render targets stay pooled (${stats.resources.framebuffer?.live})`);
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);
