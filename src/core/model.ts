@@ -58,6 +58,7 @@ interface ItemBase {
 export interface MediaItem extends ItemBase {
   readonly kind: 'media';
   readonly source: SourceRange;
+  readonly speed: number;
 }
 
 export interface TextItem extends ItemBase {
@@ -132,7 +133,12 @@ export const emptyProject = (): Project => ({
   ],
 });
 
-export const itemLength = (item: Item): number => (item.kind === 'media' ? item.source.out - item.source.in : item.duration);
+export const MIN_SPEED = 0.1;
+export const MAX_SPEED = 16;
+
+export const itemLength = (item: Item): number => (item.kind === 'media' ? (item.source.out - item.source.in) / item.speed : item.duration);
+
+export const sourceTimeAt = (item: MediaItem, local: number): number => item.source.in + local * item.speed;
 
 export const isMedia = (item: Item): item is MediaItem => item.kind === 'media';
 

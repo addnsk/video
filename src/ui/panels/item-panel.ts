@@ -1,11 +1,12 @@
 import { PROPERTY, keyAt, valueAt } from '../../core/animation';
-import type { Item, TextStyle } from '../../core/model';
-import { clearAnimation, deleteKeyframe, setItemProps, setKeyframe, setTextStyle, type ItemProps } from '../../core/operations';
+import { MAX_SPEED, MIN_SPEED, type Item, type TextStyle } from '../../core/model';
+import { clearAnimation, deleteKeyframe, setItemProps, setKeyframe, setSpeed, setTextStyle, type ItemProps } from '../../core/operations';
 import { findPlacement, type Placement } from '../../core/timeline';
 import { TEXT_FONTS } from '../../engine/fonts';
 import type { EditorSession } from '../../host/session';
 import { t } from '../../i18n';
 import { KeyedSlider, type KeyState } from '../components/keyed-slider';
+import { Slider } from '../components/slider';
 import { h } from '../dom';
 import type { Selection } from '../selection';
 import { Panel } from './panel';
@@ -49,6 +50,7 @@ export class ItemPanel extends Panel {
   private background: HTMLInputElement;
   private backgroundColor: HTMLInputElement;
   private renderedText = '';
+  private speed: Slider;
 
   constructor(
     private session: EditorSession,
@@ -72,6 +74,21 @@ export class ItemPanel extends Panel {
       this.rows.set(def.path, { def, slider });
       properties.append(slider.element);
     }
+
+    this.speed = new Slider({
+      id: 'item-speed',
+      label: t('speed'),
+      min: Math.log2(MIN_SPEED),
+      max: Math.log2(MAX_SPEED),
+      step: 0.01,
+      value: 0,
+      neutral: 0,
+      format: (v) => `${+(2 ** v).toFixed(2)}×`,
+      onInput: (v) => {
+        const p = this.placement;
+        if (p) this.session.store.dispatch(setSpeed(p.item.id, 2 ** v), { coalesce: `speed:${p.item.id}` });
+      },
+    });
 
     const style = (patch: Partial<TextStyle>) => {
       const p = this.placement;
@@ -104,7 +121,7 @@ export class ItemPanel extends Panel {
       h('label', { class: 'check' }, this.background, this.backgroundColor, h('span', {}, t('textBackground'))),
     );
 
-    this.body.append(this.hint, this.textBox, properties, h('p', { class: 'hint' }, t('keyframeHint')));
+    this.body.append(this.hint, this.textBox, this.speed.element, properties, h('p', { class: 'hint' }, t('keyframeHint')));
     session.store.on('change', () => this.sync());
     selection.on('change', () => this.sync());
     let pending = false;
@@ -153,6 +170,8 @@ export class ItemPanel extends Panel {
     this.hint.hidden = !!p;
     this.element.classList.toggle('disabled', !p);
     this.textBox.hidden = p?.item.kind !== 'text';
+    this.speed.element.hidden = p?.item.kind !== 'media';
+    if (p?.item.kind === 'media') this.speed.set(Math.log2(p.item.speed));
     for (const { def, slider } of this.rows.values()) {
       const visible = !!p && def.visible(p, this.session);
       slider.element.hidden = !visible;

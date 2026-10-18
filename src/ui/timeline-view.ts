@@ -1,5 +1,5 @@
 import type { Item, Project, Track } from '../core/model';
-import { accepts, itemLength } from '../core/model';
+import { accepts, itemLength, sourceTimeAt } from '../core/model';
 import { createId } from '../core/ids';
 import { createMediaItem, moveItem, moveToTrack, placeItem, setTrackMuted, trimItem } from '../core/operations';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
@@ -218,7 +218,8 @@ export class TimelineView implements DropTarget {
       this.scroll = Math.max(0, d.scroll0 - (p.x - d.x0));
       this.draw();
     } else if (d.kind === 'trim') {
-      const value = d.origin + (p.x - d.x0) / this.pps;
+      const item = d.placement.item;
+      const value = d.origin + ((p.x - d.x0) / this.pps) * (item.kind === 'media' ? item.speed : 1);
       const id = d.placement.item.id;
       this.session.store.dispatch(trimItem(id, d.edge === 'in' ? { in: value } : { out: value }), { coalesce: `trim:${id}:${d.edge}` });
       const track = this.project.tracks.find((tr) => tr.id === d.placement.track.id)!;
@@ -456,7 +457,7 @@ export class TimelineView implements DropTarget {
     g.clip();
     g.globalAlpha *= 0.85;
     for (let x = x0 + 1 + Math.max(0, Math.floor((from - x0 - 1) / tile)) * tile; x < to; x += tile) {
-      const source = item.source.in + (x - x0 + tile / 2) / this.pps;
+      const source = sourceTimeAt(item, (x - x0 + tile / 2) / this.pps);
       const index = Math.min(strip.frames.length - 1, Math.max(0, Math.floor((source - strip.start) / strip.interval)));
       const frame = strip.frames[index];
       if (frame) g.drawImage(frame, x, top, tile, h);
@@ -474,8 +475,8 @@ export class TimelineView implements DropTarget {
     const to = Math.min(x1, this.canvas.clientWidth);
     const volume = item.volume;
     for (let x = Math.floor(from); x < to; x++) {
-      const source = item.source.in + (x - x0) / this.pps;
-      const span = Math.max(1, Math.round(PEAK_RATE / this.pps));
+      const source = sourceTimeAt(item, (x - x0) / this.pps);
+      const span = Math.max(1, Math.round((PEAK_RATE * item.speed) / this.pps));
       const index = Math.floor(source * PEAK_RATE);
       let peak = 0;
       for (let k = 0; k < span; k++) peak = Math.max(peak, peaks[index + k] ?? 0);

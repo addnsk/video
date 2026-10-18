@@ -14,7 +14,7 @@ import type {
   Transform,
   TransitionInstance,
 } from './model';
-import { DEFAULT_TEXT, IDENTITY_TRANSFORM, accepts, itemLength } from './model';
+import { DEFAULT_TEXT, IDENTITY_TRANSFORM, MAX_SPEED, MIN_SPEED, accepts, itemLength, sourceTimeAt } from './model';
 import { findPlacement, trackFrameAt } from './timeline';
 
 export type Operation = (project: Project) => Project;
@@ -98,6 +98,7 @@ export function createMediaItem(asset: AssetMeta, options: Omit<InsertOptions, '
     ...baseItem(options.id ?? createId('item'), options.start ?? 0),
     kind: 'media',
     source: { assetId: asset.id, in: sourceIn, out: sourceOut },
+    speed: 1,
   };
 }
 
@@ -169,12 +170,12 @@ export const trimItem = (itemId: string, range: { in?: number; out?: number }): 
     let { in: sourceIn, out: sourceOut } = item.source;
     if (range.in !== undefined) sourceIn = Math.min(Math.max(asset.start, range.in), sourceOut - MIN_LENGTH);
     if (range.out !== undefined) sourceOut = Math.max(Math.min(asset.end, range.out), sourceIn + MIN_LENGTH);
-    const shift = sourceIn - item.source.in;
+    const shift = (sourceIn - item.source.in) / item.speed;
     return {
       ...item,
       start: track.magnetic ? item.start : Math.max(0, item.start + shift),
       source: { ...item.source, in: sourceIn, out: sourceOut },
-      animations: shift ? shiftAnimations(item.animations, shift, sourceOut - sourceIn) : item.animations,
+      animations: shift ? shiftAnimations(item.animations, shift, (sourceOut - sourceIn) / item.speed) : item.animations,
     };
   });
 
@@ -193,8 +194,8 @@ export const splitAt = (time: number, trackId: string, rightId = createId('item'
   const [left, right]: [Item, Item] =
     item.kind === 'media'
       ? [
-          { ...item, source: { ...item.source, out: item.source.in + local }, animations: leftAnimations },
-          { ...item, id: rightId, source: { ...item.source, in: item.source.in + local }, start: layer.placement.start + local, transitionIn: null, effects, animations: rightAnimations },
+          { ...item, source: { ...item.source, out: sourceTimeAt(item, local) }, animations: leftAnimations },
+          { ...item, id: rightId, source: { ...item.source, in: sourceTimeAt(item, local) }, start: layer.placement.start + local, transitionIn: null, effects, animations: rightAnimations },
         ]
       : [
           { ...item, duration: local, animations: leftAnimations },
@@ -204,6 +205,16 @@ export const splitAt = (time: number, trackId: string, rightId = createId('item'
   items.splice(items.indexOf(item), 1, left, right);
   return mapTracks(project, (t) => (t === track ? { ...t, items } : t));
 };
+
+export const setSpeed = (itemId: string, speed: number): Operation => (project) =>
+  mapItem(project, itemId, (item) => {
+    if (item.kind !== 'media') return item;
+    const next = Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed));
+    if (next === item.speed) return item;
+    const factor = item.speed / next;
+    const animations = Object.fromEntries(Object.entries(item.animations).map(([path, keys]) => [path, keys.map((k) => ({ ...k, t: k.t * factor }))]));
+    return { ...item, speed: next, animations };
+  });
 
 export const setTransition = (itemId: string, transition: TransitionInstance | null): Operation => (project) =>
   mapItem(project, itemId, (item) => ({ ...item, transitionIn: transition }));

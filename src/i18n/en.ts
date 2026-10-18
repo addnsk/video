@@ -81,6 +81,7 @@ export const en = {
   itemHint: 'Select a clip or title on the timeline.',
   keyframeHint: 'The diamond adds or removes a keyframe at the playhead. Once a property has keyframes, changing it adds one.',
   volume: 'Volume',
+  speed: 'Speed',
   opacity: 'Opacity',
   positionX: 'Position X',
   positionY: 'Position Y',

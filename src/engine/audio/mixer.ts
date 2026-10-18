@@ -1,5 +1,5 @@
 import { PROPERTY, valueAt } from '../../core/animation';
-import type { MediaItem, Project } from '../../core/model';
+import { sourceTimeAt, type MediaItem, type Project } from '../../core/model';
 import { audibleAt, type Placement } from '../../core/timeline';
 import type { MediaPool } from '../media/media-pool';
 import { resources } from '../resources';
@@ -41,18 +41,19 @@ export class AudioMixer {
     try {
       const sink = await media.audio();
       if (!sink) return;
-      const from = item.source.in + Math.max(0, t0 - start);
-      const to = item.source.in + Math.min(end, t1) - start;
+      const from = sourceTimeAt(item, Math.max(0, t0 - start));
+      const to = sourceTimeAt(item, Math.min(end, t1) - start);
+      const sourceRate = rate / item.speed;
       const envelope = envelopeFor(placement);
       for await (const sample of sink.samples(from, to)) {
         resources.acquire('audioSample');
         try {
-          const planar = this.read(sample, rate);
-          const skip = Math.max(0, Math.round((from - sample.timestamp) * rate));
+          const planar = this.read(sample, sourceRate);
+          const skip = Math.max(0, Math.round((from - sample.timestamp) * sourceRate));
           const sliced = planar.map((ch) => ch.subarray(skip));
-          const sourceTime = sample.timestamp + skip / rate;
-          const timelineTime = start + (sourceTime - item.source.in);
-          const maxFrames = Math.max(0, Math.round((to - sourceTime) * rate));
+          const sourceTime = sample.timestamp + skip / sourceRate;
+          const timelineTime = start + (sourceTime - item.source.in) / item.speed;
+          const maxFrames = Math.max(0, Math.round((to - sourceTime) * sourceRate));
           const clipped = sliced.map((ch) => ch.subarray(0, maxFrames));
           mixInto(out, clipped, Math.round((timelineTime - t0) * rate), timelineTime, rate, envelope);
         } finally {

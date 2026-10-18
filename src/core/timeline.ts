@@ -1,5 +1,5 @@
 import type { Item, Project, Track, TransitionInstance } from './model';
-import { itemLength } from './model';
+import { itemLength, sourceTimeAt } from './model';
 
 export interface Placement {
   readonly item: Item;
@@ -80,7 +80,7 @@ export function findPlacement(project: Project, itemId: string): Placement | nul
 const layerAt = (placement: Placement, time: number): LayerFrame => {
   const local = time - placement.start;
   const { item } = placement;
-  return { placement, local, sourceTime: item.kind === 'media' ? item.source.in + local : local };
+  return { placement, local, sourceTime: item.kind === 'media' ? sourceTimeAt(item, local) : local };
 };
 
 export function trackFrameAt(track: Track, time: number): TrackFrame | null {

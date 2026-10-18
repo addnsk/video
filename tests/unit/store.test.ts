@@ -80,3 +80,31 @@ describe('store edge cases', () => {
     expect(store.canUndo).toBe(false);
   });
 });
+
+describe('synchronous transactions', () => {
+  it('records immediately so an undo right after works', () => {
+    const store = new Store();
+    store.dispatch(addAsset(asset('a')), { history: false });
+    store.dispatch(insertItem('a', { trackId: 'v1', id: 'x' }));
+    const value = store.transaction(() => {
+      store.dispatch(setVolume('x', 0.5));
+      store.dispatch(setVolume('x', 0.2));
+      return 7;
+    });
+    expect(value).toBe(7);
+    store.undo();
+    expect(store.project.tracks[0].items[0].volume).toBe(1);
+  });
+
+  it('closes the transaction when the body throws', () => {
+    const store = new Store();
+    store.dispatch(addAsset(asset('a')), { history: false });
+    expect(() => store.transaction(() => {
+      store.dispatch(insertItem('a', { trackId: 'v1', id: 'x' }));
+      throw new Error('stop');
+    })).toThrow('stop');
+    store.dispatch(setVolume('x', 0.5));
+    store.undo();
+    expect(store.project.tracks[0].items[0].volume).toBe(1);
+  });
+});

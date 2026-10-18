@@ -95,6 +95,15 @@ describe('montage api', () => {
     expect(montage.clips().every((c) => c.effects.length === 0)).toBe(true);
   });
 
+  it('sets speed on clips', async () => {
+    const { montage } = await setup();
+    montage.speed('all', 2);
+    expect(montage.clips().map((c) => [c.speed, c.duration])).toEqual([[2, 5], [2, 3]]);
+    expect(montage.duration).toBe(8);
+    montage.undo();
+    expect(montage.duration).toBe(16);
+  });
+
   it('validates transitions and effects', async () => {
     const { montage } = await setup();
     expect(() => montage.transition(1, { type: 'nope' })).toThrow(/Available: .*dissolve/);

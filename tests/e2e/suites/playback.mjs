@@ -10,7 +10,7 @@ export default {
   name: 'playback',
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
-    await editor.import([fixture('testsrc.mov'), fixture('bars.mov')]);
+    await editor.import([fixture('testsrc.mov'), fixture('bars.mov'), fixture('red.mov'), fixture('blue.mov')]);
     const key = (k) => editor.page.keyboard.press(k);
 
     await key('KeyL');
@@ -42,6 +42,27 @@ export default {
     await editor.until(() => montage.time === 0, null, 5000);
     await editor.settle(300);
     checks.check(await editor.page.isHidden('#rate'), 'reverse shuttle stops at the start');
+
+    await editor.run(() => {
+      montage.clear();
+      const [red, blue] = montage.assets().filter((a) => a.name !== 'testsrc.mov' && a.name !== 'bars.mov');
+      montage.add(red.id);
+      montage.add(blue.id);
+      montage.speed(0, 2);
+    });
+    checks.near(await editor.run(() => montage.duration), 3, 1e-6, 'double speed halves the clip');
+    const [, , b] = await editor.previewColorAt(1.2);
+    checks.check(b > 200, 'next clip starts after the sped-up clip');
+    await editor.run(() => montage.speed(0, 0.5));
+    const [r] = await editor.previewColorAt(3.5);
+    checks.check(r > 200, 'half speed stretches the clip');
+    await editor.run(() => {
+      const testsrc = montage.assets().find((a) => a.name === 'testsrc.mov');
+      montage.add(testsrc.id, { in: 0, out: 2 });
+      montage.speed(-1, 1.5);
+    });
+    const size = await editor.run(async () => (await montage.render({ height: 360, quality: 'medium' })).file?.size ?? 0);
+    checks.check(size > 5000, `export with retimed video and audio (${size} bytes)`);
 
     await editor.settle(1000);
     const s = await editor.stats();

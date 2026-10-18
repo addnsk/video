@@ -55,17 +55,31 @@ export class Store extends Emitter<StoreEvents> {
     return next;
   }
 
-  async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
-    if (this.transactionDepth++ === 0) this.transactionBase = this.current;
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  transaction<T>(fn: () => T): T;
+  transaction<T>(fn: () => T | Promise<T>): T | Promise<T> {
+    this.begin();
+    let result: T | Promise<T>;
     try {
-      return await fn();
-    } finally {
-      if (--this.transactionDepth === 0) {
-        const base = this.transactionBase!;
-        this.transactionBase = null;
-        if (base !== this.current) this.record(base, null);
-      }
+      result = fn();
+    } catch (e) {
+      this.end();
+      throw e;
     }
+    if (result instanceof Promise) return result.finally(() => this.end());
+    this.end();
+    return result;
+  }
+
+  private begin() {
+    if (this.transactionDepth++ === 0) this.transactionBase = this.current;
+  }
+
+  private end() {
+    if (--this.transactionDepth > 0) return;
+    const base = this.transactionBase!;
+    this.transactionBase = null;
+    if (base !== this.current) this.record(base, null);
   }
 
   undo(): boolean {

@@ -15,7 +15,7 @@ function migrateItem(raw: Loose<Item> & Record<string, unknown>): Item {
     animations: (raw.animations as Item['animations']) ?? {},
   };
   if (raw.kind === 'text') return { ...base, kind: 'text', duration: Number(raw.duration), text: raw.text as never };
-  return { ...base, kind: 'media', source: raw.source as never };
+  return { ...base, kind: 'media', source: raw.source as never, speed: Number(raw.speed ?? 1) };
 }
 
 function migrateAsset(raw: AssetMeta & { hasVideo?: boolean }): AssetMeta {

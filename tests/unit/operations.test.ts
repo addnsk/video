@@ -16,6 +16,7 @@ import {
   replaceEffect,
   sequence,
   setDuration,
+  setSpeed,
   setItemProps,
   setKeyframe,
   setTextStyle,
@@ -25,6 +26,7 @@ import {
   trimItem,
   upsertEffect,
 } from '../../src/core/operations';
+import { compositionAt, placeTrack } from '../../src/core/timeline';
 import { asset } from './fixtures';
 
 const music = { ...asset('music', 30), hasVideo: false, width: 0, height: 0, fps: 0 };
@@ -73,6 +75,36 @@ describe('media items', () => {
   it('refuses items a track cannot hold', () => {
     const song = createMediaItem({ ...asset('music', 30), hasVideo: false });
     expect(() => placeItem(song, 'v2')(sequence(addAsset({ ...asset('music', 30), hasVideo: false }))(base()))).toThrow('cannot hold');
+  });
+});
+
+describe('speed', () => {
+  it('changes length, source mapping and keyframe timing', () => {
+    let p = sequence(setKeyframe('one', 'opacity', 2, 0.5), setSpeed('one', 2))(base());
+    const one = item(p, 'one');
+    expect(one.kind === 'media' && one.speed).toBe(2);
+    expect(one.animations.opacity[0].t).toBe(1);
+    const [first, second] = placeTrack(track(p, 'v1'));
+    expect(first.end).toBe(2);
+    expect(second.start).toBe(2);
+    expect(compositionAt(p, 1.5).layers[0].base.sourceTime).toBe(3);
+    p = setSpeed('one', 100)(p);
+    const fast = item(p, 'one');
+    expect(fast.kind === 'media' && fast.speed).toBe(16);
+  });
+
+  it('splits and trims in source time', () => {
+    const p = sequence(setSpeed('one', 2), splitAt(1, 'v1', 'r'))(base());
+    const [left, right] = [item(p, 'one'), item(p, 'r')];
+    expect(left.kind === 'media' && left.source.out).toBe(2);
+    expect(right.kind === 'media' && [right.source.in, right.speed]).toEqual([2, 2]);
+    const q = sequence(moveToTrack('two', 'v2', { start: 4 }), setSpeed('two', 2), trimItem('two', { in: 6 }))(base());
+    expect(item(q, 'two').start).toBe(5);
+  });
+
+  it('ignores text items', () => {
+    const p = insertText('v2', 0, 2, {}, 't')(base());
+    expect(setSpeed('t', 2)(p)).toBe(p);
   });
 });
 

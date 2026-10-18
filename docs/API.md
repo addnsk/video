@@ -30,6 +30,7 @@ montage.trim(0, { in: 1.5 });
 montage.move('item_x4', 0);
 montage.remove(-1);
 montage.volume('all', 0.8);
+montage.speed(0, 2);                             // 0.1–16; audio follows with pitch, keyframes keep their place
 montage.clear();
 montage.proxy(a.id);                             // build a proxy now
 montage.proxies();                               // { [assetId]: { state, fraction } }

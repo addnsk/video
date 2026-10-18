@@ -18,6 +18,7 @@ import {
   setKeyframe,
   setTextStyle,
   setTrackMuted,
+  setSpeed,
   setTransition,
   setVolume,
   splitAt,
@@ -49,6 +50,7 @@ export interface ClipInfo {
   readonly in: number;
   readonly out: number;
   readonly volume: number;
+  readonly speed: number;
   readonly opacity: number;
   readonly transform: Transform;
   readonly text: TextStyle | null;
@@ -119,6 +121,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     in: item.kind === 'media' ? item.source.in : 0,
     out: item.kind === 'media' ? item.source.out : item.duration,
     volume: item.volume,
+    speed: item.kind === 'media' ? item.speed : 1,
     opacity: item.opacity,
     transform: item.transform,
     text: item.kind === 'text' ? item.text : null,
@@ -230,6 +233,10 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     trim: (ref: ItemRef, range: { in?: number; out?: number }) => void apply(trimItem(resolve(ref).item.id, range)),
     move: (ref: ItemRef, index: number) => void apply(moveItem(resolve(ref).item.id, index)),
     remove: (ref: ItemRef) => void apply(removeItem(resolve(ref).item.id)),
+    speed: (target: ItemTarget, value: number) =>
+      void store.transaction(() => {
+        for (const id of targets(target)) apply(setSpeed(id, value));
+      }),
     volume: (target: ItemTarget, value: number) => {
       for (const id of targets(target)) apply(setVolume(id, value), `volume:${id}`);
     },
