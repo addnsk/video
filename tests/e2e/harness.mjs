@@ -25,15 +25,22 @@ export function fixture(name) {
 }
 
 export async function startServer(port) {
-  const server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore' });
+  const server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', detached: true });
+  const stop = () => {
+    try {
+      process.kill(-server.pid, 'SIGTERM');
+    } catch {}
+  };
+  process.once('exit', stop);
   const url = `http://localhost:${port}/`;
   for (let i = 0; i < 100; i++) {
+    if (server.exitCode !== null) throw new Error(`Preview server exited; is port ${port} in use?`);
     try {
-      if ((await fetch(url)).ok) return { url, stop: () => server.kill() };
+      if ((await fetch(url)).ok) return { url, stop };
     } catch {}
     await new Promise((r) => setTimeout(r, 200));
   }
-  server.kill();
+  stop();
   throw new Error(`Preview server did not start on ${port}`);
 }
 
