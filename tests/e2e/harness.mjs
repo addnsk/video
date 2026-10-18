@@ -2,6 +2,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer } from 'node:net';
 import { chromium } from 'playwright-core';
 
 const FIXTURE_DIR = join(tmpdir(), 'montage-fixtures');
@@ -31,7 +32,18 @@ export function fixture(name) {
   return path;
 }
 
-export async function startServer(port) {
+const freePort = () =>
+  new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+
+export async function startServer() {
+  const port = await freePort();
   const server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', detached: true });
   const stop = () => {
     try {
@@ -41,7 +53,7 @@ export async function startServer(port) {
   process.once('exit', stop);
   const url = `http://localhost:${port}/`;
   for (let i = 0; i < 100; i++) {
-    if (server.exitCode !== null) throw new Error(`Preview server exited; is port ${port} in use?`);
+    if (server.exitCode !== null) throw new Error(`Preview server exited; port ${port}`);
     try {
       if ((await fetch(url)).ok) return { url, stop };
     } catch {}

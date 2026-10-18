@@ -10,7 +10,7 @@ for (const file of files) {
   if (!only.size || only.has(suite.name)) suites.push(suite);
 }
 
-const server = await startServer(Number(process.env.E2E_PORT ?? 4199));
+const server = await startServer();
 const browser = await launchBrowser();
 const failures = [];
 try {

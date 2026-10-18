@@ -92,7 +92,7 @@ function summarize(profile, source, r) {
   return row;
 }
 
-const server = await startServer(Number(process.env.BENCH_PORT ?? 4196));
+const server = await startServer();
 const browser = await launchBrowser();
 const rows = [];
 const raw = [];
