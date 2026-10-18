@@ -223,3 +223,20 @@ Editor.prototype.previewColorAt = async function (time, region) {
   await this.seekAndSettle(time);
   return this.previewColor(region);
 };
+
+if (process.env.E2E_PROFILE) {
+  for (const name of ['open', 'import', 'run', 'until', 'settle', 'frame', 'previewColor', 'previewNoise', 'pick']) {
+    const target = name === 'open' ? Editor : Editor.prototype;
+    const original = target[name];
+    if (!original) continue;
+    target[name] = async function (...args) {
+      const started = Date.now();
+      try {
+        return await original.apply(this, args);
+      } finally {
+        const label = typeof args[0] === 'function' ? args[0].toString().replace(/\s+/g, ' ').slice(0, 90) : JSON.stringify(args[0] ?? '').slice(0, 90);
+        console.log(`PROF ${name} ${Date.now() - started} ${label}`);
+      }
+    };
+  }
+}
