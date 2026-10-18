@@ -39,6 +39,7 @@ import { createId } from '../core/ids';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
 import { AUDIO_EFFECTS, audioEffect } from '../effects/audio/builtin';
 import { DEFAULT_INPUT_SPACE, INPUT_SPACES } from '../effects/color-management';
+import { reservedNames } from '../effects/glsl-names';
 import { parseCube } from '../effects/cube';
 import { glTransition } from '../effects/gl-transitions';
 import { defaultParams, type FilterDef, type NodeCategory, type ParamSpec } from '../effects/types';
@@ -344,6 +345,8 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
 
     effects: {
       register(def: FilterRegistration) {
+        const clashes = reservedNames((def.params ?? []).map((p) => p.name));
+        if (clashes.length) throw new Error(`Reserved GLSL names cannot be used for params: ${clashes.join(', ')}`);
         const filter: FilterDef = { kind: 'filter', id: def.id, name: def.name, glsl: def.glsl, params: def.params ?? [] };
         registry.register(filter);
       },
@@ -447,6 +450,8 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
 
     nodes: {
       register(def: { id: string; name: string; category?: NodeCategory; inputs?: string[]; params?: ParamSpec[]; passes: string[] | string; raster?: 'text'; temporal?: boolean; history?: boolean }) {
+        const clashes = reservedNames([...(def.params ?? []).map((p) => p.name), ...(def.inputs ?? ['source'])]);
+        if (clashes.length) throw new Error(`Reserved GLSL names cannot be used for params or inputs: ${clashes.join(', ')}`);
         registry.register({
           kind: 'node',
           id: def.id,
