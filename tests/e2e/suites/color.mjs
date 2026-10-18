@@ -59,6 +59,10 @@ export default {
       });
       checks.check(lit > 20, `${mode} scope draws (${lit} lit pixels)`);
     }
+    await editor.import([fixture('bmdlog.mov')], 3);
+    await editor.until(() => montage.clips().length === 3);
+    const auto = await editor.run(() => montage.clip(2).effects);
+    checks.check(auto[0]?.params.inputTransform === 'bmdFilmGen5', `Blackmagic Film log footage gets the Rec.709 transform on import (${JSON.stringify(auto)})`);
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);
     await editor.close();
   },

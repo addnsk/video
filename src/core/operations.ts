@@ -101,6 +101,7 @@ export function createMediaItem(asset: AssetMeta, options: Omit<InsertOptions, '
     kind: 'media',
     source: { assetId: asset.id, in: sourceIn, out: sourceOut },
     speed: 1,
+    effects: (asset.defaultEffects ?? []).map((e) => ({ id: createId('fx'), type: e.type, enabled: true, params: e.params })),
   };
 }
 

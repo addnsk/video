@@ -1,4 +1,4 @@
-import { ALL_FORMATS, BlobSource, Input } from 'mediabunny';
+import { ALL_FORMATS, BlobSource, Input, type MetadataTags } from 'mediabunny';
 import type { AssetMeta } from '../../core/model';
 
 const CODEC_LABELS: Record<string, string> = {
@@ -20,6 +20,17 @@ const CODEC_LABELS: Record<string, string> = {
 export const codecLabel = (codec: string): string => CODEC_LABELS[codec] ?? codec;
 
 export class UnsupportedMediaError extends Error {}
+
+const CAMERA_LOG_PROFILES: readonly { pattern: RegExp; effects: AssetMeta['defaultEffects'] }[] = [
+  { pattern: /blackmagic-design\.cinemacamera\.filmlog/i, effects: [{ type: 'grade', params: { inputTransform: 'bmdFilmGen5' } }] },
+];
+
+function defaultEffectsFor(tags: MetadataTags | null): Pick<AssetMeta, 'defaultEffects'> {
+  const gamma = tags?.raw?.['com.apple.proapps.customgamma'];
+  if (typeof gamma !== 'string') return {};
+  const profile = CAMERA_LOG_PROFILES.find((p) => p.pattern.test(gamma));
+  return profile ? { defaultEffects: profile.effects } : {};
+}
 
 export async function probe(file: File, id: string): Promise<AssetMeta> {
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
@@ -55,6 +66,7 @@ export async function probe(file: File, id: string): Promise<AssetMeta> {
       hasAudio: !!audio,
       sampleRate,
       channels,
+      ...defaultEffectsFor(await input.getMetadataTags().catch(() => null)),
     };
   } finally {
     input.dispose();

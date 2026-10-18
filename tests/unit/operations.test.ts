@@ -72,6 +72,13 @@ describe('media items', () => {
     expect(item(p, 'pip').start).toBe(4);
   });
 
+  it('copies asset default effects with fresh ids', () => {
+    const logAsset = { ...asset('log', 5), defaultEffects: [{ type: 'grade', params: { inputTransform: 'bmdFilmGen5' } }] };
+    const [a, b] = [createMediaItem(logAsset), createMediaItem(logAsset)];
+    expect(a.effects).toMatchObject([{ type: 'grade', enabled: true, params: { inputTransform: 'bmdFilmGen5' } }]);
+    expect(a.effects[0].id).not.toBe(b.effects[0].id);
+  });
+
   it('refuses items a track cannot hold', () => {
     const song = createMediaItem({ ...asset('music', 30), hasVideo: false });
     expect(() => placeItem(song, 'v2')(sequence(addAsset({ ...asset('music', 30), hasVideo: false }))(base()))).toThrow('cannot hold');

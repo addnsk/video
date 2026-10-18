@@ -98,6 +98,7 @@ export interface AssetMeta {
   readonly fps: number;
   readonly start: number;
   readonly end: number;
+  readonly defaultEffects?: readonly { readonly type: string; readonly params: ParamValues }[];
   readonly hasVideo: boolean;
   readonly hasAudio: boolean;
   readonly sampleRate: number;

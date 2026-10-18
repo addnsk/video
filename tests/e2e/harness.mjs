@@ -14,6 +14,8 @@ const FIXTURES = {
   'red.mov': ['-f', 'lavfi', '-i', 'color=c=red:size=640x360:rate=25', '-t', '2', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
   'blue.mov': ['-f', 'lavfi', '-i', 'color=c=blue:size=640x360:rate=25', '-t', '2', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
   'gray.mov': ['-f', 'lavfi', '-i', 'color=c=0x808080:size=640x360:rate=25', '-t', '2', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
+  'bmdlog.mov': ['-f', 'lavfi', '-i', 'color=c=0x808080:size=640x360:rate=25', '-t', '1', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le',
+    '-movflags', 'use_metadata_tags', '-metadata', 'com.apple.proapps.customgamma=com.blackmagic-design.cinemacamera.filmlog'],
   'music.wav': ['-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=44100', '-t', '6', '-c:a', 'pcm_s16le'],
 };
 
