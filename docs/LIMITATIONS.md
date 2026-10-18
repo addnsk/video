@@ -10,6 +10,14 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - Camera log is detected automatically only for Blackmagic Film (the `com.apple.proapps.customgamma` tag); other cameras need a manual input transform.
 - Rare "memory access out of bounds" page error suspected in the ProRes WASM decoder under concurrent decoding of one file.
 
+## Render cache
+
+- Only preview frames are cached; export always renders from scratch.
+- Disk entries are lossy WebP (quality 0.92), so a frame read back from disk can differ slightly from a fresh render.
+- Switching a clip between proxy and original media does not change the cache key; the previous image can show until the frame is edited.
+- When scopes are open, still frames are rendered every time (scopes need the live image); playback still uses the cache.
+- GPU time is not measured; a frame counts as heavy by CPU time or by the number of render passes.
+
 ## Compositing (node graph)
 
 - Nodes render in project frame space at preview resolution; there is no per-node resolution or region of interest yet.

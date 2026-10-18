@@ -29,9 +29,14 @@ import { TextRasterizer } from './text-raster';
 import { loadFonts } from './fonts';
 import { computePeaks } from './audio/peaks';
 import { decodeThumbnails } from './media/thumbnails';
+import { frameKey } from './render-cache/frame-key';
+import { opfsFrameStore } from './render-cache/frame-store';
+import { RenderCache } from './render-cache/render-cache';
 import { trackMedia, type MediaTrackOptions, type TrackSample } from './tracking/track-media';
 
 const SCOPE_INTERVAL_MS = 120;
+const HEAVY_FRAME_SHARE = 0.5;
+const HEAVY_FRAME_PASSES = 8;
 
 registerProresDecoder();
 
@@ -75,6 +80,9 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private stills!: StillFrames;
   private text = new TextRenderer();
   private textRaster = new TextRasterizer();
+  private renderCache!: RenderCache;
+  private renderGeneration = 0;
+  renderCacheEnabled = true;
   private peakCache = new Map<string, Promise<Float32Array>>();
   private governor!: MemoryGovernor;
   private thumbnailQueue: Promise<unknown> = Promise.resolve();
@@ -103,6 +111,9 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.stills = new StillFrames(this.pool, this.text, this.budget);
     this.stills.isStale = () => this.stillQueue.latest !== null || !!this.playback;
     this.governor = new MemoryGovernor(this.budget.memoryLimitBytes, () => resources.total());
+    this.renderCache = new RenderCache({ memoryBytes: this.budget.renderCacheBytes, diskBytes: this.budget.renderDiskBytes });
+    void opfsFrameStore().then((store) => this.renderCache.attach(store));
+    this.governor.register({ name: 'renderCache', bytes: () => this.renderCache.bytes, trim: (keep) => this.renderCache.trim(keep) });
     this.governor.register({ name: 'stillCache', bytes: () => this.stills.cachedBytes, trim: (keep) => this.stills.trim(keep) });
     this.governor.register({ name: 'nodeCache', bytes: () => this.compositor?.nodeCacheBytes ?? 0, trim: () => this.compositor?.trimNodeCache() });
     this.governor.register({ name: 'idleTargets', bytes: () => this.compositor?.idleTargetBytes ?? 0, trim: () => this.compositor?.trimIdle() });
@@ -115,6 +126,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       this.text.clear();
       this.textRaster.clear();
       this.compositor?.trimNodeCache();
+      this.invalidateRenders();
       this.redraw();
     });
     this.gpu = new GpuContext(surface);
@@ -147,10 +159,12 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
 
   setEffects(defs: EffectDef[]): void {
     for (const def of defs) this.registry.register(def);
+    this.invalidateRenders();
     this.redraw();
   }
 
   setLut(id: string, lut: Lut3D | null): void {
+    this.invalidateRenders();
     if (lut) this.luts.set(id, lut);
     else {
       this.luts.delete(id);
@@ -283,6 +297,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       floatTargets: this.gpu?.floatTargets ?? false,
       metrics: metrics.snapshot(),
       memory: this.governor?.report() ?? null,
+      renderCache: this.renderCache ? { bytes: this.renderCache.bytes, diskBytes: this.renderCache.diskUsage, ...this.renderCache.entries } : null,
     };
   }
 
@@ -345,6 +360,43 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.proxyRunning = false;
   }
 
+  private invalidateRenders() {
+    this.renderGeneration++;
+    this.renderCache?.clear();
+  }
+
+  setRenderCache(options: { enabled?: boolean; memoryBytes?: number; diskBytes?: number }): void {
+    if (options.enabled !== undefined) this.renderCacheEnabled = options.enabled;
+    if (!this.renderCacheEnabled) this.renderCache.clear();
+    const { memoryBytes, diskBytes } = options;
+    this.renderCache.setLimits({ ...(memoryBytes !== undefined ? { memoryBytes } : {}), ...(diskBytes !== undefined ? { diskBytes } : {}) });
+  }
+
+  private cacheKey(frame: ReturnType<typeof compositionAt>, bypass: boolean): string | null {
+    if (!this.renderCacheEnabled || !this.compositor) return null;
+    const surface = this.compositor.surface;
+    return frameKey(frame, { width: surface.width, height: surface.height, bypass, viewNode: this.viewNode, generation: this.renderGeneration });
+  }
+
+  private async presentCached(key: string | null): Promise<boolean> {
+    if (!key || !this.compositor) return false;
+    const memory = this.renderCache.peek(key);
+    if (memory) return this.compositor.present(memory);
+    if (!this.renderCache.onDisk(key)) return false;
+    const bitmap = await this.renderCache.load(key);
+    return !!bitmap && this.compositor.present(bitmap);
+  }
+
+  private remember(key: string | null, cost: number) {
+    if (!key || !this.compositor) return;
+    const interval = 1000 / (this.project.settings?.fps ?? 25);
+    if (cost < interval * HEAVY_FRAME_SHARE && this.compositor.passes < HEAVY_FRAME_PASSES) return;
+    void this.compositor.snapshot().then(
+      (bitmap) => this.renderCache.put(key, bitmap),
+      () => metrics.count('renderCache.snapshotFailed'),
+    );
+  }
+
   private redraw() {
     if (this.playback || !this.compositor) return;
     void this.renderStill(this.lastStill.time, this.lastStill.bypass);
@@ -355,6 +407,11 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     const time = Math.min(request.time, Math.max(0, projectDuration(this.project) - 1e-3));
     const frame = compositionAt(this.project, time);
     const started = performance.now();
+    const key = this.scopesEnabled ? null : this.cacheKey(frame, request.bypass);
+    if (await this.presentCached(key)) {
+      metrics.time('still.cached', performance.now() - started);
+      return request.done(true);
+    }
     const images = await this.stills.load(this.project, frame, this.compositor.size);
     if (!images) {
       metrics.count('still.stale');
@@ -365,6 +422,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.compositor.render(frame, images, { bypassFilters: request.bypass, capture: this.captureOption(true), viewNode: this.viewNode });
     metrics.time('still.render', performance.now() - renderStart);
     metrics.time('still.total', performance.now() - started);
+    this.remember(key, performance.now() - started);
     this.governor.check();
     request.done(true);
   }
@@ -388,12 +446,19 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       if (time < anchor.time) return;
       const frame = compositionAt(this.project, Math.min(time, Math.max(0, duration - 1e-3)));
       const loadStart = performance.now();
-      const images = await playback.frames.load(this.project, frame, this.compositor.size);
-      if (generation !== this.generation || !images) return;
-      metrics.time('playback.load', performance.now() - loadStart);
-      const renderStart = performance.now();
-      this.compositor.render(frame, images, { bypassFilters: playback.bypass, capture: this.captureOption(false), viewNode: this.viewNode });
-      metrics.time('playback.render', performance.now() - renderStart);
+      const key = this.cacheKey(frame, playback.bypass);
+      if (await this.presentCached(key)) {
+        if (generation !== this.generation) return;
+        metrics.time('playback.cached', performance.now() - loadStart);
+      } else {
+        const images = await playback.frames.load(this.project, frame, this.compositor.size);
+        if (generation !== this.generation || !images) return;
+        metrics.time('playback.load', performance.now() - loadStart);
+        const renderStart = performance.now();
+        this.compositor.render(frame, images, { bypassFilters: playback.bypass, capture: this.captureOption(false), viewNode: this.viewNode });
+        metrics.time('playback.render', performance.now() - renderStart);
+        this.remember(key, performance.now() - loadStart);
+      }
       const fps = this.project.settings?.fps ?? 25;
       const index = Math.floor(time * fps);
       if (playback.lastFrame !== null && index > playback.lastFrame + 1) metrics.count('playback.dropped', index - playback.lastFrame - 1);

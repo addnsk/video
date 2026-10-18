@@ -227,6 +227,18 @@ Useful start states: typewriter (`fromOpacity: 0, stagger: 0.95, ease: 'linear'`
 
 Custom nodes can rasterize text too: a node definition with `raster: 'text'` receives `raster(uv)` (fill coverage in red, outline coverage in green), `glyph_count()` and `glyph(i)` (each glyph's box in uv, y up).
 
+### Render cache
+
+Heavy frames (rendering took more than half a frame interval, or eight or more GPU passes) are kept as images in memory and, when memory is full, compressed to WebP in the browser's private file system (OPFS). Returning to such a frame in playback or while scrubbing shows the cached image instead of decoding and rendering again. Keys cover everything that changes the picture (clip time, resolved params and keyframes, graph, transitions, preview size, bypass and node view), so edits never show stale frames. The cache is emptied when effects, LUTs or fonts change and at every page load.
+
+```js
+(await montage.stats()).renderCache;               // { bytes, diskBytes, memory, disk } entry counts and sizes
+montage.renderCache(false);                       // disable and empty
+montage.renderCache({ enabled: true, memoryBytes: 256e6, diskBytes: 2e9 });
+```
+
+Default limits depend on the device class: 384 MB in memory and 4 GB on disk on desktops, 96 MB / 1 GB on phones and tablets, 32 MB / 256 MB on constrained devices. Under memory pressure the governor trims the in-memory part first.
+
 ### Node templates
 
 A template is a group of nodes saved as plain JSON: their types, params, relative positions, internal links, keyframes, the inputs that came from outside the group and the node that fed the rest of the graph. Templates live in the browser (`montage.templates`) or anywhere you store the JSON.

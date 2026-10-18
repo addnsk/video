@@ -17,7 +17,7 @@ What Montage still needs, in the order we plan to build it. Each phase ends with
 
 ## Phase 1. Limits, memory and performance
 
-Status: engine metrics, benchmark runner (`docs/BENCHMARK.md`), memory governor and platform capability detection are done; the render cache is next.
+Status: engine metrics, benchmark runner (`docs/BENCHMARK.md`), memory governor and platform capability detection and the render cache (memory with OPFS spill) are done; long-timeline stress and per-device proxy policy remain.
 
 
 - Benchmark suite first: find where we hit limits (decode throughput per codec and resolution, upload and render cost per effect, memory per open source, cache hit rates, playback frame drops, export speed) on desktop and phone profiles, recorded per run so regressions show up.

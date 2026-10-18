@@ -5,7 +5,7 @@ import type { EffectRegistry } from '../../effects/registry';
 import { defaultParams, type FilterDef, type NodeDef, type ParamSpec, type TransitionDef } from '../../effects/types';
 import type { FrameImage } from '../media/frame';
 import type { GpuContext } from './context';
-import { COPY, FIT, filterSource, nodeHasUniform, nodeInputUniform, nodeSource, transitionSource } from './shaders';
+import { COPY, FIT, PRESENT, filterSource, nodeHasUniform, nodeInputUniform, nodeSource, transitionSource } from './shaders';
 import { OUTPUT_ID, materialize } from '../../core/graph';
 import { renderGraph } from './graph-renderer';
 import { sampleCurve } from '../../effects/curves';
@@ -108,6 +108,7 @@ export class Compositor {
     this.height = size.height;
     this.pixelScale = this.project ? size.height / this.project.height : 1;
     let accumulator: RenderTarget | null = null;
+    this.passes = 0;
     for (const layer of frame.layers) {
       const result = this.renderTrack(layer, images, options);
       if (!result) continue;
@@ -258,6 +259,7 @@ export class Compositor {
     let previous: RenderTarget | null = null;
     for (let pass = 0; pass < def.passes.length; pass++) {
       const out = this.targets.acquire(this.width, this.height);
+      this.passes++;
       let program: WebGLProgram;
       try {
         program = this.ctx.program(nodeSourceOf(def, pass));
@@ -289,6 +291,32 @@ export class Compositor {
       previous = out;
     }
     return previous ?? this.blankTarget();
+  }
+
+  private presented: UploadTexture | null = null;
+  passes = 0;
+
+  present(bitmap: ImageBitmap): boolean {
+    const gl = this.ctx.gl;
+    if (this.ctx.lost || !bitmap.width) return false;
+    this.presented ??= new UploadTexture(this.ctx);
+    gl.activeTexture(gl.TEXTURE0);
+    const texture = this.presented.upload(bitmap, bitmap.width, bitmap.height, '');
+    const program = this.ctx.program(PRESENT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this.ctx.surface.width, this.ctx.surface.height);
+    gl.useProgram(program);
+    this.bindTexture(program, 'u_image', 0, texture);
+    this.ctx.drawQuad();
+    return true;
+  }
+
+  get surface(): { readonly width: number; readonly height: number } {
+    return this.ctx.surface;
+  }
+
+  snapshot(): Promise<ImageBitmap> {
+    return createImageBitmap(this.ctx.surface as OffscreenCanvas);
   }
 
   private bindRaster(program: WebGLProgram, id: string, params: ParamValues, unit: number): number {
@@ -368,6 +396,7 @@ export class Compositor {
       return input;
     }
     const gl = this.ctx.gl;
+    this.passes++;
     const out = this.targets.acquire(this.width, this.height);
     gl.bindFramebuffer(gl.FRAMEBUFFER, out.framebuffer);
     gl.viewport(0, 0, this.width, this.height);
@@ -536,6 +565,8 @@ export class Compositor {
     for (const upload of this.uploads.values()) upload.dispose();
     this.uploads.clear();
     this.rasterTextures.clear();
+    this.presented?.dispose();
+    this.presented = null;
     for (const rasterizer of this.rasterizers.values()) rasterizer.clear();
     this.targets.trim();
   }

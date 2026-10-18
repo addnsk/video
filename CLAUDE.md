@@ -40,7 +40,8 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 - Text node done: `effects/builtin/text-node.ts` (`raster: 'text'` nodes get `raster(uv)`, `glyph(i)`), `engine/text-raster.ts`, `engine/gpu/raster.ts` (rasterizers registered on the compositor), `text` param type, e2e `text-node`.
 - Stylize/transform nodes in `effects/builtin/stylize-nodes.ts`; `time()` in node GLSL with `temporal` defs excluded from the node cache; e2e `fusion-nodes` compiles every built-in node.
 - Node templates: `core/graph-templates.ts` (capture/place), `host/template-library.ts` (localStorage), API `graph.template`/`graph.insert`/`templates.*`, node editor Save template.
-- Next: render cache spill to OPFS (phase 1), color page (phase 4).
+- Render cache done: `engine/render-cache/{frame-key,frame-store,render-cache}.ts`, wired in engine `tick`/`drawStill`, `Compositor.present`/`snapshot`, API `montage.renderCache`, e2e `render-cache`.
+- Next: color page (phase 4): qualifiers, mixers, curves, color management/ACES, noise reduction, stills/wipe/versions.
 - GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
 
 ## Known issues

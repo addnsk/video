@@ -40,6 +40,12 @@ void main() {
   outColor = vec4(c.rgb, c.a * u_opacity);
 }`;
 
+export const PRESENT = `${HEADER}
+uniform sampler2D u_image;
+void main() {
+  outColor = texture(u_image, vec2(v_uv.x, 1.0 - v_uv.y));
+}`;
+
 const GLSL_TYPES: Record<string, string> = {
   float: 'float',
   int: 'int',

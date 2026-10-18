@@ -450,6 +450,8 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     proxies: () => Object.fromEntries(session.proxies),
     stats: () => session.engine.remote.stats(),
     resetMetrics: () => session.engine.remote.resetMetrics(),
+    renderCache: (options: boolean | { enabled?: boolean; memoryBytes?: number; diskBytes?: number }) =>
+      session.engine.remote.setRenderCache(typeof options === 'boolean' ? { enabled: options } : options),
     platform: () => session.platform(),
     diagnostics: {
       entries: () => session.log.entries(),

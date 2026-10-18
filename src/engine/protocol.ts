@@ -26,6 +26,7 @@ export interface EngineStats {
   readonly floatTargets: boolean;
   readonly metrics: MetricsSnapshot;
   readonly memory: ReturnType<MemoryGovernor['report']> | null;
+  readonly renderCache: { readonly bytes: number; readonly diskBytes: number; readonly memory: number; readonly disk: number } | null;
 }
 
 export type TaskKind = 'export' | 'proxy';
@@ -65,6 +66,7 @@ export interface EngineMethods {
   capabilities(): Promise<EngineCapabilities>;
   setViewNode(target: ViewNode | null): void;
   setScopes(enabled: boolean): void;
+  setRenderCache(options: { enabled?: boolean; memoryBytes?: number; diskBytes?: number }): void;
   peaks(assetId: string): Promise<unknown>;
   thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;
   track(assetId: string, times: number[], start: { x: number; y: number }, options: MediaTrackOptions): Promise<TrackSample[]>;
