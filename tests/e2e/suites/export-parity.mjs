@@ -8,7 +8,7 @@ const POINTS = [{ x: -0.35, y: -0.3 }, { x: 0, y: 0 }, { x: 0.25, y: 0.2 }, { x:
 const TIMES = [0.5, 1.22, 3.02];
 
 function exportedPixels(path, time, width, height) {
-  const raw = execFileSync('ffmpeg', ['-v', 'error', '-ss', String(time), '-i', path, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb48le', '-'], { maxBuffer: 256 * 1024 * 1024 });
+  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', path, '-sws_flags', 'accurate_rnd+full_chroma_int+full_chroma_inp', '-vf', `select=eq(n\\,${Math.floor(time * 25)}),scale=in_color_matrix=bt709:in_range=tv:out_range=pc`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb48le', '-'], { maxBuffer: 256 * 1024 * 1024 });
   return POINTS.map(({ x, y }) => {
     const px = Math.min(width - 1, Math.floor((x + 0.5) * width));
     const py = Math.min(height - 1, Math.floor((y + 0.5) * height));

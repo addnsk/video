@@ -102,6 +102,7 @@ export class Compositor {
     return out;
   }
   private nodeTime = 0;
+  private localTime = 0;
   private rasterizers = new Map<string, Rasterizer>();
 
   registerRasterizer(id: string, rasterizer: Rasterizer): void {
@@ -206,7 +207,8 @@ export class Compositor {
     if (!upload) this.uploads.set(item.id, (upload = new UploadTexture(this.ctx)));
     const texture = upload.upload(image.source, image.width, image.height, image.key);
     const resolved = resolveItem(item, layer.local);
-    this.nodeTime = layer.local;
+    this.nodeTime = layer.sourceTime;
+    this.localTime = layer.local;
     const source = () => this.inputTransform(item, this.fit(texture, image.width, image.height, resolved.transform));
     if (options.bypassFilters) return source();
     const registry = this.registry;
@@ -310,7 +312,7 @@ export class Compositor {
     }
     const entry = this.histories.get(key);
     if (!entry) return null;
-    const step = this.nodeTime - entry.time;
+    const step = this.localTime - entry.time;
     const valid = entry.target.width === this.width && entry.target.height === this.height && step > 0 && step <= this.frameInterval * 1.5;
     return valid ? entry.target : null;
   }
@@ -318,7 +320,7 @@ export class Compositor {
   private keepHistory(key: string, output: RenderTarget) {
     const old = this.histories.get(key);
     if (old) this.evicted.push(old.target);
-    this.histories.set(key, { target: this.copyTarget(output), time: this.nodeTime });
+    this.histories.set(key, { target: this.copyTarget(output), time: this.localTime });
   }
 
   private renderNode(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, RenderTarget>, key: string): RenderTarget {

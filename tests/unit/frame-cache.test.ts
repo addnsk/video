@@ -68,3 +68,13 @@ describe('FrameCache', () => {
     expect(cache.size).toBe(0);
   });
 });
+
+describe('source frame index', () => {
+  it('matches the frame shown for a time (the last frame not after it)', async () => {
+    const { sourceFrameIndex } = await import('../../src/engine/frames');
+    expect(sourceFrameIndex(20.6 / 25, 25)).toBe(20);
+    expect(sourceFrameIndex(21.2 / 25, 25)).toBe(21);
+    expect(sourceFrameIndex(21 / 25, 25)).toBe(21);
+    expect(sourceFrameIndex((21 - 1e-9) / 25, 25)).toBe(21);
+  });
+});

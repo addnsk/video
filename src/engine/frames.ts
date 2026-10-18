@@ -57,6 +57,8 @@ abstract class LayeredSource implements FrameSource {
   abstract close(): void;
 }
 
+export const sourceFrameIndex = (time: number, fps: number): number => Math.floor(time * fps + 1e-3);
+
 export class StillFrames extends LayeredSource {
   private cache: FrameCache;
   private pinned = new Set<string>();
@@ -81,7 +83,7 @@ export class StillFrames extends LayeredSource {
     const { assetId } = item.source;
     const fps = project.assets[assetId]?.fps || 25;
     const quality: Quality = this.pool.hasProxy(assetId) ? 'preview' : 'master';
-    const key = `${assetId}:${quality}:${Math.round(layer.sourceTime * fps)}`;
+    const key = `${assetId}:${quality}:${sourceFrameIndex(layer.sourceTime, fps)}`;
     this.pinned.add(key);
     const cached = this.cache.get(key);
     if (cached) return cached;

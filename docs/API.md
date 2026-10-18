@@ -205,7 +205,7 @@ Input spaces (`montage.colorSpaces()`): `rec709`, `srgb`, `linear`, `bmdFilmGen5
 
 ```js
 montage.colorScience();                       // 'display'
-await montage.sample({ x: 0, y: 0 });         // [r, g, b, a] of the composite at the playhead, frame units
+await montage.sample({ x: 0, y: 0 });         // [r, g, b, a] as displayed (composited over black) at the playhead, frame units
 await montage.sample([{ x: -0.25, y: 0 }, { x: 0.25, y: 0 }], 2.5);
 montage.colorScience('aces');
 montage.colorSpace(0);                        // input space of clip 0's media
@@ -332,7 +332,7 @@ await montage.track(0, { x: -0.27, y: 0, apply: 'stabilize', patch: 31, search: 
 
 In the UI, the Stabilize button in the clip panel and the Track buttons of vec2 node params ask for a click on the viewer and track from the playhead to the clip end.
 
-Custom nodes are GLSL with any number of inputs and passes. Each pass defines `vec4 process(vec2 uv)` and can call `input_<name>(uv)`, `has_<name>()`, `previous(uv)` (the previous pass), `texel()`, `aspect()`, `px(projectPixels)` and `time()` (seconds from the clip start). Nodes that read `time()` must be registered with `temporal: true` so their output is not cached between frames. Nodes registered with `history: true` also get `history(uv)` and `has_history()`: their own output from the previous frame, available when the previous render was exactly one frame earlier on the same clip. Values are not clamped, so highlights above 1.0 survive to HDR export. Param and input names must not be GLSL keywords or built-in function names (`length`, `mix`, `input`, `sample`, `half`, ...) or start with `gl_` or `u_`; `register` throws with the offending names.
+Custom nodes are GLSL with any number of inputs and passes. Each pass defines `vec4 process(vec2 uv)` and can call `input_<name>(uv)`, `has_<name>()`, `previous(uv)` (the previous pass), `texel()`, `aspect()`, `px(projectPixels)` and `time()` (the source media time in seconds, so it follows speed changes and stays the same across splits; clip time for titles). Nodes that read `time()` must be registered with `temporal: true` so their output is not cached between frames. Nodes registered with `history: true` also get `history(uv)` and `has_history()`: their own output from the previous frame, available when the previous render was exactly one frame earlier on the same clip. Values are not clamped, so highlights above 1.0 survive to HDR export. Param and input names must not be GLSL keywords or built-in function names (`length`, `mix`, `input`, `sample`, `half`, ...) or start with `gl_` or `u_`; `register` throws with the offending names.
 
 ```js
 montage.nodes.register({

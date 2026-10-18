@@ -97,7 +97,10 @@ export class Editor {
     this.page = page;
     this.url = url;
     this.errors = [];
-    page.on('pageerror', (e) => this.errors.push(e.message));
+    page.on('pageerror', (e) => {
+      this.errors.push(e.message);
+      if (process.env.ERROR_STACKS) console.log('PAGE ERROR STACK', e.stack);
+    });
   }
 
   static async open(browser, url, { inline = false, viewport = { width: 1280, height: 800 }, device = null } = {}) {

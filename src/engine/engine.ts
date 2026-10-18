@@ -1,5 +1,4 @@
-import { registerProresDecoder } from '@mediabunny/prores';
-import { serializeSharedProresDecoding } from './media/prores-guard';
+import { registerProresDecoder } from './media/prores-decoder';
 import { Emitter } from '../core/emitter';
 import type { AssetMeta, Project } from '../core/model';
 import { emptyProject } from '../core/model';
@@ -39,7 +38,6 @@ const SCOPE_INTERVAL_MS = 120;
 const HEAVY_FRAME_SHARE = 0.5;
 const HEAVY_FRAME_PASSES = 8;
 
-serializeSharedProresDecoding();
 registerProresDecoder();
 
 const nextTick: (fn: () => void) => void =
@@ -298,6 +296,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       resources: resources.snapshot(),
       frameCacheBytes: this.stills?.cachedBytes ?? 0,
       floatTargets: this.gpu?.floatTargets ?? false,
+      previewSize: this.compositor?.size ?? null,
       metrics: metrics.snapshot(),
       memory: this.governor?.report() ?? null,
       renderCache: this.renderCache ? { bytes: this.renderCache.bytes, diskBytes: this.renderCache.diskUsage, ...this.renderCache.entries } : null,
@@ -399,7 +398,8 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       const px = Math.min(full.width - 1, Math.max(0, Math.floor((x + 0.5) * full.width)));
       const py = Math.min(full.height - 1, Math.max(0, Math.floor((0.5 - y) * full.height)));
       const i = (py * full.width + px) * 4;
-      return [0, 1, 2, 3].map((c) => full.data[i + c] * full.scale);
+      const alpha = Math.min(1, Math.max(0, full.data[i + 3] * full.scale));
+      return [...[0, 1, 2].map((c) => full.data[i + c] * full.scale * alpha), alpha];
     });
   }
 

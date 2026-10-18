@@ -10,6 +10,11 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - Camera log is detected from the `com.apple.proapps.customgamma` tag (Blackmagic Film and name matches for S-Log3, LogC, V-Log, Canon Log 3) and from HLG/PQ transfer tags; other files need the input color space set by hand.
 - ProRes decodes from different files run one at a time on the shared WASM runtime (each frame still uses all decoder threads); this works around a rare out-of-bounds crash that was suspected in concurrent decoding.
 
+## Preview and export
+
+- ProRes 422 stores color at half horizontal resolution: on sharp edges between saturated colors the exported chroma bleeds by a pixel and clips (for example a blue/black edge reads 0.46 blue in the edge pixel). Flat colors round-trip within 0.1%, luma is exact per pixel. Near strong edges ProRes compression adds up to about 3% ringing to saturated colors.
+- A frame n is rendered at the time n / fps (its start). Transitions and animations are sampled there in preview and export alike.
+
 ## Render cache
 
 - Only preview frames are cached; export always renders from scratch.

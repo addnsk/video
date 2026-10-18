@@ -24,6 +24,7 @@ export interface EngineStats {
   readonly resources: Record<string, { live: number; peak: number; bytes: number }>;
   readonly frameCacheBytes: number;
   readonly floatTargets: boolean;
+  readonly previewSize: { readonly width: number; readonly height: number } | null;
   readonly metrics: MetricsSnapshot;
   readonly memory: ReturnType<MemoryGovernor['report']> | null;
   readonly renderCache: { readonly bytes: number; readonly diskBytes: number; readonly memory: number; readonly disk: number } | null;

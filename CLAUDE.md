@@ -53,7 +53,7 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 ## Known issues
 
-- Rare page error "memory access out of bounds" (seen in the `fusion` and `multitrack` suites, never reproduced in isolated stress loops). Suspected cause: several decoders using the shared turbores WASM runtime and thread pool at once. Mitigation: `engine/media/prores-guard.ts` serializes decodes and closes across shared-memory decoders. If it shows up again, the guard did not fix it.
+- "memory access out of bounds" in the ProRes WASM decoder: the old guard patched a separate copy of turbores (`@mediabunny/prores` bundles its own), so it never worked. Replaced by `engine/media/prores-decoder.ts`, our own mediabunny `CustomVideoDecoder` over `turbores` that serializes all decodes and closes on the shared runtime. The error reproduced on random project seed 100 before and is gone in repeated runs since.
 
 ## Next (agreed with the owner)
 
