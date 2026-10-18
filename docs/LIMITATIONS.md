@@ -66,7 +66,6 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 
 ## Editing and interchange
 
-- Splitting or trimming a clip inside an eased keyframe segment adds a boundary key with the exact value at the cut, but the remaining part of that eased segment is re-timed, so its curve shape changes slightly.
 
 - No source viewer, trim modes, nested timelines, multicam, OTIO/FCPXML/EDL or subtitles yet (phases 6 and 7).
 - No remote storage (S3).

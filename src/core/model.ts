@@ -38,6 +38,7 @@ export interface Keyframe {
   readonly t: number;
   readonly v: number;
   readonly ease?: Easing;
+  readonly span?: readonly [number, number];
 }
 
 export type Animations = Readonly<Record<string, readonly Keyframe[]>>;

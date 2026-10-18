@@ -78,6 +78,8 @@ montage.removeKeyframe(pip.id, 'scale', 2);
 montage.clearKeyframes(pip.id, 'scale');
 ```
 
+Splitting or trimming a clip keeps every animation exactly as it played: a cut inside an eased segment leaves keys with a `span` (`[from, to]`, the part of the easing curve the segment covers), so both halves follow the original curve. Changing a key's value keeps its easing and span.
+
 Properties: `opacity`, `volume`, `x`, `y`, `scale`, `rotation`, and `montage.effectProperty(effectType, param)` for any float parameter of an effect on the item.
 
 ## Color
