@@ -103,11 +103,17 @@ These are planned features, not defects of what exists:
 
 ## Phase 6. Edit page
 
-- Source viewer with In and Out, three-point editing, insert and overwrite.
-- Ripple, roll, slip and slide trims; trim mode.
-- Markers, linked audio and video, nested timelines, several timelines per project.
-- Bins, search, clip metadata.
-- Multicam.
+- Done: source viewer with its own playhead and In/Out marks per clip; three-point insert, overwrite and append with backtiming and fit to fill (`core/three-point.ts`, `core/editing.ts`, `host/source-monitor.ts`, `montage.source`, `montage.edit`).
+- Done: ripple, roll, slip and slide in the core, as timeline tools (A/T/R/Y/U) and as frame nudges; lift and extract; ripple delete; the main track can hold gaps.
+- Done: markers with colors, notes and durations that ride with ripple edits; linked video and audio that edit together (`montage.markers`, `montage.edit.link`).
+- Done: several timelines per project and nested timelines with picture, sound, effects and retiming; compound clips from a selection (`core/timelines.ts`, `montage.timelines`).
+- Done: bins, smart bins, clip metadata and a field search (`core/bins.ts`, `montage.media`).
+- Done: multicam clips synced by sound, multiview, angle cuts from 1–9 during playback, separate audio angle (`core/multicam.ts`, `effects/audio/sync.ts`, `montage.multicam`).
+
+## Later (edit)
+
+- Per-timeline frame size and frame rate; today every timeline uses the project settings.
+- Source/record two-viewer layout; today one viewer switches between source and timeline.
 
 ## Phase 7. Deliver and interchange
 
