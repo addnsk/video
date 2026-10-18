@@ -1,3 +1,4 @@
+import { forgetTrack } from './mix';
 import { removeKey, shiftAnimations, upsertKey } from './animation';
 import { createId } from './ids';
 import type {
@@ -341,7 +342,7 @@ export const addTrack = (kind: TrackKind, id = createId(kind === 'video' ? 'v' :
 export const removeTrack = (trackId: string): Operation => (project) => {
   const track = requireTrack(project, trackId);
   if (track.magnetic) return project;
-  return { ...project, tracks: project.tracks.filter((t) => t !== track) };
+  return forgetTrack({ ...project, tracks: project.tracks.filter((t) => t !== track) }, trackId);
 };
 
 export const setTrackMuted = (trackId: string, muted: boolean): Operation => (project) =>

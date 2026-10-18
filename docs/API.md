@@ -349,13 +349,24 @@ montage.nodes.register({
 
 ## Audio effects
 
-Audio effects run in the engine's mixer per clip, in order: low cut, equalizer, compressor. Parameters are in hertz and decibels.
+Audio effects run in the engine's mixer per clip, in the order they were added. Parameters are in hertz, decibels and milliseconds.
+
+| id | name | params |
+| --- | --- | --- |
+| `highpass` | Low cut | `cutoff` (Hz) |
+| `denoise` | Noise reduction | `reduction` (dB, 0–40), `sensitivity` (0.5–6). Learns the noise floor from the quietest parts as it plays; delays the sound by 1024 samples |
+| `gate` | Gate | `threshold`, `range` (dB), `attack`, `hold`, `release` (ms) |
+| `eq` | Equalizer | `low`, `mid`, `high` (dB) |
+| `deesser` | De-esser | `frequency` (Hz), `threshold`, `reduction` (dB) |
+| `compressor` | Compressor | `threshold` (dB), `ratio`, `makeup` (dB) |
+| `limiter` | Limiter | `ceiling` (dB), `release` (ms) |
 
 ```js
 montage.audioEffects();                                   // [{ id, name, params }]
 montage.audioEffect('all', 'highpass', { cutoff: 90 });
 montage.audioEffect(0, 'eq', { low: -3, mid: 2, high: 4 });
 montage.audioEffect(0, 'compressor', { threshold: -20, ratio: 4, makeup: 6 });
+montage.audioEffect(0, 'denoise', { reduction: 15 });
 montage.audioEffect(0, 'eq', null);                       // remove
 ```
 

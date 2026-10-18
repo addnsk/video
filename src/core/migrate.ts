@@ -25,7 +25,7 @@ function migrateAsset(raw: AssetMeta & { hasVideo?: boolean }): AssetMeta {
 }
 
 export function migrateProject(raw: unknown): Project {
-  const p = raw as { version?: number; settings?: Project['settings']; assets?: Record<string, AssetMeta>; tracks?: Track[]; stills?: Project['stills'] };
+  const p = raw as { version?: number; settings?: Project['settings']; assets?: Record<string, AssetMeta>; tracks?: Track[]; stills?: Project['stills']; mix?: Project['mix'] };
   const tracks = (p.tracks ?? []).map((t) => ({
     id: t.id,
     kind: t.kind,
@@ -40,5 +40,6 @@ export function migrateProject(raw: unknown): Project {
     assets: Object.fromEntries(Object.entries(p.assets ?? {}).map(([k, v]) => [k, migrateAsset(v)])),
     tracks,
     ...(p.stills ? { stills: p.stills } : {}),
+    ...(p.mix ? { mix: p.mix } : {}),
   };
 }

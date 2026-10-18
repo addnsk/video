@@ -1,3 +1,4 @@
+import type { Mix } from './mix';
 export type ParamValue = number | boolean | string | readonly number[];
 export type ParamValues = Readonly<Record<string, ParamValue>>;
 
@@ -150,6 +151,7 @@ export interface Project {
   readonly assets: Readonly<Record<string, AssetMeta>>;
   readonly tracks: readonly Track[];
   readonly stills?: readonly Still[];
+  readonly mix?: Mix;
 }
 
 export const IDENTITY_TRANSFORM: Transform = { x: 0, y: 0, scale: 1, rotation: 0 };

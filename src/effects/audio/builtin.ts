@@ -1,3 +1,5 @@
+import { DENOISE } from './denoise';
+import { DEESSER, GATE, LIMITER } from './dynamics';
 import type { ScalarParamSpec } from '../types';
 import { BiquadFilter, biquad, type BiquadShape } from './biquad';
 import { numberParam, type AudioEffectDef } from './types';
@@ -83,6 +85,6 @@ export const COMPRESSOR: AudioEffectDef = {
   },
 };
 
-export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [HIGHPASS, EQ, COMPRESSOR];
+export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [HIGHPASS, DENOISE, GATE, EQ, DEESSER, COMPRESSOR, LIMITER];
 
 export const audioEffect = (id: string): AudioEffectDef | undefined => AUDIO_EFFECTS.find((d) => d.id === id);

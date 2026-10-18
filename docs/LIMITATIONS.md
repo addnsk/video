@@ -86,3 +86,9 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 
 - Browser tabs have a memory ceiling of roughly 2–4 GB (less on iOS); the memory governor lowers preview resolution under pressure.
 - Needs cross-origin isolation for worker threads; on hosts without it the engine runs slower on the main thread.
+
+## Audio processing
+
+- Noise reduction is spectral (1024-point STFT, noise floor learned continuously from the quietest moments). It delays the clip's sound by 1024 samples (about 21 ms at 48 kHz) and needs a second or so of material before it reaches full strength after a seek. Strong settings leave "musical noise" on broadband hiss.
+- The limiter has no look-ahead: it never exceeds the ceiling, but very fast peaks are reduced instantly, which can add distortion on heavy settings. True peak (inter-sample) is not measured; peaks are sample peaks.
+- The de-esser is a dynamic high shelf driven by a high-passed copy of the signal, updated every 32 samples.

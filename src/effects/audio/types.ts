@@ -2,6 +2,7 @@ import type { ParamValues } from '../../core/model';
 import type { ScalarParamSpec } from '../types';
 
 export interface AudioProcessor {
+  readonly latency?: number;
   process(channels: readonly Float32Array[], params: ParamValues): void;
 }
 
