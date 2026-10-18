@@ -250,7 +250,7 @@ describe('replaceEffect with several nodes of one type', () => {
       effects: [{ id: 'g1', type: 'grade', enabled: false, params: {} }, { id: 'g2', type: 'grade', enabled: true, params: { exposure: 1 } }],
     };
     const project = { ...base, tracks: [{ ...base.tracks[0], items: [item] }, ...base.tracks.slice(1)] };
-    const next = replaceEffect('i', 'grade', { exposure: 0.5 })(project).tracks[0].items[0];
+    const next = replaceEffect('i', 'grade', { exposure: 0.5 })(project as never).tracks[0].items[0];
     expect(next.effects.map((e) => [e.id, e.enabled, e.params.exposure])).toEqual([['g1', false, 0.5], ['g2', true, 1]]);
   });
 });
