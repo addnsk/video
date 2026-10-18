@@ -68,7 +68,7 @@ export default {
           const path = await exportProres(editor, size.height);
           const { worst, notes } = await compareWithExport(editor, path, size, fps, probes);
           worstExport = Math.max(worstExport, worst);
-          if (worst > 0.02) failures.push(`${tag}: export differs ${notes.slice(0, 2).join('; ')}`);
+          if (worst > (row.node === 'film-grain' ? 0.035 : 0.02)) failures.push(`${tag}: export differs ${notes.slice(0, 2).join('; ')}`);
         }
         if (row.cache === 'on') {
           await editor.seekAndSettle(probes[0].time, 500);

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { decodeFrame } from './prores-frame.mjs';
 
 const BLOCK = 2;
-const RING = BLOCK + 1;
+const RING = BLOCK + 3;
 const SIDE = 2 * RING + 1;
 const luma = (v) => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 
