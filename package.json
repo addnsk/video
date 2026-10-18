@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "npm run build && node tests/e2e/run.mjs",
-    "test:stress": "npm run build && node tests/e2e/run.mjs stress"
+    "test:stress": "npm run build && node tests/e2e/run.mjs stress",
+    "bench": "npm run build && node tests/bench/run.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "5.2.6",

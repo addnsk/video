@@ -19,6 +19,7 @@ import { MediaPool } from './media/media-pool';
 import { probe } from './media/probe';
 import { buildProxy, findProxy } from './media/proxy';
 import type { ClockAnchor, EngineEvents, EngineInit, EngineMethods, EngineStats, ExportTarget } from './protocol';
+import { metrics } from './metrics';
 import { resources } from './resources';
 import { analyze } from './scopes';
 import { TextRenderer } from './text';
@@ -75,7 +76,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private compositor: Compositor | null = null;
   private project: Project = emptyProject();
   private lastStill = { time: 0, bypass: false };
-  private playback: { anchor: ClockAnchor; bypass: boolean; frames: SequentialFrames; generation: number } | null = null;
+  private playback: { anchor: ClockAnchor; bypass: boolean; frames: SequentialFrames; generation: number; lastFrame: number | null } | null = null;
   private generation = 0;
   private canceled = new Set<string>();
   private proxyQueue: string[] = [];
@@ -158,7 +159,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   play(anchor: ClockAnchor, bypassFilters: boolean): void {
     this.stop();
     const generation = ++this.generation;
-    this.playback = { anchor, bypass: bypassFilters, frames: new SequentialFrames(this.pool, this.text, 'preview'), generation };
+    this.playback = { anchor, bypass: bypassFilters, frames: new SequentialFrames(this.pool, this.text, 'preview'), generation, lastFrame: null };
     this.loop(generation, false);
   }
 
@@ -247,7 +248,12 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       resources: resources.snapshot(),
       frameCacheBytes: this.stills?.cachedBytes ?? 0,
       floatTargets: this.gpu?.floatTargets ?? false,
+      metrics: metrics.snapshot(),
     };
+  }
+
+  resetMetrics(): void {
+    metrics.reset();
   }
 
   private needsProxy(meta: AssetMeta): boolean {
@@ -306,9 +312,17 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     if (!this.compositor || this.playback) return request.done(false);
     const time = Math.min(request.time, Math.max(0, projectDuration(this.project) - 1e-3));
     const frame = compositionAt(this.project, time);
+    const started = performance.now();
     const images = await this.stills.load(this.project, frame, this.compositor.size);
-    if (!images) return request.done(false);
+    if (!images) {
+      metrics.count('still.stale');
+      return request.done(false);
+    }
+    metrics.time('still.load', performance.now() - started);
+    const renderStart = performance.now();
     this.compositor.render(frame, images, { bypassFilters: request.bypass, capture: this.captureOption(true) });
+    metrics.time('still.render', performance.now() - renderStart);
+    metrics.time('still.total', performance.now() - started);
     request.done(true);
   }
 
@@ -330,9 +344,19 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       const duration = projectDuration(this.project);
       if (time < anchor.time) return;
       const frame = compositionAt(this.project, Math.min(time, Math.max(0, duration - 1e-3)));
+      const loadStart = performance.now();
       const images = await playback.frames.load(this.project, frame, this.compositor.size);
       if (generation !== this.generation || !images) return;
+      metrics.time('playback.load', performance.now() - loadStart);
+      const renderStart = performance.now();
       this.compositor.render(frame, images, { bypassFilters: playback.bypass, capture: this.captureOption(false) });
+      metrics.time('playback.render', performance.now() - renderStart);
+      const fps = this.project.settings?.fps ?? 25;
+      const index = Math.floor(time * fps);
+      if (playback.lastFrame !== null && index > playback.lastFrame + 1) metrics.count('playback.dropped', index - playback.lastFrame - 1);
+      if (index !== playback.lastFrame) metrics.count('playback.presented');
+      playback.lastFrame = index;
+      metrics.time('playback.lateness', Math.max(0, (epochNow() - anchor.epochMs) / 1000 * anchor.rate + anchor.time - time) * 1000);
       this.lastStill = { time: Math.min(time, duration), bypass: playback.bypass };
     } finally {
       this.ticking = false;

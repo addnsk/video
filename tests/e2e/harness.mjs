@@ -16,6 +16,11 @@ const FIXTURES = {
   'gray.mov': ['-f', 'lavfi', '-i', 'color=c=0x808080:size=640x360:rate=25', '-t', '2', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le'],
   'bmdlog.mov': ['-f', 'lavfi', '-i', 'color=c=0x808080:size=640x360:rate=25', '-t', '1', '-c:v', 'prores_ks', '-profile:v', '2', '-pix_fmt', 'yuv422p10le',
     '-movflags', 'use_metadata_tags', '-metadata', 'com.apple.proapps.customgamma=com.blackmagic-design.cinemacamera.filmlog'],
+  'prores-1080-10s.mov': ['-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=25', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
+    '-t', '10', '-c:v', 'prores_ks', '-profile:v', '3', '-pix_fmt', 'yuv422p10le', '-c:a', 'pcm_s24le'],
+  'prores-2160-4s.mov': ['-f', 'lavfi', '-i', 'testsrc2=size=3840x2160:rate=25', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
+    '-t', '4', '-c:v', 'prores_ks', '-profile:v', '3', '-pix_fmt', 'yuv422p10le', '-c:a', 'pcm_s24le'],
+  'vp9-1080-10s.webm': ['-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=25', '-t', '10', '-c:v', 'libvpx-vp9', '-b:v', '8M', '-deadline', 'realtime', '-cpu-used', '8'],
   'music.wav': ['-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=44100', '-t', '6', '-c:a', 'pcm_s16le'],
 };
 
@@ -75,13 +80,18 @@ export class Editor {
     page.on('pageerror', (e) => this.errors.push(e.message));
   }
 
-  static async open(browser, url, { inline = false, viewport = { width: 1280, height: 800 } } = {}) {
-    const context = await browser.newContext({ viewport, acceptDownloads: true });
-    await context.addInitScript((inline) => {
+  static async open(browser, url, { inline = false, viewport = { width: 1280, height: 800 }, device = null } = {}) {
+    const context = await browser.newContext({ viewport, acceptDownloads: true, hasTouch: !!device?.touch });
+    await context.addInitScript(({ inline, device }) => {
       delete window.showSaveFilePicker;
       delete window.showOpenFilePicker;
       if (inline) delete HTMLCanvasElement.prototype.transferControlToOffscreen;
-    }, inline);
+      if (device) {
+        Object.defineProperty(Navigator.prototype, 'deviceMemory', { get: () => device.memoryGb });
+        Object.defineProperty(Navigator.prototype, 'hardwareConcurrency', { get: () => device.cores });
+        Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => (device.touch ? 5 : 0) });
+      }
+    }, { inline, device });
     const page = await context.newPage();
     const editor = new Editor(context, page, url);
     await page.goto(url);

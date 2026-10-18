@@ -3,6 +3,7 @@ import type { EffectDef } from '../effects/types';
 import type { Lut3D } from '../effects/cube';
 import type { DeviceInfo, MemoryBudget } from './device';
 import type { ExportSettings } from './export/exporter';
+import type { MetricsSnapshot } from './metrics';
 import type { ScopeData } from './scopes';
 import type { FontSource } from './fonts';
 
@@ -19,6 +20,7 @@ export interface EngineStats {
   readonly resources: Record<string, { live: number; peak: number; bytes: number }>;
   readonly frameCacheBytes: number;
   readonly floatTargets: boolean;
+  readonly metrics: MetricsSnapshot;
 }
 
 export type TaskKind = 'export' | 'proxy';
@@ -53,6 +55,7 @@ export interface EngineMethods {
   cancel(id: string): void;
   ensureProxy(assetId: string, force: boolean): void;
   stats(): EngineStats;
+  resetMetrics(): void;
   setScopes(enabled: boolean): void;
   peaks(assetId: string): Promise<unknown>;
   thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;

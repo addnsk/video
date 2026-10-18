@@ -8,6 +8,7 @@ import { SequentialFrames } from '../frames';
 import { GpuContext } from '../gpu/context';
 import { Compositor, type LutProvider } from '../gpu/compositor';
 import type { MediaPool } from '../media/media-pool';
+import { metrics } from '../metrics';
 import type { ByteSink } from './sinks';
 import type { TextRenderer } from '../text';
 
@@ -84,10 +85,11 @@ export async function exportProject(
       if (isCanceled()) throw new ExportCanceled();
       const t = i / fps;
       const frame = compositionAt(project, t);
-      const images = await frames.load(project, frame, { width, height });
-      compositor.render(frame, images ?? new Map(), video.renderOptions);
-      await video.add(t, 1 / fps);
-      await writeAudioUntil(Math.min(duration, t + 1));
+      const images = await metrics.measure('export.load', () => frames.load(project, frame, { width, height }));
+      await metrics.measure('export.render', () => compositor.render(frame, images ?? new Map(), video.renderOptions));
+      await metrics.measure('export.encode', () => video.add(t, 1 / fps));
+      await metrics.measure('export.audio', () => writeAudioUntil(Math.min(duration, t + 1)));
+      metrics.count('export.frames');
       onProgress((i + 1) / frameCount);
     }
     await writeAudioUntil(duration);
