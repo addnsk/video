@@ -58,6 +58,7 @@ import {
 import type { ExportSettings } from '../engine/export/exporter';
 import type { LogSource } from '../core/log';
 import type { EditorSession } from '../host/session';
+import { createLoudnessApi, createMixerApi } from './mixer-api';
 
 export type ItemRef = string | number;
 export type ItemTarget = ItemRef | 'all';
@@ -354,6 +355,8 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     },
 
     track: (ref: ItemRef, request: TrackRequest): Promise<FramePoint[]> => trackPoint(session, resolve(ref).item.id, request),
+    mixer: createMixerApi(session),
+    ...createLoudnessApi(session),
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),
       disable: (ref: ItemRef) => void apply(disableGraph(resolve(ref).item.id)),

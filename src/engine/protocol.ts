@@ -1,3 +1,4 @@
+import type { LoudnessReading } from '../effects/audio/loudness';
 import type { MediaTrackOptions, TrackSample } from './tracking/track-media';
 import type { AssetMeta, Project } from '../core/model';
 import type { EffectDef } from '../effects/types';
@@ -30,7 +31,7 @@ export interface EngineStats {
   readonly renderCache: { readonly bytes: number; readonly diskBytes: number; readonly memory: number; readonly disk: number } | null;
 }
 
-export type TaskKind = 'export' | 'proxy';
+export type TaskKind = 'export' | 'proxy' | 'loudness';
 
 export interface EngineEvents extends Record<string, unknown> {
   progress: { task: TaskKind; id: string; fraction: number };
@@ -75,4 +76,5 @@ export interface EngineMethods {
   peaks(assetId: string): Promise<unknown>;
   thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;
   track(assetId: string, times: number[], start: { x: number; y: number }, options: MediaTrackOptions): Promise<TrackSample[]>;
+  measureLoudness(id: string, rate: number): Promise<LoudnessReading>;
 }

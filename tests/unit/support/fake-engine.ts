@@ -16,6 +16,7 @@ export class FakeEngine implements EngineClient {
   readonly budget = budgetFor({ memoryGb: 8, cores: 8, ios: false, touch: false });
   readonly mode = 'inline' as const;
   readonly calls: Call[] = [];
+  loudness = { momentary: -20, shortTerm: -20, integrated: -20, range: 3, peak: -3 };
   readonly remote: Remote<EngineMethods>;
 
   constructor(private durations: Record<string, number> = {}) {
@@ -25,6 +26,7 @@ export class FakeEngine implements EngineClient {
       exportVideo: () => new File([new Uint8Array(4)], 'out.mp4'),
       peaks: () => new Float32Array([0, 1]),
       thumbnails: (_: string, times: number[]) => times.map(() => null),
+      measureLoudness: () => this.loudness,
       stats: () => ({ budget: this.budget, resources: {}, frameCacheBytes: 0, floatTargets: true }),
     };
     this.remote = new Proxy({} as Remote<EngineMethods>, {

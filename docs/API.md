@@ -370,6 +370,41 @@ montage.audioEffect(0, 'denoise', { reduction: 15 });
 montage.audioEffect(0, 'eq', null);                       // remove
 ```
 
+## Mixer
+
+Every track has a channel strip: volume in dB (−60 to +12, −60 is silence), pan (−1 left to 1 right, a balance control), mute, audio effects and automation. Tracks go to the master or to a bus; buses have their own strips and go to the master. Clip effects and clip volume run first, then the track strip, then the bus, then the master.
+
+```js
+montage.mixer.state();                         // { tracks: [{ id, kind, output, volume, pan, mute, effects, automation }], buses: [...], master: {...} }
+montage.mixer.set('a1', { volume: -6, pan: -0.3 });
+montage.mixer.set('a1', { mute: true });       // same as montage.muteTrack('a1', true)
+const music = montage.mixer.addBus('Music');   // returns the bus id
+montage.mixer.route('a1', music);              // or 'master'
+montage.mixer.renameBus(music, 'Score');
+montage.mixer.removeBus(music);                // its tracks go back to the master
+montage.mixer.effect('a2', 'denoise', { reduction: 12 });
+montage.mixer.effect('master', 'limiter', { ceiling: -1 });
+montage.mixer.enableEffect('master', 'limiter', false);
+montage.mixer.effect('a2', 'denoise', null);   // remove
+montage.mixer.keyframe(music, 'volume', 10, 0);  // automation in timeline seconds
+montage.mixer.keyframe(music, 'volume', 12, -18);
+montage.mixer.clearKeyframe(music, 'volume', 12); // one key; omit the time to clear all
+```
+
+Targets are track ids, bus ids or `'master'` (`montage.mixer.master`). Strip effects take the same types and parameters as clip audio effects.
+
+## Loudness
+
+`montage.loudness()` mixes the whole project offline and measures it per ITU-R BS.1770 / EBU R128: `integrated`, `shortTerm` and `momentary` (the last 3 s and 400 ms), `range` (LRA) in LUFS/LU, and `peak` in dBFS. `montage.normalize(target)` measures, moves the master volume so the integrated loudness meets the target, and puts a limiter on the master when the peak would go over the target's ceiling.
+
+```js
+await montage.loudness();             // { integrated: -19.2, shortTerm: -18.7, momentary: -20.1, range: 6.3, peak: -2.4 }
+await montage.normalize('youtube');   // { before, gain, limiter }
+await montage.normalize(-23);         // integrated LUFS with a -1 dBFS ceiling
+await montage.normalize({ integrated: -16, peak: -1.5 });
+montage.loudnessTargets();            // youtube, spotify -14; apple, podcast -16; ebu -23; atsc -24
+```
+
 ## Playback, history, export
 
 `play(rate)` shuttles: rates above 1 play faster with pitched audio, negative rates scrub backward without audio. `rate` is 0 while paused.

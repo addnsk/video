@@ -66,8 +66,8 @@ export const stripValue = (strip: Strip, property: StripProperty, time: number):
 };
 
 export const panGains = (pan: number): [number, number] => {
-  const angle = ((Math.max(-1, Math.min(1, pan)) + 1) * Math.PI) / 4;
-  return [Math.cos(angle) * Math.SQRT2, Math.sin(angle) * Math.SQRT2];
+  const p = Math.max(-1, Math.min(1, pan));
+  return [p > 0 ? 1 - p : 1, p < 0 ? 1 + p : 1];
 };
 
 export class MixError extends Error {}

@@ -9,6 +9,8 @@ import type { Lut3D } from '../effects/cube';
 import { EffectRegistry } from '../effects/registry';
 import type { EffectDef } from '../effects/types';
 import { AudioMixer } from './audio/mixer';
+import { scanLoudness } from './audio/loudness-scan';
+import type { LoudnessReading } from '../effects/audio/loudness';
 import { budgetFor, type MemoryBudget } from './device';
 import { ExportCanceled, exportProject, type ExportSettings } from './export/exporter';
 import { fileHandleSink, storageSink } from './export/sinks';
@@ -264,6 +266,14 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     const run = this.thumbnailQueue.then(() => trackMedia(this.pool.acquire(assetId, 'master'), times, start, options));
     this.thumbnailQueue = run.catch(() => undefined);
     return run;
+  }
+
+  async measureLoudness(id: string, rate: number): Promise<LoudnessReading> {
+    try {
+      return await scanLoudness(this.project, this.pool, rate, (fraction) => this.emit('progress', { task: 'loudness', id, fraction }), () => this.canceled.has(id));
+    } finally {
+      this.canceled.delete(id);
+    }
   }
 
   private viewNode: ViewNode | null = null;

@@ -92,3 +92,9 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - Noise reduction is spectral (1024-point STFT, noise floor learned continuously from the quietest moments). It delays the clip's sound by 1024 samples (about 21 ms at 48 kHz) and needs a second or so of material before it reaches full strength after a seek. Strong settings leave "musical noise" on broadband hiss.
 - The limiter has no look-ahead: it never exceeds the ceiling, but very fast peaks are reduced instantly, which can add distortion on heavy settings. True peak (inter-sample) is not measured; peaks are sample peaks.
 - The de-esser is a dynamic high shelf driven by a high-passed copy of the signal, updated every 32 samples.
+
+## Mixer and loudness
+
+- Buses feed only the master (no bus-to-bus routing, sends or sidechains). Pan is a balance control for stereo; there is no surround output.
+- Strip effects keep their state only while playback runs continuously; after a seek they restart (noise reduction relearns, compressor envelopes reset). A track's strip runs only while one of its clips is sounding, so effect tails (the 21 ms of noise reduction delay) are cut at the end of the last clip.
+- `normalize` measures, then applies gain; a limiter it adds lowers the loudness of loud peaks a little, so the result can land a fraction of a LU under the target. Measuring a long project mixes all of it once (roughly real time divided by the decoding speed).

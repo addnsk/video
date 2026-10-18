@@ -34,3 +34,12 @@ export function mixInto(target: Planar, source: Planar, offset: number, startTim
     }
   }
 }
+
+export function addInto(target: Planar, source: Planar): void {
+  for (let c = 0; c < target.length; c++) {
+    const src = source[Math.min(c, source.length - 1)];
+    const dst = target[c];
+    const frames = Math.min(dst.length, src.length);
+    for (let i = 0; i < frames; i++) dst[i] += src[i];
+  }
+}
