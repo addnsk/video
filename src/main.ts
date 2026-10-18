@@ -19,6 +19,7 @@ root.append(preview);
 const engine = await startEngine(preview);
 const session = new EditorSession(engine);
 captureGlobalErrors(session.log);
+void session.platform();
 const persistence = new ProjectPersistence(session);
 const app = mountApp(root, preview, session, persistence);
 if (await persistence.restore()) {

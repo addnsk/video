@@ -96,12 +96,14 @@ const server = await startServer();
 const browser = await launchBrowser();
 const rows = [];
 const raw = [];
+const platforms = {};
 try {
   for (const [profile, device] of Object.entries(PROFILES)) {
     if (profiles.length && !profiles.includes(profile)) continue;
     for (const { name: source, path } of SOURCES) {
       if (sources.length && !sources.includes(source)) continue;
       const editor = await Editor.open(browser, server.url, { device, viewport: device ? { width: 390, height: 844 } : undefined });
+      platforms[profile] ??= await editor.run(() => montage.platform()).catch(() => null);
       await editor.import([path()]);
       await editor.until(() => montage.clips().length === 1, null, 60000);
       const results = [await seekStorm(editor), await playFor(editor, 'play', 5)];
@@ -127,9 +129,11 @@ try {
 }
 mkdirSync('bench-results', { recursive: true });
 const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-const environment = { node: process.version, platform: process.platform, softwareGl: process.env.SOFTWARE_GL === '1', chrome: browser.version?.() };
+const environment = { node: process.version, os: process.platform, softwareGl: process.env.SOFTWARE_GL === '1', platforms };
 writeFileSync(`bench-results/${stamp}.json`, JSON.stringify({ environment, rows, raw }, null, 2));
 const columns = [...new Set(rows.flatMap((r) => Object.keys(r)))];
 const table = [`| ${columns.join(' | ')} |`, `| ${columns.map(() => '---').join(' | ')} |`, ...rows.map((r) => `| ${columns.map((c) => r[c] ?? '').join(' | ')} |`)].join('\n');
-writeFileSync(`bench-results/${stamp}.md`, `# Benchmark ${stamp}\n\n${JSON.stringify(environment)}\n\n${table}\n`);
+const gpu = Object.values(platforms)[0]?.engine?.gpu?.renderer ?? 'unknown GPU';
+const browserLine = Object.values(platforms)[0]?.host?.browser;
+writeFileSync(`bench-results/${stamp}.md`, `# Benchmark ${stamp}\n\n${browserLine?.name ?? ''} ${browserLine?.version ?? ''} · ${browserLine?.os ?? ''} · ${gpu}${environment.softwareGl ? ' · software GL' : ''}\n\n${table}\n`);
 console.log(`\n${table}\n\nSaved bench-results/${stamp}.json and .md`);

@@ -1,5 +1,6 @@
 import type { LogEntry } from '../core/log';
 import { saveBlob } from '../host/file-picker';
+import { platformNotes } from '../host/platform-report';
 import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
 import { Modal } from './components/modal';
@@ -16,6 +17,8 @@ async function context(session: EditorSession): Promise<Record<string, unknown>>
     project: session.store.project.settings,
     assets: Object.values(session.store.project.assets).map((a) => ({ name: a.name, codec: a.codec, size: `${a.width}×${a.height}`, fps: a.fps })),
     resources: stats?.resources ?? null,
+    memory: stats?.memory ?? null,
+    platform: await session.platform().catch(() => null),
   };
 }
 
@@ -50,7 +53,18 @@ export function openDiagnostics(session: EditorSession): void {
     await saveBlob(new Blob([await report()], { type: 'application/json' }), `montage-log-${stamp}.json`, 'JSON', 'application/json', '.json');
   };
   modal.onClose(session.log.on('entry', render));
+  const platform = h('ul', { class: 'platform-notes', id: 'platform-notes' });
+  void session.platform().then((report) => {
+    const { browser } = report.host;
+    const gpu = report.engine.gpu;
+    platform.replaceChildren(
+      h('li', { class: 'info' }, `${browser.name} ${browser.version ?? ''} · ${browser.os} · ${report.engineMode}${gpu ? ` · ${gpu.renderer}` : ''}`),
+      ...platformNotes(report).map((n) => h('li', { class: n.level }, n.message)),
+    );
+  });
   modal.body(
+    h('h4', {}, t('platformTitle')),
+    platform,
     h('p', { class: 'hint' }, t('diagnosticsHint')),
     empty,
     list,

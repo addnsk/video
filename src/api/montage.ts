@@ -350,6 +350,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     proxies: () => Object.fromEntries(session.proxies),
     stats: () => session.engine.remote.stats(),
     resetMetrics: () => session.engine.remote.resetMetrics(),
+    platform: () => session.platform(),
     diagnostics: {
       entries: () => session.log.entries(),
       clear: () => session.log.clear(),

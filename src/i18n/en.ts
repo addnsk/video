@@ -130,6 +130,7 @@ export const en = {
   locateFiles: 'Locate files',
   relinked: 'Reconnected {count} file(s)',
   diagnosticsButton: 'Log',
+  platformTitle: 'This device',
   diagnosticsTitle: 'Problems and events',
   diagnosticsHint: 'Errors from the editor, the engine, media, exports and scripts. The report includes your browser and project setup but no media; attach it when reporting a problem.',
   diagnosticsEmpty: 'Nothing logged.',

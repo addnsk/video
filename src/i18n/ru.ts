@@ -132,6 +132,7 @@ export const ru: Strings = {
   locateFiles: 'Найти файлы',
   relinked: 'Подключено файлов: {count}',
   diagnosticsButton: 'Журнал',
+  platformTitle: 'Это устройство',
   diagnosticsTitle: 'Проблемы и события',
   diagnosticsHint: 'Ошибки редактора, движка, медиа, экспорта и скриптов. Отчёт содержит сведения о браузере и проекте, но не сами файлы; приложите его, когда сообщаете о проблеме.',
   diagnosticsEmpty: 'Записей нет.',

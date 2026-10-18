@@ -19,6 +19,7 @@ import { MediaPool } from './media/media-pool';
 import { probe } from './media/probe';
 import { buildProxy, findProxy } from './media/proxy';
 import type { ClockAnchor, EngineEvents, EngineInit, EngineMethods, EngineStats, ExportTarget } from './protocol';
+import { gpuCapabilities, probeCodecs, type EngineCapabilities } from './capabilities';
 import { MemoryGovernor } from './memory';
 import { metrics } from './metrics';
 import { resources } from './resources';
@@ -260,6 +261,14 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
       floatTargets: this.gpu?.floatTargets ?? false,
       metrics: metrics.snapshot(),
       memory: this.governor?.report() ?? null,
+    };
+  }
+
+  async capabilities(): Promise<EngineCapabilities> {
+    return {
+      gpu: this.gpu ? gpuCapabilities(this.gpu.gl, this.gpu.floatTargets) : null,
+      codecs: await probeCodecs(),
+      workers: typeof Worker !== 'undefined',
     };
   }
 

@@ -14,6 +14,8 @@ import type { EngineClient } from './engine-client';
 import type { PickedFile } from './file-picker';
 import { AssetDataCache } from './asset-data';
 import { localLogStore } from './log-store';
+import { detectPlatform } from './platform';
+import type { PlatformReport } from './platform-report';
 import { LutLibrary } from './luts';
 import { Transport } from './transport';
 
@@ -54,6 +56,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
   readonly log = new EventLog(200, localLogStore('montage.log'));
   private peakData: AssetDataCache<Float32Array>;
+  private platformReport: Promise<PlatformReport> | null = null;
   private thumbnailData: AssetDataCache<ThumbnailStrip>;
   private exportProgress = new Map<string, (fraction: number) => void>();
 
@@ -198,6 +201,11 @@ export class EditorSession extends Emitter<SessionEvents> {
     const times = Array.from({ length: count }, (_, i) => meta.start + (i + 0.5) * interval);
     const frames = (await this.engine.remote.thumbnails(assetId, times, THUMBNAIL_HEIGHT)) as (ImageBitmap | null)[];
     return { start: meta.start, interval, frames };
+  }
+
+  platform(): Promise<PlatformReport> {
+    this.platformReport ??= Promise.all([detectPlatform(), this.engine.remote.capabilities()]).then(([host, engine]) => ({ host, engine, engineMode: this.engine.mode }));
+    return this.platformReport;
   }
 
   requestProxy(assetId: string): void {
