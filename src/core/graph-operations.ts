@@ -61,7 +61,9 @@ export const removeGraphNode = (itemId: string, nodeId: string): Operation =>
   updateItem(itemId, (item) => {
     const graph = requireGraph(item);
     if (nodeId === OUTPUT_ID || !item.effects.some((e) => e.id === nodeId)) return item;
-    return { ...item, effects: item.effects.filter((e) => e.id !== nodeId), graph: graphWithoutNode(graph, nodeId) };
+    const prefix = `node.${nodeId}.`;
+    const animations = Object.fromEntries(Object.entries(item.animations).filter(([path]) => !path.startsWith(prefix)));
+    return { ...item, effects: item.effects.filter((e) => e.id !== nodeId), graph: graphWithoutNode(graph, nodeId), animations };
   });
 
 export const moveGraphNode = (itemId: string, nodeId: string, position: readonly [number, number]): Operation =>

@@ -24,6 +24,7 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - No 3D scenes, cameras or lights.
 - Masks are closed shapes; open strokes and paint are not supported. Bezier and polygon masks are flattened to at most 128 points.
 - Rotoscoping keyframes are per coordinate; adding or removing vertices on an animated mask is blocked.
+- A graph with nothing connected to the output renders transparent black.
 - `graph.disable` keeps added nodes in the effect chain; remove nodes you no longer want.
 - Node templates are stored in the browser (localStorage), not in the project file; export them as JSON with `montage.templates.get` to move them.
 

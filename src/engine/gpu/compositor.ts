@@ -301,7 +301,13 @@ export class Compositor {
     this.histories.clear();
   }
 
+  private historiesGeneration = -1;
+
   private historyFor(key: string): RenderTarget | null {
+    if (this.historiesGeneration !== this.ctx.generation) {
+      this.histories.clear();
+      this.historiesGeneration = this.ctx.generation;
+    }
     const entry = this.histories.get(key);
     if (!entry) return null;
     const step = this.nodeTime - entry.time;
