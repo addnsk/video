@@ -60,6 +60,6 @@ export function fitView(graph: NodeGraph, width: number, height: number, margin 
   const ys = graph.nodes.map((n) => n.position[1]);
   const [minX, maxX] = [Math.min(...xs), Math.max(...xs) + NODE_WIDTH];
   const [minY, maxY] = [Math.min(...ys), Math.max(...ys) + NODE_HEADER + PORT_ROW * 3];
-  const zoom = Math.min(1.2, Math.max(0.65, Math.min((width - margin * 2) / (maxX - minX), (height - margin * 2) / (maxY - minY))));
+  const zoom = Math.min(1.2, Math.max(0.45, Math.min((width - margin * 2) / (maxX - minX), (height - margin * 2) / (maxY - minY))));
   return { x: margin - minX * zoom, y: margin - minY * zoom, zoom };
 }

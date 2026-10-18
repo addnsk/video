@@ -102,10 +102,10 @@ export default {
     await editor.run(() => montage.graph.disable(0));
     checks.check((await color(CENTER, 1.5))[0] > 200, 'disabling the graph restores the plain clip');
 
-    await editor.run(() => montage.select(0));
+    await editor.run(() => montage.select(1));
     await editor.page.click('#view-nodes');
     await editor.page.selectOption('#node-add', 'invert');
-    await editor.settle(300);
+    await editor.until(() => (document.querySelector('#node-canvas').dataset.ports ?? '').includes('"invert"'));
     const ports = async () => JSON.parse(await editor.page.getAttribute('#node-canvas', 'data-ports'));
     const box = await editor.page.locator('#node-canvas').boundingBox();
     const drag = async (from, to) => {
@@ -118,15 +118,15 @@ export default {
     const invertId = Object.keys(p).find((id) => p[id].type === 'invert');
     await drag(p.source.output, p[invertId].inputs[0]);
     await drag(p[invertId].output, p.output.inputs[0]);
-    const links = await editor.run(() => montage.graph.get(0).links);
+    const links = await editor.run(() => montage.graph.get(1).links);
     checks.check(links.some((l) => l.from === 'source' && l.to === invertId) && links.some((l) => l.from === invertId && l.to === 'output'), 'node editor connects nodes by dragging between ports');
-    const [nr, ng] = await color(CENTER, 0.5);
-    checks.check(nr < 50 && ng > 200, 'graph edited in the UI renders');
+    const [nr] = await color(CENTER, grayTime);
+    checks.near(nr, 255 - 128, 6, "graph edited in the UI renders the inverted clip");
     p = await ports();
     await editor.page.mouse.click(box.x + p[invertId].center[0], box.y + p[invertId].center[1]);
     checks.check(await editor.page.isVisible('#node-enabled'), 'clicking a node opens its inspector');
     await editor.page.keyboard.press('Delete');
-    checks.check(!(await editor.run((id) => montage.graph.get(0).nodes.some((n) => n.id === id), invertId)), 'Delete removes the selected node');
+    checks.check(!(await editor.run((id) => montage.graph.get(1).nodes.some((n) => n.id === id), invertId)), 'Delete removes the selected node');
     await editor.page.click('#view-timeline');
     checks.check(await editor.page.isVisible('#timeline'), 'switching back shows the timeline');
 

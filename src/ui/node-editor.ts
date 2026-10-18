@@ -134,9 +134,9 @@ export class NodeEditor {
     if (this.addSelect.options.length !== types.length + 1) {
       this.addSelect.replaceChildren(h('option', { value: '' }, t('nodesAdd')), ...types.map((d) => h('option', { value: d.id }, d.name)));
     }
-    if (item && this.fitted !== item.id) {
+    if (item && this.fitted !== item.id && this.canvas.clientWidth) {
       this.fitted = item.id;
-      requestAnimationFrame(() => this.fit());
+      this.fit();
     }
     this.renderInspector(item);
     this.draw();
@@ -155,10 +155,22 @@ export class NodeEditor {
     const id = createId('fx');
     const graph = this.graph(item);
     const output = nodeById(graph, OUTPUT_ID);
-    const position: [number, number] = output ? [output.position[0] - 60, output.position[1] + 140] : [0, 140];
+    const position: [number, number] = output ? [output.position[0] - 60, output.position[1] + 90] : [0, 90];
     this.edit((itemId) => [addGraphNode(itemId, type, {}, position, id)]);
     this.selectedNode = id;
+    this.reveal(position);
     this.refresh();
+  }
+
+  private reveal([x, y]: readonly [number, number]) {
+    const width = this.canvas.clientWidth || 600;
+    const height = this.canvas.clientHeight || 300;
+    const px = x * this.view.zoom + this.view.x;
+    const py = y * this.view.zoom + this.view.y;
+    const margin = 40;
+    const dx = px < margin ? margin - px : px + 160 * this.view.zoom > width - margin ? width - margin - px - 160 * this.view.zoom : 0;
+    const dy = py < margin ? margin - py : py + 80 * this.view.zoom > height - margin ? height - margin - py - 80 * this.view.zoom : 0;
+    this.view = { ...this.view, x: this.view.x + dx, y: this.view.y + dy };
   }
 
   private deleteSelected() {
