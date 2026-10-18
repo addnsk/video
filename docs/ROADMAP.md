@@ -65,7 +65,7 @@ Status: qualifiers (HSL, 3D), parallel mixer, hue/lum/sat curves, HDR wheels, co
 Heavy CPU work moves out of plain JavaScript; everything else stays as is (decoding and encoding through WebCodecs, rendering on the GPU).
 
 - Done: ProRes encoder slice coding in WebAssembly SIMD (`native/prores/encoder.c`, built by `scripts/build-wasm.sh` with clang). Output is byte-identical to the JS encoder, which stays as the fallback; threads are the existing worker pool. Together with a quantizer search that starts from the previous slice, a 1080p HQ frame went from 2434 ms to 190 ms per worker (Node, one core).
-- Point tracker on the GPU (or WebAssembly SIMD) for large search windows and full-resolution tracking.
+- Done: point tracker correlation in WebAssembly SIMD (`native/tracking/matcher.c`), JS scorer kept as the fallback. A 21 px patch over a ±48 px search on a 1080p frame takes 4.3 ms instead of 14 ms; at the default ±16 px, 0.8 ms instead of 2.7 ms. The rest of a tracking step (decoding and reading the frame back) now dominates, so a GPU matcher is not worth it yet.
 - Scopes (waveform, vectorscope, histogram) computed on the GPU instead of a CPU readback.
 
 ## Phase 5. Audio (Fairlight-like)

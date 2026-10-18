@@ -1,6 +1,7 @@
 import { resources } from '../resources';
 import { sampleBytes } from '../media/frame';
 import type { MediaFile } from '../media/media-file';
+import { loadNativeScorer } from './native-scorer';
 import { lumaFromRgba, PointTracker, type TrackOptions } from './tracker';
 
 export interface TrackSample {
@@ -20,6 +21,7 @@ export async function trackMedia(media: MediaFile, times: readonly number[], sta
   try {
     const sink = await media.video();
     if (!sink) return out;
+    const scorer = (await loadNativeScorer()) ?? undefined;
     let tracker: PointTracker | null = null;
     let canvas: OffscreenCanvas | null = null;
     let index = 0;
@@ -35,7 +37,7 @@ export async function trackMedia(media: MediaFile, times: readonly number[], sta
         const context = canvas.getContext('2d', { willReadFrequently: true })!;
         context.drawImage(sample.toCanvasImageSource() as CanvasImageSource, 0, 0, width, height);
         const luma = lumaFromRgba(context.getImageData(0, 0, width, height).data, width, height);
-        tracker ??= new PointTracker(options, start.x * width, start.y * height);
+        tracker ??= new PointTracker(options, start.x * width, start.y * height, scorer);
         const result = tracker.step(luma);
         out.push({ time, x: result.x / width, y: result.y / height, confidence: result.confidence });
       } finally {
