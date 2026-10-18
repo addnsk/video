@@ -58,6 +58,10 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - Size or outline width animation re-rasterizes the text every frame (slower).
 - Glyph boxes may overlap with tight kerning; during strong per-glyph animation a neighbour's edge can show.
 
+## Scopes
+
+- Scopes are computed from a 320 px wide copy of the viewer frame (8-bit, after the output transform) and arrive a frame or two after the picture.
+
 ## Tracking
 
 - One point tracker (translation only); no planar, rotation or scale tracking.

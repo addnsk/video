@@ -604,7 +604,9 @@ export class Compositor {
     }
   }
 
-  private captureTarget: { texture: WebGLTexture; framebuffer: WebGLFramebuffer; width: number; height: number; generation: number } | null = null;
+  private captureTarget: { texture: WebGLTexture; framebuffer: WebGLFramebuffer; buffer: WebGLBuffer; width: number; height: number; generation: number } | null = null;
+  private captureBusy = false;
+  private captureQueued: ((pixels: Uint8Array, width: number, height: number) => void) | null = null;
 
   private capture(source: RenderTarget, sink: (pixels: Uint8Array, width: number, height: number) => void) {
     const gl = this.ctx.gl;
@@ -615,6 +617,7 @@ export class Compositor {
       if (target && target.generation === this.ctx.generation) {
         gl.deleteTexture(target.texture);
         gl.deleteFramebuffer(target.framebuffer);
+        gl.deleteBuffer(target.buffer);
       }
       const texture = gl.createTexture()!;
       gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -624,7 +627,11 @@ export class Compositor {
       const framebuffer = gl.createFramebuffer()!;
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-      target = this.captureTarget = { texture, framebuffer, width, height, generation: this.ctx.generation };
+      const buffer = gl.createBuffer()!;
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+      gl.bufferData(gl.PIXEL_PACK_BUFFER, width * height * 4, gl.STREAM_READ);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+      target = this.captureTarget = { texture, framebuffer, buffer, width, height, generation: this.ctx.generation };
     }
     const program = this.ctx.program(COPY);
     gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
@@ -635,9 +642,48 @@ export class Compositor {
     this.bindTexture(program, 'u_image', 0, source.texture);
     gl.uniform1f(this.ctx.uniform(program, 'u_opacity'), 1);
     this.ctx.drawQuad();
-    const pixels = new Uint8Array(width * height * 4);
-    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    sink(pixels, width, height);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    if (this.captureBusy) this.captureQueued = sink;
+    else this.readCapture(target, sink);
+  }
+
+  private readCapture(target: NonNullable<Compositor['captureTarget']>, sink: (pixels: Uint8Array, width: number, height: number) => void) {
+    const gl = this.ctx.gl;
+    const { width, height } = target;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, target.buffer);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    gl.flush();
+    if (!fence) return;
+    this.captureBusy = true;
+    const poll = () => {
+      if (target.generation !== this.ctx.generation || this.captureTarget !== target) {
+        this.captureBusy = false;
+        this.captureQueued = null;
+        return;
+      }
+      const status = gl.clientWaitSync(fence, 0, 0);
+      if (status === gl.TIMEOUT_EXPIRED) {
+        setTimeout(poll, 4);
+        return;
+      }
+      gl.deleteSync(fence);
+      this.captureBusy = false;
+      if (status !== gl.WAIT_FAILED) {
+        const pixels = new Uint8Array(width * height * 4);
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, target.buffer);
+        gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixels);
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+        sink(pixels, width, height);
+      }
+      const queued = this.captureQueued;
+      this.captureQueued = null;
+      if (queued) this.readCapture(target, queued);
+    };
+    setTimeout(poll, 0);
   }
 
   private fullFrame: Float32Array | Uint8Array | null = null;
