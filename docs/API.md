@@ -221,6 +221,8 @@ montage.colorSpace(2, null, { clip: true });   // back to the media setting
 
 Curves and the color warper keep values above 1 and below 0 (curves continue the slope of their ends). Mask vertices can be added and removed on animated masks: a new vertex gets keys at every existing key time, placed halfway along its edge, and a removed vertex takes its keys with it.
 
+Grade versions and stills hold the color work of a clip (its effects, node graph and node keyframes), not its position, scale or opacity. Node templates are a personal library kept in the browser, shared across projects; move them with `montage.templates.get` and `montage.templates.save`. Scopes are computed from a 320 px wide copy of the viewer frame after the output transform and arrive a frame or two after the picture.
+
 Generator nodes (background, gradient, noise, text) take their colors as display values: in `aces` they are converted into ACEScct, so they look the same in both working spaces. Values below black (negative light from log footage under the noise floor) are kept through the whole chain instead of being clipped.
 
 In the color panel the same choices are the Working space and Input color space selects. The `grade` filter keeps its legacy `inputTransform` parameter for old projects; new imports use the input color space instead.

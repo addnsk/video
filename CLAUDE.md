@@ -48,7 +48,7 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 ## Known issues
 
-- "memory access out of bounds" in the ProRes WASM decoder: the old guard patched a separate copy of turbores (`@mediabunny/prores` bundles its own), so it never worked. Replaced by `engine/media/prores-decoder.ts`, our own mediabunny `CustomVideoDecoder` over `turbores` that serializes all decodes and closes on the shared runtime. The error reproduced on random project seed 100 before and is gone in repeated runs since.
+- None open. ProRes decoding used to be serialized across files to dodge a "memory access out of bounds" crash; that crash came from the copy of turbores bundled in `@mediabunny/prores`. Our own `engine/media/prores-decoder.ts` decodes concurrently and the stress, multitrack and random-project suites (seed 100 reproduced the crash before) pass repeatedly.
 
 ## Next (agreed with the owner)
 

@@ -78,6 +78,17 @@ Heavy CPU work moves out of plain JavaScript; everything else stays as is (decod
 - Done: live momentary and short-term loudness in the transport, true-peak measurement.
 - Done: sends (pre/post fader), bus-to-bus routing with loop checks, reverb and delay, latency compensation across clips, tracks and buses, effect tails after the last clip, warm-up after seeks, a true-peak look-ahead limiter and a trim stage that `normalize` uses.
 
+## Next (color and compositing)
+
+These are planned features, not defects of what exists:
+
+- ACES HDR output transforms (Rec.2100 PQ/HLG at 1000 nits); today an ACES project goes through the Rec.709 RRT/ODT fit, so HDR export from ACES carries SDR-mapped highlights. Use the `display` working space for HDR deliveries until then.
+- Exposure-index-aware ARRI LogC3 (today EI 800) and camera-specific IDT matrices; detection of more camera log tags on import.
+- Motion-compensated temporal noise reduction and non-local-means spatial noise reduction.
+- Wipe layouts (split screen, angle, ungraded comparison) and full-resolution stills stored next to the project.
+- Per-node resolution and region of interest; 3D scenes, cameras and lights; open strokes and paint.
+- Faster first playback of 4K ProRes right after import (decoders, thumbnails and proxies start together today).
+
 ## Later (text)
 
 - Loading user fonts (font files and Google Fonts); today the text node offers IBM Plex Sans, IBM Plex Mono and the system serif and sans-serif.

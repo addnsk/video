@@ -1,14 +1,6 @@
 import { CustomVideoDecoder, VideoSample, registerDecoder, type EncodedPacket, type VideoCodec } from 'mediabunny';
 import { Decoder, Frame, PIXEL_FORMATS, type PixelFormat } from 'turbores';
 
-let chain: Promise<unknown> = Promise.resolve();
-
-const serialized = <T>(task: () => Promise<T>): Promise<T> => {
-  const next = chain.then(task);
-  chain = next.catch(() => undefined);
-  return next;
-};
-
 const QUEUE_LIMIT = 2;
 
 let supportedFormats: PixelFormat[] | null = null;
@@ -51,7 +43,7 @@ export class ProresDecoder extends CustomVideoDecoder {
 
   async decode(packet: EncodedPacket): Promise<void> {
     this.queued++;
-    const run = this.pending.then(() => serialized(() => this.decodeOne(packet))).finally(() => this.queued--);
+    const run = this.pending.then(() => this.decodeOne(packet)).finally(() => this.queued--);
     this.pending = run.catch((error) => this.onError(error));
     if (this.queued >= QUEUE_LIMIT) await this.pending;
   }
@@ -101,7 +93,7 @@ export class ProresDecoder extends CustomVideoDecoder {
     await this.pending;
     const decoder = this.decoder;
     this.decoder = null;
-    if (decoder) await serialized(() => decoder.close());
+    if (decoder) await decoder.close();
   }
 }
 
