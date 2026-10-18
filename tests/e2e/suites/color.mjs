@@ -61,8 +61,26 @@ export default {
     }
     await editor.import([fixture('bmdlog.mov')], 3);
     await editor.until(() => montage.clips().length === 3);
-    const auto = await editor.run(() => montage.clip(2).effects);
-    checks.check(auto[0]?.params.inputTransform === 'bmdFilmGen5', `Blackmagic Film log footage gets the Rec.709 transform on import (${JSON.stringify(auto)})`);
+    const auto = await editor.run(() => montage.colorSpace(2));
+    checks.check(auto === 'bmdFilmGen5', `Blackmagic Film log footage is tagged with its input color space on import (${auto})`);
+    const logAt = await editor.run(() => montage.clip(2).start + 0.5);
+    const managed = await editor.previewColorAt(logAt, { x: 0.5, y: 0.5, size: 0.04 });
+    await editor.run(() => montage.colorSpace(2, 'rec709'));
+    const raw = await editor.previewColorAt(logAt, { x: 0.5, y: 0.5, size: 0.04 });
+    checks.check(Math.abs(managed[0] - raw[0]) > 10, `the input transform changes the log picture (${managed[0]} vs ${raw[0]})`);
+
+    await editor.run(() => montage.effect(0, 'grade', null));
+    const gray = await editor.previewColorAt(0.5, { x: 0.5, y: 0.5, size: 0.04 });
+    await editor.run(() => montage.colorScience('aces'));
+    const acesGray = await editor.previewColorAt(0.5, { x: 0.5, y: 0.5, size: 0.04 });
+    checks.check(gray.every((v, i) => Math.abs(v - acesGray[i]) <= 4), `Rec.709 media round-trips through ACES unchanged (${gray} vs ${acesGray})`);
+    await editor.run(() => montage.grade(0, { exposure: 1 }));
+    const acesBrighter = await editor.previewColorAt(0.5, { x: 0.5, y: 0.5, size: 0.04 });
+    checks.check(acesBrighter[0] > acesGray[0] + 20 && acesBrighter[0] < 250, `exposure works in ACEScct (${acesGray[0]} → ${acesBrighter[0]})`);
+    await editor.run(() => montage.colorSpace(2, 'bmdFilmGen5'));
+    const acesLog = await editor.previewColorAt(logAt, { x: 0.5, y: 0.5, size: 0.04 });
+    checks.check(acesLog[0] > 20 && acesLog[0] < 235, `log media through ACES lands in the display range (${acesLog})`);
+    await editor.run(() => montage.colorScience('display'));
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);
     await editor.close();
   },

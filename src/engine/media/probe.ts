@@ -21,15 +21,27 @@ export const codecLabel = (codec: string): string => CODEC_LABELS[codec] ?? code
 
 export class UnsupportedMediaError extends Error {}
 
-const CAMERA_LOG_PROFILES: readonly { pattern: RegExp; effects: AssetMeta['defaultEffects'] }[] = [
-  { pattern: /blackmagic-design\.cinemacamera\.filmlog/i, effects: [{ type: 'grade', params: { inputTransform: 'bmdFilmGen5' } }] },
+const CAMERA_LOG_PROFILES: readonly { pattern: RegExp; colorSpace: string }[] = [
+  { pattern: /blackmagic-design\.cinemacamera\.filmlog/i, colorSpace: 'bmdFilmGen5' },
+  { pattern: /s-?log3/i, colorSpace: 'slog3' },
+  { pattern: /log-?c/i, colorSpace: 'logc3' },
+  { pattern: /v-?log/i, colorSpace: 'vlog' },
+  { pattern: /c(anon)?-?log ?3/i, colorSpace: 'clog3' },
 ];
 
-function defaultEffectsFor(tags: MetadataTags | null): Pick<AssetMeta, 'defaultEffects'> {
+function colorSpaceFor(tags: MetadataTags | null): Pick<AssetMeta, 'colorSpace'> {
   const gamma = tags?.raw?.['com.apple.proapps.customgamma'];
   if (typeof gamma !== 'string') return {};
   const profile = CAMERA_LOG_PROFILES.find((p) => p.pattern.test(gamma));
-  return profile ? { defaultEffects: profile.effects } : {};
+  return profile ? { colorSpace: profile.colorSpace } : {};
+}
+
+async function hdrColorSpace(video: Awaited<ReturnType<Input['getPrimaryVideoTrack']>>): Promise<Pick<AssetMeta, 'colorSpace'>> {
+  const space = video ? await video.getColorSpace().catch(() => null) : null;
+  const transfer = String(space?.transfer ?? '');
+  if (transfer === 'pq') return { colorSpace: 'rec2020Pq' };
+  if (transfer === 'hlg') return { colorSpace: 'rec2020Hlg' };
+  return {};
 }
 
 export async function probe(file: File, id: string): Promise<AssetMeta> {
@@ -66,7 +78,8 @@ export async function probe(file: File, id: string): Promise<AssetMeta> {
       hasAudio: !!audio,
       sampleRate,
       channels,
-      ...defaultEffectsFor(await input.getMetadataTags().catch(() => null)),
+      ...(await hdrColorSpace(video)),
+      ...colorSpaceFor(await input.getMetadataTags().catch(() => null)),
     };
   } finally {
     input.dispose();

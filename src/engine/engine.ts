@@ -133,7 +133,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     });
     this.gpu = new GpuContext(surface);
     this.compositor = new Compositor(this.gpu, this.registry, { lut: (id) => this.luts.get(id) });
-    if (this.project.settings) this.compositor.setFrame(this.project.settings.width, this.project.settings.height);
+    this.compositor.setProject(this.project);
     this.compositor.registerRasterizer('text', this.textRaster);
     this.compositor.onError = (message) => this.emit('error', { message });
     this.gpu.on('lost', () => this.emit('context', { state: 'lost' }));
@@ -155,7 +155,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
 
   setProject(project: Project): void {
     this.project = project;
-    if (project.settings) this.compositor?.setFrame(project.settings.width, project.settings.height);
+    this.compositor?.setProject(project);
     this.redraw();
   }
 
@@ -377,7 +377,9 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private cacheKey(frame: ReturnType<typeof compositionAt>, bypass: boolean): string | null {
     if (!this.renderCacheEnabled || !this.compositor) return null;
     const surface = this.compositor.surface;
-    return frameKey(frame, { width: surface.width, height: surface.height, bypass, viewNode: this.viewNode, generation: this.renderGeneration });
+    const spaces = frame.layers.flatMap((l) => [l.base, ...(l.transition ? [l.transition.incoming] : [])]).map(({ placement: { item } }) => (item.kind === 'media' ? (this.project.assets[item.source.assetId]?.colorSpace ?? '') : ''));
+    const color = `${this.project.settings?.colorScience ?? 'display'}:${spaces.join(',')}`;
+    return frameKey(frame, { width: surface.width, height: surface.height, bypass, viewNode: this.viewNode, generation: this.renderGeneration, color });
   }
 
   private async presentCached(key: string | null): Promise<boolean> {

@@ -1,5 +1,5 @@
 import { PROPERTY, effectProperty } from '../core/animation';
-import type { AssetMeta, Item, ParamValue, ParamValues, TextStyle, TrackKind, Transform } from '../core/model';
+import type { AssetMeta, ColorScience, Item, ParamValue, ParamValues, TextStyle, TrackKind, Transform } from '../core/model';
 import { itemLength, type PresetPhase } from '../core/model';
 import { ANIMATION_PRESETS, animationPreset } from '../core/presets';
 import {
@@ -20,6 +20,8 @@ import {
   setTextStyle,
   setTrackMuted,
   setPreset,
+  setAssetColorSpace,
+  setColorScience,
   setSpeed,
   setTransition,
   setVolume,
@@ -35,6 +37,7 @@ import { trackPoint, type TrackRequest } from '../host/point-tracking';
 import { createId } from '../core/ids';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
 import { AUDIO_EFFECTS, audioEffect } from '../effects/audio/builtin';
+import { DEFAULT_INPUT_SPACE, INPUT_SPACES } from '../effects/color-management';
 import { parseCube } from '../effects/cube';
 import { glTransition } from '../effects/gl-transitions';
 import { defaultParams, type FilterDef, type NodeCategory, type ParamSpec } from '../effects/types';
@@ -272,6 +275,27 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     },
     clear: () => void apply(clearTrack(session.videoTrackId)),
 
+    colorScience(science?: ColorScience): ColorScience {
+      if (science) {
+        if (science !== 'display' && science !== 'aces') throw new Error('Color science must be "display" or "aces"');
+        apply(setColorScience(science));
+      }
+      return store.project.settings?.colorScience ?? 'display';
+    },
+    colorSpaces: () => INPUT_SPACES.map(({ id, label, kind }) => ({ id, label, kind })),
+    colorSpace(target: ItemRef | { asset: string }, space?: string): string {
+      const assetId = typeof target === 'object' ? target.asset : (() => {
+        const { item } = resolve(target);
+        if (item.kind !== 'media') throw new Error('Titles have no input color space');
+        return item.source.assetId;
+      })();
+      if (!store.project.assets[assetId]) throw new Error(`No asset ${assetId}`);
+      if (space) {
+        if (!INPUT_SPACES.some((s) => s.id === space)) throw new Error(`Unknown color space "${space}". Available: ${INPUT_SPACES.map((s) => s.id).join(', ')}`);
+        apply(setAssetColorSpace(assetId, space));
+      }
+      return store.project.assets[assetId].colorSpace ?? DEFAULT_INPUT_SPACE;
+    },
     grade(target: ItemTarget, patch: GradePatch) {
       void store.transaction(() => {
         for (const id of targets(target)) apply(upsertEffect(id, 'grade', gradeParams(resolve(id).item, patch)));

@@ -157,7 +157,7 @@ vec3 zoneShift(vec3 w) {
   return tint + w.z * 2.0;
 }
 vec4 effect(vec4 color, vec2 uv) {
-  vec3 c = max(color.rgb, 0.0);
+  vec3 c = max(toWorkingLinear(color.rgb), 0.0);
   float ev = log2(max(dot(c, HDR_LUMA), 1e-6) / 0.18);
   float f = max(falloff, 0.2);
   float wDark = 1.0 - smoothstep(darkPoint - f, darkPoint + f, ev);
@@ -168,7 +168,7 @@ vec4 effect(vec4 color, vec2 uv) {
   vec3 stops = zoneShift(dark) * wDark + zoneShift(shadow) * wShadow + zoneShift(light) * wLight + zoneShift(highlight) * wHighlight + zoneShift(global);
   c *= exp2(stops);
   c = mix(vec3(dot(c, HDR_LUMA)), c, saturation);
-  return vec4(c, color.a);
+  return vec4(fromWorkingLinear(c), color.a);
 }
 `,
 };

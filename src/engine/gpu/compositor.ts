@@ -1,5 +1,5 @@
 import { resolveItem } from '../../core/resolve';
-import type { EffectInstance, ParamValue, ParamValues, Transform } from '../../core/model';
+import type { ColorScience, EffectInstance, Item, ParamValue, ParamValues, Project, Transform } from '../../core/model';
 import type { CompositionFrame, LayerFrame, TrackFrame } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';
 import { defaultParams, type FilterDef, type NodeDef, type ParamSpec, type TransitionDef } from '../../effects/types';
@@ -11,6 +11,7 @@ import { renderGraph } from './graph-renderer';
 import { sampleCurve } from '../../effects/curves';
 import { bezierPath, catmullRom } from '../../effects/points';
 import { RasterTextures, type Rasterizer } from './raster';
+import { needsInputTransform } from '../../effects/color-management';
 import { CurveTextures, LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
 
 export interface LutProvider {
@@ -76,6 +77,29 @@ export class Compositor {
   }
 
   private rasterTextures: RasterTextures;
+  private colorScience: ColorScience = 'display';
+  private assets: Project['assets'] = {};
+
+  setProject(project: Project): void {
+    if (project.settings) this.setFrame(project.settings.width, project.settings.height);
+    this.colorScience = project.settings?.colorScience ?? 'display';
+    this.assets = project.assets;
+  }
+
+  private inputTransform(item: Item, input: RenderTarget): RenderTarget {
+    const space = item.kind === 'media' ? this.assets[item.source.assetId]?.colorSpace : undefined;
+    if (!needsInputTransform(this.colorScience, space)) return input;
+    const out = this.applyFilter({ id: 'input-transform', type: 'input-transform', enabled: true, params: { space: space ?? 'rec709', science: this.colorScience } }, input);
+    if (out !== input) this.targets.release(input);
+    return out;
+  }
+
+  private outputTransform(input: RenderTarget): RenderTarget {
+    if (this.colorScience !== 'aces') return input;
+    const out = this.applyFilter({ id: 'output-transform', type: 'output-transform', enabled: true, params: {} }, input);
+    if (out !== input) this.targets.release(input);
+    return out;
+  }
   private nodeTime = 0;
   private rasterizers = new Map<string, Rasterizer>();
 
@@ -124,6 +148,7 @@ export class Compositor {
       this.blend(result, accumulator, opacity);
       this.targets.release(result);
     }
+    if (accumulator) accumulator = this.outputTransform(accumulator);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, this.ctx.surface.width, this.ctx.surface.height);
     gl.clearColor(0, 0, 0, 1);
@@ -181,7 +206,7 @@ export class Compositor {
     const texture = upload.upload(image.source, image.width, image.height, image.key);
     const resolved = resolveItem(item, layer.local);
     this.nodeTime = layer.local;
-    const source = () => this.fit(texture, image.width, image.height, resolved.transform);
+    const source = () => this.inputTransform(item, this.fit(texture, image.width, image.height, resolved.transform));
     if (options.bypassFilters) return source();
     const registry = this.registry;
     const graph = materialize(resolved.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
@@ -284,6 +309,7 @@ export class Compositor {
       gl.uniform2f(this.ctx.uniform(program, 'u_resolution'), this.width, this.height);
       gl.uniform1f(this.ctx.uniform(program, 'u_pixel_scale'), this.pixelScale);
       gl.uniform1f(this.ctx.uniform(program, 'u_time'), this.nodeTime);
+      gl.uniform1i(this.ctx.uniform(program, 'u_aces'), this.colorScience === 'aces' ? 1 : 0);
       let unit = 0;
       for (const { name } of def.inputs) {
         const input = inputs.get(name);
@@ -411,6 +437,7 @@ export class Compositor {
     gl.viewport(0, 0, this.width, this.height);
     gl.useProgram(program);
     this.bindTexture(program, 'u_source', 0, input.texture);
+    gl.uniform1i(this.ctx.uniform(program, 'u_aces'), this.colorScience === 'aces' ? 1 : 0);
     this.applyParams(program, def.params, effect.params, 1);
     this.ctx.drawQuad();
     return out;

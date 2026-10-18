@@ -1,8 +1,9 @@
-import type { Item, ParamValue, ParamValues } from '../../core/model';
-import { copyEffects, replaceEffect, upsertEffect } from '../../core/operations';
+import type { ColorScience, Item, ParamValue, ParamValues } from '../../core/model';
+import { copyEffects, replaceEffect, setAssetColorSpace, setColorScience, upsertEffect } from '../../core/operations';
+import { DEFAULT_INPUT_SPACE, INPUT_SPACES } from '../../effects/color-management';
 import { findPlacement, placeTrack } from '../../core/timeline';
 import { parseCube } from '../../effects/cube';
-import { defaultParams, type EnumParamSpec, type ScalarParamSpec } from '../../effects/types';
+import { defaultParams, type ScalarParamSpec } from '../../effects/types';
 import type { EditorSession } from '../../host/session';
 import { t } from '../../i18n';
 import { CurveEditor } from '../components/curve-editor';
@@ -24,6 +25,7 @@ const WHEELS = [
 export class ColorPanel extends Panel {
   private hint = h('p', { class: 'hint' }, t('colorHint'));
   private input: HTMLSelectElement;
+  private science: HTMLSelectElement;
   private sliders = new Map<string, Slider>();
   private wheels = new Map<string, ColorWheel>();
   private lutName = h('div', { class: 'mono' });
@@ -37,9 +39,11 @@ export class ColorPanel extends Panel {
   ) {
     super('color', t('colorTitle'));
     const grade = session.registry.filter('grade')!;
-    const inputSpec = grade.params.find((p) => p.name === 'inputTransform') as EnumParamSpec;
-    this.input = h('select', { id: 'grade-input', onChange: () => this.setGrade('inputTransform', this.input.value) },
-      ...inputSpec.options.map((o) => h('option', { value: o.value }, o.label)));
+    this.input = h('select', { id: 'color-input-space', onChange: () => this.setInputSpace(this.input.value) },
+      ...INPUT_SPACES.map((s) => h('option', { value: s.id }, s.label)));
+    this.science = h('select', { id: 'color-science', onChange: () => session.store.dispatch(setColorScience(this.science.value as ColorScience)) },
+      h('option', { value: 'display' }, t('colorScienceDisplay')),
+      h('option', { value: 'aces' }, t('colorScienceAces')));
 
     const wheelRow = h('div', { class: 'wheels' });
     for (const [name, label] of WHEELS) {
@@ -98,7 +102,8 @@ export class ColorPanel extends Panel {
     this.controls = [this.input, loadButton, removeButton, resetButton, allButton];
     this.body.append(
       this.hint,
-      h('label', { class: 'field' }, inputSpec.label ?? '', this.input),
+      h('label', { class: 'field' }, t('colorScience'), this.science),
+      h('label', { class: 'field' }, t('colorInputSpace'), this.input),
       wheelRow,
       sliderBox,
       h('h2', {}, t('curvesTitle')),
@@ -123,6 +128,11 @@ export class ColorPanel extends Panel {
   private params(type: string): ParamValues {
     const def = this.session.registry.filter(type)!;
     return { ...defaultParams(def.params), ...this.item?.effects.find((e) => e.type === type)?.params };
+  }
+
+  private setInputSpace(space: string) {
+    const item = this.item;
+    if (item?.kind === 'media') this.session.store.dispatch(setAssetColorSpace(item.source.assetId, space));
   }
 
   private setGrade(name: string, value: ParamValue | WheelValue) {
@@ -185,7 +195,11 @@ export class ColorPanel extends Panel {
     this.element.classList.toggle('disabled', !item);
     for (const c of this.controls) (c as HTMLButtonElement).disabled = !item;
     const grade = this.params('grade');
-    this.input.value = String(grade.inputTransform);
+    const asset = item?.kind === 'media' ? this.session.store.project.assets[item.source.assetId] : undefined;
+    this.input.value = asset?.colorSpace ?? DEFAULT_INPUT_SPACE;
+    this.input.disabled = !asset;
+    this.science.value = this.session.store.project.settings?.colorScience ?? 'display';
+    this.science.disabled = !this.session.store.project.settings;
     for (const [name, slider] of this.sliders) {
       slider.disabled = !item;
       slider.set(Number(grade[name]));

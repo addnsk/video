@@ -64,7 +64,7 @@ vec4 effect(vec4 color, vec2 uv) {
   vec3 c = color.rgb;
   if (inputTransform == 1) c = bmdFilmToRec709(c);
   float t = temperature * 0.25;
-  c *= exp2(exposure) * vec3(1.0 + t, 1.0 - tint * 0.2, 1.0 - t);
+  c = fromWorkingLinear(toWorkingLinear(c) * exp2(exposure) * vec3(1.0 + t, 1.0 - tint * 0.2, 1.0 - t));
   vec3 l = wheelOffset(lift) * 0.25 + lift.z * 0.5;
   vec3 g = max(vec3(0.05), 1.0 + wheelOffset(gamma) * 0.6 + gamma.z);
   vec3 k = max(vec3(0.0), 1.0 + wheelOffset(gain) * 0.6 + gain.z);

@@ -194,6 +194,25 @@ Built-in nodes:
 - Color: `qualifier` (HSL qualifier mask: `useHue`, `hueCenter` 0 to 1, `hueWidth`, `hueSoft`, `useSat`, `satLow`, `satHigh`, `satSoft`, `useLum`, `lumLow`, `lumHigh`, `lumSoft`, `invert`), `qualifier-3d` (mask around up to three picked colors `key1` to `key3` in Oklab space; a color with alpha 0 is unused; `tolerance`, `softness`, `ignoreLuma`, `invert`), `parallel-mixer` (weighted average of up to four inputs `a` to `d`, like Resolve's parallel node; `merge` is the layer mixer).
 - Every color filter is also a node. A secondary correction is a `merge` with the original as `background`, the corrected branch as `foreground` and a qualifier or window as `mask`.
 
+### Color management
+
+Every media file has an input color space; the project has a working space (color science).
+
+- `display` (default): the timeline works in Rec.709 display values. Log and HDR media are converted to Rec.709 on the way in (scene-linear, camera gamut to Rec.709, soft highlight roll-off).
+- `aces`: the timeline works in ACEScct (AP1 primaries). Every clip is converted to ACEScct on the way in (Rec.709 and sRGB media through the inverse output transform, so they look the same as in `display`), grading happens in ACEScct, and the composite goes through an ACES output transform (fitted RRT and Rec.709 ODT) to the screen and to export. Exposure, temperature, tint and HDR wheels work on linear light in this mode.
+
+Input spaces (`montage.colorSpaces()`): `rec709`, `srgb`, `linear`, `bmdFilmGen5`, `slog3`, `logc3`, `vlog`, `clog3`, `rec2020Hlg`, `rec2020Pq`. Blackmagic Film (from the `com.apple.proapps.customgamma` tag) and HLG/PQ transfer tags are detected on import.
+
+```js
+montage.colorScience();                       // 'display'
+montage.colorScience('aces');
+montage.colorSpace(0);                        // input space of clip 0's media
+montage.colorSpace(0, 'slog3');               // set it for that media (all its clips)
+montage.colorSpace({ asset: id }, 'logc3');   // by asset id
+```
+
+In the color panel the same choices are the Working space and Input color space selects. The `grade` filter keeps its legacy `inputTransform` parameter for old projects; new imports use the input color space instead.
+
 ### Color filters
 
 Filters run on any clip with `montage.effect(ref, type, params)` (or `null` to remove) and in the node graph:

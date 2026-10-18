@@ -7,7 +7,7 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - RAW formats (BRAW, R3D, ARRIRAW) are not supported; convert to ProRes first.
 - H.264/HEVC decoding and encoding depend on the browser; Chromium builds without proprietary codecs fall back to VP9 for export and proxies.
 - HDR export is ProRes only (Rec.2020 HLG/PQ); HDR in MP4 needs a 10-bit HEVC encoder the browser may not have. The preview is SDR.
-- Camera log is detected automatically only for Blackmagic Film (the `com.apple.proapps.customgamma` tag); other cameras need a manual input transform.
+- Camera log is detected from the `com.apple.proapps.customgamma` tag (Blackmagic Film and name matches for S-Log3, LogC, V-Log, Canon Log 3) and from HLG/PQ transfer tags; other files need the input color space set by hand.
 - ProRes decodes from different files run one at a time on the shared WASM runtime (each frame still uses all decoder threads); this works around a rare out-of-bounds crash that was suspected in concurrent decoding.
 
 ## Render cache
@@ -28,6 +28,11 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 - Node templates are stored in the browser (localStorage), not in the project file; export them as JSON with `montage.templates.get` to move them.
 
 ## Color
+
+- ACES uses a fitted RRT/ODT (Rec.709 output only); there is no ACES HDR output transform, so HDR export from an ACES project carries tone-mapped SDR highlights.
+- Input transforms are math approximations of the vendor curves (ARRI LogC3 at EI 800 only); no camera-specific IDT matrices beyond the gamut primaries.
+- Generator nodes (background, text node, gradient) are not color managed: in ACES their colors pass through the output transform and look slightly different from `display`.
+- The input color space is per media file, not per clip.
 
 - Curves, qualifiers and the color warper work on display-referred values clipped to 0..1; HDR wheels and grade keep values above 1.
 - Qualifiers have no blur or clean-up of their own; follow them with a `matte` node.

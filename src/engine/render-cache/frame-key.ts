@@ -7,6 +7,7 @@ export interface FrameKeyContext {
   readonly bypass: boolean;
   readonly viewNode: { readonly itemId: string; readonly nodeId: string } | null;
   readonly generation: number;
+  readonly color: string;
 }
 
 const TIME_STEP = 1e4;

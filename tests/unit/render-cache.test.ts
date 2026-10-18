@@ -14,7 +14,7 @@ const project = (exposure = 0): Project => {
   return { ...base, settings: { width: 640, height: 360, fps: 25, sampleRate: 48000 }, assets: { a: asset }, tracks: [{ ...base.tracks[0], items: [item] }, ...base.tracks.slice(1)] };
 };
 
-const context = { width: 640, height: 360, bypass: false, viewNode: null, generation: 0 };
+const context = { width: 640, height: 360, bypass: false, viewNode: null, generation: 0, color: 'display:' };
 
 describe('frame keys', () => {
   it('are stable for the same frame and change with time, params and context', () => {
@@ -24,6 +24,7 @@ describe('frame keys', () => {
     expect(frameKey(compositionAt(project(0.5), 1), context)).not.toBe(key);
     expect(frameKey(compositionAt(project(), 1), { ...context, bypass: true })).not.toBe(key);
     expect(frameKey(compositionAt(project(), 1), { ...context, generation: 1 })).not.toBe(key);
+    expect(frameKey(compositionAt(project(), 1), { ...context, color: 'aces:' })).not.toBe(key);
     expect(key).toMatch(/^[0-9a-f]{16}$/);
   });
 });

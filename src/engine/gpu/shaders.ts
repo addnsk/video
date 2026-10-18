@@ -69,6 +69,7 @@ export function filterSource(def: FilterDef): string {
   return `${HEADER}
 uniform sampler2D u_source;
 vec4 sampleSource(vec2 uv) { return texture(u_source, uv); }
+${WORKING_HELPER}
 float curve(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }
 ${def.params.map(uniformDeclaration).join('\n')}
 ${def.glsl}
@@ -78,6 +79,17 @@ void main() {
   outColor = vec4(max(result.rgb, 0.0), color.a);
 }`;
 }
+
+const WORKING_HELPER = `uniform bool u_aces;
+bool acesWorking() { return u_aces; }
+vec3 toWorkingLinear(vec3 c) {
+  if (!u_aces) return c;
+  return mix((c - 0.0729055341958355) / 10.5402377416545, exp2(c * 17.52 - 9.72), step(0.155251141552511, c));
+}
+vec3 fromWorkingLinear(vec3 l) {
+  if (!u_aces) return l;
+  return mix(10.5402377416545 * l + 0.0729055341958355, (log2(max(l, 1e-10)) + 9.72) / 17.52, step(0.0078125, l));
+}`;
 
 const CURVE_HELPER = 'float curve(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }';
 
@@ -115,6 +127,7 @@ vec2 texel() { return 1.0 / u_resolution; }
 float px(float projectPixels) { return projectPixels * u_pixel_scale; }
 float aspect() { return u_resolution.x / u_resolution.y; }
 ${CURVE_HELPER}
+${WORKING_HELPER}
 ${inputs}
 ${raster}
 ${previous}

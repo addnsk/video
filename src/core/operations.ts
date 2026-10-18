@@ -1,6 +1,7 @@
 import { removeKey, shiftAnimations, upsertKey } from './animation';
 import { createId } from './ids';
 import type {
+  ColorScience,
   AssetMeta,
   EffectInstance,
   Item,
@@ -337,3 +338,12 @@ export const setTrackMuted = (trackId: string, muted: boolean): Operation => (pr
   mapTracks(project, (t) => (t.id === trackId ? { ...t, muted } : t));
 
 export const sequence = (...ops: Operation[]): Operation => (project) => ops.reduce((p, op) => op(p), project);
+
+export const setColorScience = (science: ColorScience): Operation => (project) =>
+  project.settings && (project.settings.colorScience ?? 'display') !== science ? { ...project, settings: { ...project.settings, colorScience: science } } : project;
+
+export const setAssetColorSpace = (assetId: string, colorSpace: string): Operation => (project) => {
+  const asset = project.assets[assetId];
+  if (!asset || asset.colorSpace === colorSpace) return project;
+  return { ...project, assets: { ...project.assets, [assetId]: { ...asset, colorSpace } } };
+};

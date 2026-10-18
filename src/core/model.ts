@@ -111,17 +111,21 @@ export interface AssetMeta {
   readonly start: number;
   readonly end: number;
   readonly defaultEffects?: readonly { readonly type: string; readonly params: ParamValues }[];
+  readonly colorSpace?: string;
   readonly hasVideo: boolean;
   readonly hasAudio: boolean;
   readonly sampleRate: number;
   readonly channels: number;
 }
 
+export type ColorScience = 'display' | 'aces';
+
 export interface ProjectSettings {
   readonly width: number;
   readonly height: number;
   readonly fps: number;
   readonly sampleRate: number;
+  readonly colorScience?: ColorScience;
 }
 
 export interface Project {
