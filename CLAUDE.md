@@ -36,20 +36,14 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 
 ## Current work (handoff)
 
-- Phase 2/3 (Fusion) in progress. Done: node graph core (`core/graph.ts`, `core/graph-operations.ts`; graph lives in `item.graph` as links + positions, node params stay in `item.effects`), GPU evaluation (`engine/gpu/graph-renderer.ts` with refcounted targets and a static-branch node cache), built-in nodes (`effects/builtin/nodes.ts`: merge, transform, blur, glow, crop, invert, background, gradient, ellipse/rectangle/polygon masks, keyer), `color` and `points` param types, per-node keyframes (`node.<id>.<param>`, array components as `param.<index>`), node editor tab (`ui/node-editor.ts`, `ui/node-layout.ts`), node view in viewer, polygon point editing on the viewer (`ui/mask-overlay.ts`), API `montage.graph.*` and `montage.nodes.register`.
-- Compositing now runs in project frame space (`Compositor.setFrame`, `px()` helper in node GLSL scales project pixels to preview).
-- Point tracker done: `engine/tracking/{tracker,track-media}.ts` (engine `track`), `core/tracking.ts` (frame/source mapping, follow and stabilize keyframes), `host/point-tracking.ts`, API `montage.track`, viewer pick (`ui/point-picker.ts`, `ui/track-action.ts`), e2e `tracking`.
-- Text node done: `effects/builtin/text-node.ts` (`raster: 'text'` nodes get `raster(uv)`, `glyph(i)`), `engine/text-raster.ts`, `engine/gpu/raster.ts` (rasterizers registered on the compositor), `text` param type, e2e `text-node`.
-- Stylize/transform nodes in `effects/builtin/stylize-nodes.ts`; `time()` in node GLSL with `temporal` defs excluded from the node cache; e2e `fusion-nodes` compiles every built-in node.
-- Node templates: `core/graph-templates.ts` (capture/place), `host/template-library.ts` (localStorage), API `graph.template`/`graph.insert`/`templates.*`, node editor Save template.
-- Render cache done: `engine/render-cache/{frame-key,frame-store,render-cache}.ts`, wired in engine `tick`/`drawStill`, `Compositor.present`/`snapshot`, API `montage.renderCache`, e2e `render-cache`.
-- Color nodes done: `effects/builtin/color-nodes.ts` (qualifier, qualifier-3d, parallel-mixer, hdr-wheels, color-warper), extra curves, e2e `color-nodes`.
-- GPU gotcha: any lazily created texture must be created with the right `activeTexture` unit, otherwise it clobbers the sampler bound just before (fixed for empty, curve, LUT and raster textures).
-- Color management done: `effects/color-management.ts` (input spaces, `input-transform`/`output-transform` filters), `ProjectSettings.colorScience`, `AssetMeta.colorSpace`, applied in `Compositor.setProject`/`inputTransform`/`outputTransform`; filters and nodes get `toWorkingLinear`/`fromWorkingLinear`.
-- Noise reduction done: `denoise`, `temporal-denoise` nodes; `history: true` node defs keep their last output per item and node in the compositor (`histories`, governor consumer `nodeHistory`); e2e `denoise` (fixture `noisy.mov`).
-- Stills and versions done: `core/grades.ts` (capture/apply grade, versions, stills in `Project.stills`), `host/stills.ts`, engine `grabFrame`/`setCompare` (`Compositor.drawCompare`), `ui/panels/stills-panel.ts`, API `montage.stills`/`montage.versions`, e2e `stills`.
-- Phases 1–4 are done (e2e `long-timeline` covers a 3-minute 4K timeline). Next: phase 5 (audio).
-- GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
+- Phases 1–4 of `docs/ROADMAP.md` are done (Fusion-like nodes, tracking, text node, templates, render cache, color nodes, ACES color management, noise reduction, stills/versions). Details of each area are in `docs/API.md` and `docs/LIMITATIONS.md`.
+- Next, agreed with the owner: phase 4.5 (native hot paths): ProRes encoder to WebAssembly SIMD + threads first (`engine/export/prores/*`, keep `encoder-pool` API), then tracker and scopes on the GPU. After that phase 5 (audio).
+- The owner said to stop spending time on tests for now. Open test items, only if asked: the last `pairwise` run (two combinations failed before the flatness ring was widened to ±5 px; not re-run), and mutation testing (`npm run test:mutation`, Stryker configured, never run).
+- Test infrastructure: property tests in `tests/unit/fuzz` (see Commands), browser suites `random-projects` and `pairwise` compare preview with exported ProRes via `tests/e2e/lib/parity.mjs` (block luma everywhere, RGB only in chroma-flat areas; ProRes 4:2:2 and compression limits are expected and documented).
+- `montage.sample` returns displayed values (composited over black); frames render at n / fps.
+- Node GLSL `time()` is the source media time; temporal-denoise history uses clip-local time.
+- GPU gotcha: any lazily created texture must be created with the right `activeTexture` unit, otherwise it clobbers the sampler bound just before.
+- GLSL gotchas: reserved names are refused by `effects/glsl-names.ts`; unbound sampler inputs must get the empty texture.
 
 ## Known issues
 

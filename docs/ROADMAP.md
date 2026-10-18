@@ -60,6 +60,14 @@ Status: qualifiers (HSL, 3D), parallel mixer, hue/lum/sat curves, HDR wheels, co
 - Noise reduction (spatial, then temporal within the memory budget), sharpen.
 - Stills gallery, split-screen and wipe comparison, grade versions, copy and apply grades.
 
+## Phase 4.5. Native hot paths
+
+Heavy CPU work moves out of plain JavaScript; everything else stays as is (decoding and encoding through WebCodecs, rendering on the GPU).
+
+- ProRes encoder in WebAssembly with SIMD and threads (our own or a vetted library), keeping the current worker pool API and output; measure against the JS encoder.
+- Point tracker on the GPU (or WebAssembly SIMD) for large search windows and full-resolution tracking.
+- Scopes (waveform, vectorscope, histogram) computed on the GPU instead of a CPU readback.
+
 ## Phase 5. Audio (Fairlight-like)
 
 - Mixer with buses, track-level effects and automation.
