@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:stress": "npm run build && node tests/e2e/stress.mjs worker && node tests/e2e/stress.mjs inline"
+    "test:e2e": "npm run build && node tests/e2e/run.mjs",
+    "test:stress": "npm run build && node tests/e2e/run.mjs stress"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "5.2.6",

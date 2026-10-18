@@ -21,21 +21,17 @@
 ## Commands
 
 - `npm test` — vitest unit tests (`tests/unit`).
-- `CHROME_PATH=... npm run test:stress` — e2e leak test in worker and inline modes (`tests/e2e/stress.mjs`).
+- `CHROME_PATH=... npm run test:e2e [-- suite ...]` — browser suites in `tests/e2e/suites` on `tests/e2e/harness.mjs` (color, transitions, multitrack, persistence, proxies, stress). New suites export `{ name, run({ browser, url, checks }) }`.
 - `npm run build` — type-check and build.
 
 ## Status
 
-Done: worker engine with memory budget, proxies, streaming export, project persistence, Pages deploy workflow with coi-serviceworker, curves, scopes, BMD Gen5 gamut, multitrack, titles, keyframes, waveforms, scripting API (`docs/API.md`).
+Done: unit, API integration (fake engine) and e2e suites; worker engine with memory budget, proxies, streaming export, project persistence, Pages deploy workflow with coi-serviceworker, curves, scopes, BMD Gen5 gamut, multitrack, titles, keyframes, waveforms, scripting API (`docs/API.md`).
 
 The owner must enable Settings → Pages → Source: GitHub Actions. Published preview: https://claude.ai/artifact/HGAVKmA9JAvLH71uheStDR (republish from a copy of `dist` with an `index.html` fragment that links the built css/js; drop the coi script there).
 
 ## Next (agreed with the owner)
 
-1. More tests:
-   - unit: rpc over `localChannel` (calls, errors, events, transfer), `engine/audio/pcm`, `FrameCache` with pinning, `scopes.analyze`, effect registry validation, remaining operations (text, tracks, effects order, keyframe deletion, incompatible moves), store redo/reset, timeline edge cases (muted tracks, transition caps), device budgets, i18n key parity;
-   - API integration in node: `EditorSession` with a fake `EngineClient`;
-   - e2e suite with a shared harness (server, fixtures, browser) replacing scratch scripts: persistence/relink, multitrack + titles + keyframes, curves + scopes, transitions, proxies.
-2. The owner is uploading a real Blackmagic ProRes sample (about 100 MB) via a cloud link; download it, inspect with ffprobe, verify decode, BMD Film → Rec.709 look, proxy, playback and export, and add a short cut of it as a fixture if licensing allows (otherwise keep it out of git).
-3. Russian locale `src/i18n/ru.ts` with a language switch (UI text only, keys mirrored from `en.ts`).
-4. Then: J/K/L shuttle, clip thumbnails on the timeline, drag from media panel to timeline, speed change, audio meters and effects, title animation presets, ProRes/HDR export, error logging.
+1. The owner is uploading a real Blackmagic ProRes sample (about 100 MB) via a cloud link; download it, inspect with ffprobe, verify decode, BMD Film → Rec.709 look, proxy, playback and export, and add a short cut of it as a fixture if licensing allows (otherwise keep it out of git).
+2. Russian locale `src/i18n/ru.ts` with a language switch (UI text only, keys mirrored from `en.ts`).
+3. Then: J/K/L shuttle, clip thumbnails on the timeline, drag from media panel to timeline, speed change, audio meters and effects, title animation presets, ProRes/HDR export, error logging.

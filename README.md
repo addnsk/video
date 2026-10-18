@@ -30,10 +30,20 @@ npm run dev
 
 ```bash
 npm test
-CHROME_PATH=/path/to/chrome npm run test:stress
+CHROME_PATH=/path/to/chrome npm run test:e2e
+CHROME_PATH=/path/to/chrome npm run test:e2e -- color transitions
 ```
 
-`test:stress` needs `ffmpeg`. It builds a 150-clip timeline, runs a seek storm, playback and an export in both engine modes, and fails if decoded frames, audio samples or render targets leak, or if the frame cache exceeds its budget.
+`npm test` runs unit and API integration tests in node; the API tests drive `EditorSession` and the `montage` scripting API against a fake engine.
+
+`test:e2e` needs `ffmpeg` and builds fixtures on first run. It serves the production build and runs browser suites from `tests/e2e/suites` on a shared harness (`tests/e2e/harness.mjs`), checking rendered pixels and engine resource counters:
+
+- `color`: exposure, compare bypass, curves, LUTs, saturation, BMD Film Gen5 input transform, all four scopes.
+- `transitions`: dissolve mix, every built-in transition, custom gl-transition shaders and their params.
+- `multitrack`: placement by media type, overlay transform, opacity keyframes, muted tracks, titles, export, phone layout.
+- `persistence`: reload restore, relinking, project file save, new and open.
+- `proxies`: proxy build into OPFS and playback from it.
+- `stress`: a 150-clip timeline, seek storm, playback and export in worker and inline modes, failing on leaked frames, samples or render targets, or a frame cache over budget.
 
 ## Keys
 
