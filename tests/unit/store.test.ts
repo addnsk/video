@@ -38,3 +38,45 @@ describe('store history', () => {
     expect(store.project.tracks[0].items).toHaveLength(0);
   });
 });
+
+describe('store edge cases', () => {
+  it('clears redo after a new edit', () => {
+    const store = new Store();
+    store.dispatch(addAsset(asset('a')), { history: false });
+    store.dispatch(insertItem('a', { trackId: 'v1', id: 'x' }));
+    store.undo();
+    expect(store.canRedo).toBe(true);
+    store.dispatch(insertItem('a', { trackId: 'v1', id: 'y' }));
+    expect(store.canRedo).toBe(false);
+    expect(store.redo()).toBe(false);
+  });
+
+  it('reset drops history', () => {
+    const store = new Store();
+    store.dispatch(addAsset(asset('a')));
+    store.reset(store.project);
+    expect(store.canUndo).toBe(false);
+    expect(store.undo()).toBe(false);
+  });
+
+  it('ignores no-op operations', () => {
+    const store = new Store();
+    let changes = 0;
+    store.on('change', () => changes++);
+    store.dispatch((p) => p);
+    expect(changes).toBe(0);
+    expect(store.canUndo).toBe(false);
+  });
+
+  it('records a transaction as one step, including nested ones', async () => {
+    const store = new Store();
+    store.dispatch(addAsset(asset('a')), { history: false });
+    await store.transaction(async () => {
+      store.dispatch(insertItem('a', { trackId: 'v1', id: 'x' }));
+      await store.transaction(() => store.dispatch(setVolume('x', 0.5)));
+    });
+    store.undo();
+    expect(store.project.tracks[0].items).toHaveLength(0);
+    expect(store.canUndo).toBe(false);
+  });
+});
