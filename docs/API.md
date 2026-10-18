@@ -205,6 +205,8 @@ Input spaces (`montage.colorSpaces()`): `rec709`, `srgb`, `linear`, `bmdFilmGen5
 
 ```js
 montage.colorScience();                       // 'display'
+await montage.sample({ x: 0, y: 0 });         // [r, g, b, a] of the composite at the playhead, frame units
+await montage.sample([{ x: -0.25, y: 0 }, { x: 0.25, y: 0 }], 2.5);
 montage.colorScience('aces');
 montage.colorSpace(0);                        // input space of clip 0's media
 montage.colorSpace(0, 'slog3');               // set it for that media (all its clips)

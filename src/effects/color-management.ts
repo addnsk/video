@@ -82,7 +82,7 @@ vec3 clog3Decode(vec3 x) {
   vec3 lo = -(pow(vec3(10.0), (0.12783901 - x) / 0.36726845) - 1.0) / 14.98325;
   vec3 mid = (x - 0.12512219) / 1.9754798;
   vec3 hi = (pow(vec3(10.0), (x - 0.12240537) / 0.36726845) - 1.0) / 14.98325;
-  return mix(mix(lo, mid, step(0.097465473, x)), hi, step(0.15277891, x));
+  return mix(mix(lo, mid, step(0.097465473, x)), hi, step(0.15277891, x)) * 0.9;
 }
 vec3 hlgDecode(vec3 x) {
   const float A = 0.17883277;

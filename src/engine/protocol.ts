@@ -69,6 +69,7 @@ export interface EngineMethods {
   setCompare(bitmap: ImageBitmap | null, position?: number): void;
   setComparePosition(position: number): void;
   grabFrame(time: number, maxHeight: number): Promise<Blob | null>;
+  sampleFrame(time: number, points: { x: number; y: number }[]): Promise<number[][] | null>;
   setRenderCache(options: { enabled?: boolean; memoryBytes?: number; diskBytes?: number }): void;
   peaks(assetId: string): Promise<unknown>;
   thumbnails(assetId: string, times: number[], height: number): Promise<unknown>;

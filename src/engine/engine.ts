@@ -15,7 +15,7 @@ import { ExportCanceled, exportProject, type ExportSettings } from './export/exp
 import { fileHandleSink, storageSink } from './export/sinks';
 import { SequentialFrames, StillFrames } from './frames';
 import { GpuContext } from './gpu/context';
-import { Compositor, type ViewNode } from './gpu/compositor';
+import { Compositor, type FullFrame, type ViewNode } from './gpu/compositor';
 import { MediaPool } from './media/media-pool';
 import { probe } from './media/probe';
 import { buildProxy, findProxy } from './media/proxy';
@@ -381,34 +381,45 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     if (this.compare && this.compositor) this.compositor.drawCompare(this.compare.bitmap, this.compare.position);
   }
 
-  async grabFrame(time: number, maxHeight: number): Promise<Blob | null> {
+  private async readComposite(time: number): Promise<FullFrame | null> {
     if (!this.compositor || this.playback) return null;
     const frame = compositionAt(this.project, Math.min(time, Math.max(0, projectDuration(this.project) - 1e-3)));
     const images = await this.stills.load(this.project, frame, this.compositor.size);
     if (!images) return null;
-    let canvas: OffscreenCanvas | null = null;
-    this.compositor.render(frame, images, {
-      viewNode: this.viewNode,
-      readback: (full) => {
-        const pixels = new Uint8ClampedArray(full.width * full.height * 4);
-        const scale = 255 * full.scale;
-        for (let y = 0; y < full.height; y++) {
-          const from = (full.height - 1 - y) * full.width * 4;
-          const to = y * full.width * 4;
-          for (let i = 0; i < full.width * 4; i += 4) {
-            pixels[to + i] = full.data[from + i] * scale;
-            pixels[to + i + 1] = full.data[from + i + 1] * scale;
-            pixels[to + i + 2] = full.data[from + i + 2] * scale;
-            pixels[to + i + 3] = 255;
-          }
-        }
-        canvas = new OffscreenCanvas(full.width, full.height);
-        canvas.getContext('2d')!.putImageData(new ImageData(pixels, full.width, full.height), 0, 0);
-      },
-    });
+    let copy: FullFrame | null = null;
+    this.compositor.render(frame, images, { viewNode: this.viewNode, readback: (full) => (copy = { ...full, data: full.data.slice() }) });
     this.drawCompare();
-    const source = canvas as OffscreenCanvas | null;
-    if (!source) return null;
+    return copy;
+  }
+
+  async sampleFrame(time: number, points: { x: number; y: number }[]): Promise<number[][] | null> {
+    const full = await this.readComposite(time);
+    if (!full) return null;
+    return points.map(({ x, y }) => {
+      const px = Math.min(full.width - 1, Math.max(0, Math.floor((x + 0.5) * full.width)));
+      const py = Math.min(full.height - 1, Math.max(0, Math.floor((0.5 - y) * full.height)));
+      const i = (py * full.width + px) * 4;
+      return [0, 1, 2, 3].map((c) => full.data[i + c] * full.scale);
+    });
+  }
+
+  async grabFrame(time: number, maxHeight: number): Promise<Blob | null> {
+    const full = await this.readComposite(time);
+    if (!full) return null;
+    const pixels = new Uint8ClampedArray(full.width * full.height * 4);
+    const scale = 255 * full.scale;
+    for (let y = 0; y < full.height; y++) {
+      const from = (full.height - 1 - y) * full.width * 4;
+      const to = y * full.width * 4;
+      for (let i = 0; i < full.width * 4; i += 4) {
+        pixels[to + i] = full.data[from + i] * scale;
+        pixels[to + i + 1] = full.data[from + i + 1] * scale;
+        pixels[to + i + 2] = full.data[from + i + 2] * scale;
+        pixels[to + i + 3] = 255;
+      }
+    }
+    const source = new OffscreenCanvas(full.width, full.height);
+    source.getContext('2d')!.putImageData(new ImageData(pixels, full.width, full.height), 0, 0);
     const height = Math.min(maxHeight, source.height);
     const scaled = new OffscreenCanvas(Math.max(2, Math.round((source.width * height) / source.height)), height);
     scaled.getContext('2d')!.drawImage(source, 0, 0, scaled.width, scaled.height);

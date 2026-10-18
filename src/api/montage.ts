@@ -501,6 +501,12 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     proxy: (assetId: string) => session.requestProxy(assetId),
     proxies: () => Object.fromEntries(session.proxies),
     stats: () => session.engine.remote.stats(),
+    sample: async (points: { x: number; y: number } | { x: number; y: number }[], time = transport.time) => {
+      const list = Array.isArray(points) ? points : [points];
+      const values = await session.engine.remote.sampleFrame(time, list);
+      if (!values) throw new Error('Nothing to sample');
+      return Array.isArray(points) ? values : values[0];
+    },
     resetMetrics: () => session.engine.remote.resetMetrics(),
     renderCache: (options: boolean | { enabled?: boolean; memoryBytes?: number; diskBytes?: number }) =>
       session.engine.remote.setRenderCache(typeof options === 'boolean' ? { enabled: options } : options),
