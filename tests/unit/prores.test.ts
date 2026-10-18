@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { BufferTarget, EncodedPacket, EncodedVideoPacketSource, MovOutputFormat, Output } from 'mediabunny';
 import { describe, expect, it } from 'vitest';
 import { BitWriter, writeCodeword } from '../../src/engine/export/prores/bit-writer';
-import { rgbaToPlanes422 } from '../../src/engine/export/prores/color';
+import { ENCODINGS, hlg, pq, rgbaToPlanes422, toPlanes422 } from '../../src/engine/export/prores/color';
 import { ProresFrameEncoder, type Planes422 } from '../../src/engine/export/prores/encoder';
 import { PROFILES, profileForFourCc, type ProresProfile } from '../../src/engine/export/prores/tables';
 
@@ -79,6 +79,27 @@ describe('prores bitstream primitives', () => {
     expect(profileForFourCc('apch')).toBe('hq');
     expect(profileForFourCc('apco')).toBe('proxy');
     expect(profileForFourCc('avc1')).toBeNull();
+  });
+});
+
+describe('HDR encodings', () => {
+  it('match the BT.2100 transfer functions', () => {
+    expect(hlg(1 / 12)).toBeCloseTo(0.5, 6);
+    expect(hlg(1)).toBeCloseTo(1, 4);
+    expect(pq(10000)).toBeCloseTo(1, 6);
+    expect(pq(100)).toBeCloseTo(0.508, 3);
+  });
+
+  it('place SDR white at the HDR reference levels and keep float highlights', () => {
+    const white = (range: keyof typeof ENCODINGS, v = 1) => {
+      const planes = toPlanes422({ data: [v, v, v, 1, v, v, v, 1], width: 2, height: 1, scale: 1 }, undefined, ENCODINGS[range]);
+      return (planes.y[0] - 64) / 876;
+    };
+    expect(white('sdr')).toBeCloseTo(1, 2);
+    expect(white('hlg')).toBeCloseTo(0.75, 2);
+    expect(white('pq')).toBeCloseTo(0.58, 2);
+    expect(white('pq', 2)).toBeGreaterThan(white('pq'));
+    expect(white('sdr', 2)).toBeCloseTo(1, 2);
   });
 });
 

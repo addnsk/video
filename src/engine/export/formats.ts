@@ -10,6 +10,7 @@ import {
   type OutputFormat,
   type Quality,
 } from 'mediabunny';
+import type { DynamicRange } from './prores/color';
 import type { ProresProfile } from './prores/tables';
 import { canvasWriter, proresWriter, type VideoWriter } from './video-writers';
 
@@ -17,6 +18,7 @@ export interface ExportSettings {
   readonly height: number | null;
   readonly quality: 'high' | 'medium';
   readonly prores?: ProresProfile | null;
+  readonly dynamicRange?: DynamicRange;
 }
 
 export interface FormatPlan {
@@ -46,7 +48,7 @@ export async function planFormat(settings: ExportSettings, frame: Frame): Promis
       output: new MovOutputFormat({ fastStart: false }),
       audioCodec: frame.hasAudio ? await getFirstEncodableAudioCodec(['pcm-s24', 'pcm-s16'], audioConfig) : null,
       audioBitrate: QUALITY_HIGH,
-      video: (output, _canvas, frameRate, threads) => proresWriter(output, profile, frameRate, threads),
+      video: (output, _canvas, frameRate, threads) => proresWriter(output, profile, settings.dynamicRange ?? 'sdr', frameRate, threads),
     };
   }
   const codec = await getFirstEncodableVideoCodec(['avc', 'hevc', 'vp9', 'av1'], { width: frame.width, height: frame.height });

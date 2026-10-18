@@ -1,4 +1,4 @@
-import { ProresFrameEncoder, type Planes422 } from './encoder';
+import { ProresFrameEncoder, type ColorTags, type Planes422 } from './encoder';
 import type { ProresProfile } from './tables';
 
 type Reply = { id: number; data: Uint8Array } | { id: number; error: string };
@@ -11,8 +11,8 @@ export interface FrameEncoder {
 class InlineEncoder implements FrameEncoder {
   private encoder: ProresFrameEncoder;
 
-  constructor(profile: ProresProfile) {
-    this.encoder = new ProresFrameEncoder(profile);
+  constructor(profile: ProresProfile, colors: ColorTags) {
+    this.encoder = new ProresFrameEncoder(profile, colors);
   }
 
   encode(planes: Planes422): Promise<Uint8Array> {
@@ -29,7 +29,11 @@ class WorkerPool implements FrameEncoder {
   private pending = new Map<number, { resolve: (data: Uint8Array) => void; reject: (e: Error) => void }>();
   private next = 1;
 
-  constructor(private profile: ProresProfile, size: number) {
+  constructor(
+    private profile: ProresProfile,
+    private colors: ColorTags,
+    size: number,
+  ) {
     this.workers = Array.from({ length: size }, () => {
       const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module', name: 'prores' });
       worker.addEventListener('message', (event: MessageEvent<Reply>) => this.settle(worker, event.data));
@@ -45,7 +49,7 @@ class WorkerPool implements FrameEncoder {
     const id = this.next++;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      worker.postMessage({ id, profile: this.profile, planes }, [planes.y.buffer, planes.cb.buffer, planes.cr.buffer]);
+      worker.postMessage({ id, profile: this.profile, colors: this.colors, planes }, [planes.y.buffer, planes.cb.buffer, planes.cr.buffer]);
     });
   }
 
@@ -70,11 +74,11 @@ class WorkerPool implements FrameEncoder {
   }
 }
 
-export function createFrameEncoder(profile: ProresProfile, threads: number): FrameEncoder {
-  if (threads < 2 || typeof Worker === 'undefined') return new InlineEncoder(profile);
+export function createFrameEncoder(profile: ProresProfile, colors: ColorTags, threads: number): FrameEncoder {
+  if (threads < 2 || typeof Worker === 'undefined') return new InlineEncoder(profile, colors);
   try {
-    return new WorkerPool(profile, threads);
+    return new WorkerPool(profile, colors, threads);
   } catch {
-    return new InlineEncoder(profile);
+    return new InlineEncoder(profile, colors);
   }
 }

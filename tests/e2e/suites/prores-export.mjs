@@ -47,6 +47,19 @@ export default {
       const bottom = execFileSync('ffmpeg', ['-v', 'error', '-ss', '0.5', '-i', path, '-frames:v', '1', '-vf', 'crop=10:10:315:280', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']);
       checks.check(top[0] > 200 && bottom[2] > 200 && bottom[0] < 60, `${profile}: overlay at the bottom stays at the bottom (top ${[...top.subarray(0, 3)]}, bottom ${[...bottom.subarray(0, 3)]})`);
     }
+    const hdr = await editor.run(async () => {
+      const r = await montage.render({ height: 360, prores: 'proxy', dynamicRange: 'hlg' });
+      const bytes = new Uint8Array(await r.file.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(binary);
+    });
+    const hdrPath = join(dir, 'hlg.mov');
+    writeFileSync(hdrPath, Buffer.from(hdr, 'base64'));
+    const hdrStream = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v', '-show_entries', 'stream=color_primaries,color_transfer,color_space', '-of', 'json', hdrPath]).toString()).streams[0];
+    checks.check(hdrStream.color_primaries === 'bt2020' && hdrStream.color_transfer === 'arib-std-b67' && hdrStream.color_space === 'bt2020nc', `HLG export is tagged Rec.2020 HLG (${JSON.stringify(hdrStream)})`);
+    checks.check(execFileSync('ffmpeg', ['-v', 'error', '-i', hdrPath, '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim() === '', 'HLG export decodes cleanly');
+
     await editor.run(() => montage.clear());
     await editor.import([join(dir, 'hq.mov')], 4);
     await editor.until(() => montage.clips().length === 1);
@@ -58,6 +71,7 @@ export default {
     await editor.page.click('#export');
     await editor.page.selectOption('#export-format', 'hq');
     checks.check(await editor.page.isHidden('#export-quality'), 'dialog hides MP4 quality for ProRes');
+    checks.check(await editor.page.isVisible('#export-range'), 'dialog offers HDR for ProRes');
     checks.check(editor.errors.length === 0, `no page errors ${editor.errors.join('; ')}`);
     await editor.close();
   },

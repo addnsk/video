@@ -1,4 +1,5 @@
 import { projectDuration } from '../core/timeline';
+import type { DynamicRange } from '../engine/export/prores/color';
 import { PRORES_PROFILES, type ProresProfile } from '../engine/export/prores/tables';
 import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
@@ -26,10 +27,16 @@ export function openExportDialog(session: EditorSession): void {
     h('option', { value: 'high' }, t('qualityHigh')),
     h('option', { value: 'medium' }, t('qualityMedium')));
   const qualityField = h('label', { class: 'field' }, t('quality'), quality);
+  const range = h('select', { id: 'export-range' },
+    h('option', { value: 'sdr' }, t('rangeSdr')),
+    h('option', { value: 'hlg' }, t('rangeHlg')),
+    h('option', { value: 'pq' }, t('rangePq')));
+  const rangeField = h('label', { class: 'field', hidden: true }, t('dynamicRange'), range);
   const proresHint = h('p', { class: 'hint', hidden: true }, t('proresHint'));
   format.addEventListener('change', () => {
     qualityField.hidden = !!format.value;
     proresHint.hidden = !format.value;
+    rangeField.hidden = !format.value;
   });
   const progress = h('progress', { max: 1, value: 0, hidden: true });
   const duration = projectDuration(session.store.project);
@@ -42,6 +49,7 @@ export function openExportDialog(session: EditorSession): void {
     h('label', { class: 'field' }, t('resolution'), resolution),
     h('label', { class: 'field' }, t('format'), format),
     qualityField,
+    rangeField,
     proresHint,
     progress,
     status,
@@ -54,7 +62,7 @@ export function openExportDialog(session: EditorSession): void {
     const started = performance.now();
     try {
       const result = await session.exportVideo(
-        { height: +resolution.value || null, quality: quality.value as 'high' | 'medium', prores: (format.value || null) as ProresProfile | null },
+        { height: +resolution.value || null, quality: quality.value as 'high' | 'medium', prores: (format.value || null) as ProresProfile | null, dynamicRange: format.value ? (range.value as DynamicRange) : 'sdr' },
         (fraction) => {
           progress.value = fraction;
           const elapsed = (performance.now() - started) / 1000;

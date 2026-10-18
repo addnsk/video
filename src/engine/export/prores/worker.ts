@@ -1,18 +1,20 @@
-import { ProresFrameEncoder, type Planes422 } from './encoder';
+import { ProresFrameEncoder, type ColorTags, type Planes422 } from './encoder';
 import type { ProresProfile } from './tables';
 
 interface Job {
   readonly id: number;
   readonly profile: ProresProfile;
   readonly planes: Planes422;
+  readonly colors: ColorTags;
 }
 
-const encoders = new Map<ProresProfile, ProresFrameEncoder>();
+const encoders = new Map<string, ProresFrameEncoder>();
 
 self.addEventListener('message', (event: MessageEvent<Job>) => {
-  const { id, profile, planes } = event.data;
-  let encoder = encoders.get(profile);
-  if (!encoder) encoders.set(profile, (encoder = new ProresFrameEncoder(profile)));
+  const { id, profile, planes, colors } = event.data;
+  const key = `${profile}:${colors.primaries}:${colors.transfer}:${colors.matrix}`;
+  let encoder = encoders.get(key);
+  if (!encoder) encoders.set(key, (encoder = new ProresFrameEncoder(profile, colors)));
   try {
     const data = encoder.encode(planes);
     (self as unknown as Worker).postMessage({ id, data }, [data.buffer]);

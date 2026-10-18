@@ -193,6 +193,7 @@ montage.redo();
 await montage.batch(async () => { /* several edits, one undo step */ });
 
 const { file, name } = await montage.render({ height: 1080, quality: 'high', onProgress: (f) => log(f) });
+await montage.render({ prores: 'hq', dynamicRange: 'hlg' }); // dynamicRange: 'sdr' | 'hlg' | 'pq', Rec.2020 for HDR
 await montage.render({ prores: 'hq' });           // 'hq' | 'standard' | 'lt' | 'proxy': ProRes 422 in .mov with PCM audio
 const off = montage.onChange(() => log('changed'));
 

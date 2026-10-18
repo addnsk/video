@@ -10,12 +10,14 @@ A video editor that runs entirely in the browser. Media never leaves the device.
 - **Clip speed** from 0.1× to 16× with retimed audio, and **J/K/L shuttle** up to 8× forward and backward.
 - **Curves** (master, RGB, hue vs saturation) and **scopes** (waveform, RGB parade, vectorscope, histogram).
 - **Audio**: waveforms and frame thumbnails on the timeline, per-clip volume, crossfades on transitions, audio-only files, per-clip low cut, 3-band EQ and compressor, output level meters.
-- **Export** to MP4 (H.264, HEVC, VP9 or AV1 via WebCodecs) or **Apple ProRes 422 HQ, 422, LT and Proxy** in `.mov` with PCM audio, encoded by a built-in ProRes encoder.
+- **Export** to MP4 (H.264, HEVC, VP9 or AV1 via WebCodecs) or **Apple ProRes 422 HQ, 422, LT and Proxy** in `.mov` with PCM audio, encoded by a built-in multi-threaded ProRes encoder, in SDR Rec.709 or HDR Rec.2020 HLG/PQ from the half-float composite.
 - **Projects** autosave in the browser, reconnect their media after a reload and save to or open from `.json` files.
 - **Transitions** in the [gl-transitions](https://gl-transitions.com) format, and custom GLSL filters. Both register at runtime.
 - **Scripting API** (`montage`) for everything the UI does. See [docs/API.md](docs/API.md).
 - **Undo/redo** for every edit, including scripts.
 - **Problem log**: errors from the UI, the engine worker, media, exports and scripts are kept across reloads and export as a JSON report with the environment.
+- English and Russian interface.
+- Blackmagic Film log footage is detected from its metadata and gets the Rec.709 transform on import.
 - Works on phones: adaptive layout, touch gestures, automatic proxies.
 
 ## Deploying
