@@ -74,6 +74,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   private mixer!: AudioMixer;
   private stills!: StillFrames;
   private text = new TextRenderer();
+  private textRaster = new TextRasterizer();
   private peakCache = new Map<string, Promise<Float32Array>>();
   private governor!: MemoryGovernor;
   private thumbnailQueue: Promise<unknown> = Promise.resolve();
@@ -112,12 +113,14 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     });
     void loadFonts(fonts).then(() => {
       this.text.clear();
+      this.textRaster.clear();
+      this.compositor?.trimNodeCache();
       this.redraw();
     });
     this.gpu = new GpuContext(surface);
     this.compositor = new Compositor(this.gpu, this.registry, { lut: (id) => this.luts.get(id) });
     if (this.project.settings) this.compositor.setFrame(this.project.settings.width, this.project.settings.height);
-    this.compositor.registerRasterizer('text', new TextRasterizer());
+    this.compositor.registerRasterizer('text', this.textRaster);
     this.compositor.onError = (message) => this.emit('error', { message });
     this.gpu.on('lost', () => this.emit('context', { state: 'lost' }));
     this.gpu.on('restored', () => {

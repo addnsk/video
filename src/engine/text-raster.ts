@@ -38,10 +38,11 @@ export function textLayoutParams(params: ParamValues): TextLayoutParams {
 
 export class TextRasterizer implements Rasterizer {
   private cache = new Map<string, Cached>();
+  private generation = 0;
 
   rasterize(params: ParamValues, width: number, height: number): RasterImage {
     const layout = textLayoutParams(params);
-    const key = `text:${width}x${height}:${JSON.stringify(layout)}`;
+    const key = `text:${this.generation}:${width}x${height}:${JSON.stringify(layout)}`;
     const hit = this.cache.get(key);
     if (hit) {
       this.cache.delete(key);
@@ -110,6 +111,7 @@ export class TextRasterizer implements Rasterizer {
   }
 
   clear(): void {
+    this.generation++;
     for (const entry of this.cache.values()) {
       entry.bitmap.close();
       resources.release('bitmap', entry.bytes);

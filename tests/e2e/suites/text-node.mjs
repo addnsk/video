@@ -39,6 +39,20 @@ export default {
 
     await editor.run((id) => montage.graph.set(0, id, { text: '', shadow: [0, 0, 0, 1] }), text);
     checks.check(isRed(await at(0.5, 0.2)), 'empty text renders nothing');
+    await editor.run((id) => montage.graph.set(0, id, { text: '█████', center: [0, 0], outlineWidth: 0, progress: 1 }), text);
+    await editor.run(() => montage.clearKeyframes(0, Object.keys(montage.clip(0).animations)[0]));
+    await editor.import([fixture('blue.mov')], 2);
+    const inserted = await editor.run((id) => {
+      const merge = montage.graph.get(0).links.find((l) => l.from === id).to;
+      montage.templates.save(montage.graph.template(0, [id, merge], 'Block title'));
+      const ids = montage.graph.insert(1, 'Block title', { source: 'source' });
+      montage.graph.connect(1, ids.output, 'output');
+      return { saved: montage.templates.list().map((t) => t.name), ids, start: montage.clip(1).start };
+    }, text);
+    const blueCenter = await editor.previewColorAt(inserted.start + 0.5, { x: 0.5, y: 0.5, size: 0.02 });
+    const blueEdge = await editor.previewColorAt(inserted.start + 0.5, { x: 0.5, y: 0.1, size: 0.02 });
+    checks.check(inserted.saved.includes('Block title') && blueCenter[0] > 200 && blueEdge[2] > 200 && blueEdge[0] < 60, `saved template inserts the title into another clip (${fmt(blueCenter)} / ${fmt(blueEdge)})`);
+
     const custom = await editor.run(() => {
       montage.nodes.register({
         id: 'text-boxes',

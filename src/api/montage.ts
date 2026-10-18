@@ -30,6 +30,7 @@ import {
 } from '../core/operations';
 import { findPlacement } from '../core/timeline';
 import type { FramePoint } from '../core/tracking';
+import { captureTemplate, placeTemplate, type NodeTemplate } from '../core/graph-templates';
 import { trackPoint, type TrackRequest } from '../host/point-tracking';
 import { createId } from '../core/ids';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
@@ -360,6 +361,22 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       move: (ref: ItemRef, nodeId: string, position: [number, number]) => void apply(moveGraphNode(resolve(ref).item.id, nodeId, position)),
       keyframe: (ref: ItemRef, nodeId: string, param: string, time: number, value: number) =>
         void apply(setKeyframe(resolve(ref).item.id, nodeProperty(nodeId, param), time, value)),
+      template: (ref: ItemRef, nodeIds: string[], name = 'Template'): NodeTemplate => captureTemplate(resolve(ref).item, nodeIds, name),
+      insert(ref: ItemRef, template: NodeTemplate | string, options: { position?: [number, number]; source?: string } = {}): Record<string, string> {
+        const found = typeof template === 'string' ? session.templates.get(template) : template;
+        if (!found) throw new Error(`No template "${String(template)}". Saved: ${session.templates.list().map((t) => t.name).join(', ')}`);
+        const unknown = found.nodes.find((n) => !registry.isVisual(n.type));
+        if (unknown) throw new Error(`Unknown node "${unknown.type}" in template "${found.name}"`);
+        const itemId = resolve(ref).item.id;
+        let ids: Record<string, string> = {};
+        void store.transaction(() => {
+          apply(enableGraph(itemId, registry));
+          const placed = placeTemplate(itemId, found, options.position ?? [0, 320], options.source);
+          ids = { ...placed.ids };
+          apply(placed.operation);
+        });
+        return found.output ? { ...ids, output: ids[found.output] } : ids;
+      },
       types: () =>
         [...registry.nodes(), ...registry.filters()].map((d) => ({
           id: d.id,
@@ -368,6 +385,13 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
           inputs: registry.inputsOf(d.id) ?? [],
           params: d.params,
         })),
+    },
+
+    templates: {
+      save: (template: NodeTemplate) => session.templates.save(template),
+      list: () => session.templates.list().map((t) => ({ name: t.name, nodes: t.nodes.length })),
+      get: (name: string) => session.templates.get(name) ?? null,
+      remove: (name: string) => session.templates.remove(name),
     },
 
     nodes: {

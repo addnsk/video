@@ -346,4 +346,57 @@ vec4 process(vec2 uv) {
   ],
 };
 
-export const STYLIZE_NODES: readonly NodeDef[] = [NOISE, FILM_GRAIN, VIGNETTE, SHARPEN, DIRECTIONAL_BLUR, RADIAL_BLUR, DISPLACE, CORNER_PIN, LENS_DISTORTION, LETTERBOX, LUMA_KEY, MASK_COMBINE];
+export const MATTE: NodeDef = {
+  kind: 'node',
+  id: 'matte',
+  name: 'Matte control',
+  category: 'mask',
+  inputs: SOURCE,
+  params: [float('choke', 'Choke', 0, -30, 30, 0.5), float('feather', 'Feather', 0, 0, 60, 0.5), float('gamma', 'Gamma', 1, 0.1, 4), float('clipLow', 'Clip black', 0, 0, 1), float('clipHigh', 'Clip white', 1, 0, 1), bool('invert', 'Invert', false), bool('matte', 'Show matte', false)],
+  passes: [
+    {
+      glsl: `
+vec4 process(vec2 uv) {
+  vec4 c = input_source(uv);
+  float r = px(abs(choke));
+  if (r < 0.5) return c;
+  float a = c.a;
+  for (int ring = 1; ring <= 3; ring++) {
+    float d = r * float(ring) / 3.0;
+    for (int i = 0; i < 16; i++) {
+      float t = 6.2831853 * (float(i) + 0.5 * float(ring)) / 16.0;
+      float s = input_source(uv + vec2(cos(t), sin(t)) * d * texel()).a;
+      a = choke > 0.0 ? min(a, s) : max(a, s);
+    }
+  }
+  return vec4(c.rgb, a);
+}`,
+    },
+    {
+      glsl: `
+vec4 process(vec2 uv) {
+  vec4 c = input_source(uv);
+  float a = previous(uv).a;
+  float r = px(feather);
+  if (r >= 0.5) {
+    float sum = 0.0;
+    float total = 0.0;
+    for (int y = -4; y <= 4; y++)
+      for (int x = -4; x <= 4; x++) {
+        vec2 o = vec2(float(x), float(y)) / 4.0;
+        float w = exp(-dot(o, o) * 2.0);
+        sum += previous(uv + o * r * texel()).a * w;
+        total += w;
+      }
+    a = sum / total;
+  }
+  a = clamp((a - clipLow) / max(clipHigh - clipLow, 1e-4), 0.0, 1.0);
+  a = pow(a, 1.0 / max(gamma, 1e-3));
+  if (invert) a = 1.0 - a;
+  return matte ? vec4(vec3(a), 1.0) : vec4(c.rgb, a);
+}`,
+    },
+  ],
+};
+
+export const STYLIZE_NODES: readonly NodeDef[] = [MATTE, NOISE, FILM_GRAIN, VIGNETTE, SHARPEN, DIRECTIONAL_BLUR, RADIAL_BLUR, DISPLACE, CORNER_PIN, LENS_DISTORTION, LETTERBOX, LUMA_KEY, MASK_COMBINE];

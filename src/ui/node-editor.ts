@@ -1,5 +1,8 @@
 import type { TrackApply } from '../core/tracking';
-import { OUTPUT_ID, OUTPUT_NODE, SOURCE_NODE, materialize, nodeById, type NodeGraph } from '../core/graph';
+import { OUTPUT_ID, OUTPUT_NODE, SOURCE_ID, SOURCE_NODE, evaluationOrder, materialize, nodeById, type NodeGraph } from '../core/graph';
+import { captureTemplate, placeTemplate } from '../core/graph-templates';
+
+const TEMPLATE_PREFIX = 'template:';
 import {
   addGraphNode,
   connectNodes,
@@ -55,12 +58,15 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
     this.hint = h('p', { class: 'hint node-hint' }, t('nodesHint'));
     this.addSelect = h('select', { id: 'node-add', 'aria-label': t('nodesAdd') });
     this.addSelect.addEventListener('change', () => {
-      if (this.addSelect.value) this.addNode(this.addSelect.value);
+      const value = this.addSelect.value;
+      if (value.startsWith(TEMPLATE_PREFIX)) this.addTemplate(value.slice(TEMPLATE_PREFIX.length));
+      else if (value) this.addNode(value);
       this.addSelect.value = '';
     });
     const tools = h('div', { class: 'timeline-tools node-tools' },
       this.addSelect,
       h('button', { class: 'btn small', id: 'node-fit', onClick: () => this.fit() }, t('nodesFit')),
+      h('button', { class: 'btn small', id: 'node-save-template', onClick: () => this.saveTemplate() }, t('nodesSaveTemplate')),
       h('button', { class: 'btn small', id: 'node-delete', onClick: () => this.deleteSelected() }, t('delete')),
     );
     this.element = h('div', { class: 'node-editor', hidden: true }, tools, h('div', { class: 'node-body' }, this.canvas, this.inspector), this.hint);
@@ -145,8 +151,13 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
     this.hint.hidden = !!item;
     this.canvas.hidden = !item;
     const types = [...this.session.registry.nodes(), ...this.session.registry.filters()];
-    if (this.addSelect.options.length !== types.length + 1) {
-      this.addSelect.replaceChildren(h('option', { value: '' }, t('nodesAdd')), ...types.map((d) => h('option', { value: d.id }, d.name)));
+    const templates = this.session.templates.list();
+    if (this.addSelect.options.length !== types.length + templates.length + 1) {
+      this.addSelect.replaceChildren(
+        h('option', { value: '' }, t('nodesAdd')),
+        ...types.map((d) => h('option', { value: d.id }, d.name)),
+        ...templates.map((tpl) => h('option', { value: TEMPLATE_PREFIX + tpl.name }, t('nodesTemplate', { name: tpl.name }))),
+      );
     }
     if (item && this.fitted !== item.id && this.canvas.clientWidth) {
       this.fitted = item.id;
@@ -173,6 +184,37 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
     this.edit((itemId) => [addGraphNode(itemId, type, {}, position, id)]);
     this.selectedNode = id;
     this.reveal(position);
+    this.refresh();
+  }
+
+  private freePosition(item: Item): [number, number] {
+    const output = nodeById(this.graph(item), OUTPUT_ID);
+    return output ? [output.position[0] - 60, output.position[1] + 90] : [0, 90];
+  }
+
+  private addTemplate(name: string) {
+    const item = this.item;
+    const template = this.session.templates.get(name);
+    if (!item || !template) return;
+    const position = this.freePosition(item);
+    const placed = placeTemplate(item.id, template, position);
+    this.edit(() => [placed.operation]);
+    this.selectedNode = template.output ? placed.ids[template.output] : null;
+    this.reveal(position);
+    this.refresh();
+  }
+
+  private saveTemplate() {
+    const item = this.item;
+    const id = this.selectedNode;
+    if (!item || !id || id === SOURCE_ID || id === OUTPUT_ID) {
+      toast(t('nodesSelectToSave'), 'error');
+      return;
+    }
+    const name = prompt(t('nodesTemplateName'), this.label(nodeById(this.graph(item), id)?.type ?? ''))?.trim();
+    if (!name) return;
+    this.session.templates.save(captureTemplate(item, evaluationOrder(this.graph(item), id), name));
+    toast(t('nodesTemplateSaved', { name }));
     this.refresh();
   }
 

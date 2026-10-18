@@ -17,6 +17,7 @@ import { localLogStore } from './log-store';
 import { detectPlatform } from './platform';
 import type { PlatformReport } from './platform-report';
 import { LutLibrary } from './luts';
+import { TemplateLibrary } from './template-library';
 import { Transport } from './transport';
 
 export type ProxyState = EngineEvents['proxy']['state'];
@@ -56,6 +57,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly files = new Map<string, File>();
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
   readonly log = new EventLog(200, localLogStore('montage.log'));
+  readonly templates = new TemplateLibrary();
   private peakData: AssetDataCache<Float32Array>;
   private platformReport: Promise<PlatformReport> | null = null;
   private thumbnailData: AssetDataCache<ThumbnailStrip>;

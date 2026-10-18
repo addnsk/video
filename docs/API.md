@@ -190,7 +190,7 @@ Built-in nodes:
 - Compositing and transforms: `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `crop`, `letterbox` (`ratio`, `offset`, bar color), `corner-pin` (`topLeft`, `topRight`, `bottomRight`, `bottomLeft` in frame units), `lens-distortion` (`k1`, `k2`, `zoom`, `dispersion` for chromatic fringing), `displace` (second input `map`; `strength`, `channel` `red-green` or `luma`).
 - Blur and detail: `blur`, `glow`, `directional-blur` (`blurLength` in project pixels, `angle`, `centered`), `radial-blur` (`center`, `amount`, `mode` `zoom` or `spin`), `sharpen` (`amount`, `radius`, `threshold`).
 - Stylize: `vignette` (`amount`, `radius`, `softness`, `roundness`, `tint`), `film-grain` (`amount`, `grainSize`, `shadows`, `mono`; changes every frame), `invert`.
-- Masks and keys: `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `ellipse-mask`, `rectangle-mask`, `mask-combine` (inputs `a` and `b`; `mode` `union`, `intersect`, `subtract`, `difference`; `invert`), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `luma-key` (`low`, `high`, `softness`, `invert`, `matte`).
+- Masks and keys: `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `ellipse-mask`, `rectangle-mask`, `mask-combine` (inputs `a` and `b`; `mode` `union`, `intersect`, `subtract`, `difference`; `invert`), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `luma-key` (`low`, `high`, `softness`, `invert`, `matte`), `matte` (matte control for any alpha: `choke` in project pixels, negative grows, `feather`, `gamma`, `clipLow`, `clipHigh`, `invert`, `matte` view).
 - Every color filter is also a node.
 
 ### Text node
@@ -226,6 +226,21 @@ montage.graph.keyframe(0, title, 'progress', 1.5, 1);
 Useful start states: typewriter (`fromOpacity: 0, stagger: 0.95, ease: 'linear'`), drop in (`fromOffset: [0, -0.1], ease: 'back'`), zoom (`fromScale: 3, fromOpacity: 0`), spin (`fromRotation: 180, fromScale: 0`).
 
 Custom nodes can rasterize text too: a node definition with `raster: 'text'` receives `raster(uv)` (fill coverage in red, outline coverage in green), `glyph_count()` and `glyph(i)` (each glyph's box in uv, y up).
+
+### Node templates
+
+A template is a group of nodes saved as plain JSON: their types, params, relative positions, internal links, keyframes, the inputs that came from outside the group and the node that fed the rest of the graph. Templates live in the browser (`montage.templates`) or anywhere you store the JSON.
+
+```js
+const tpl = montage.graph.template(0, [title, merge], 'Lower third');  // capture nodes of clip 0
+montage.templates.save(tpl);                                            // keep it in this browser
+montage.templates.list();                                               // [{ name, nodes }]
+const ids = montage.graph.insert(3, 'Lower third', { source: 'source' }); // or pass the template object
+montage.graph.connect(3, ids.output, 'output');
+montage.templates.remove('Lower third');
+```
+
+`insert` returns the new node ids keyed by template keys (`n0`, `n1`, ...) plus `output`. With `source`, the group's outside inputs are connected to that node. In the node editor, Save template stores the selected node with everything that feeds it, and saved templates appear at the end of the add-node list.
 
 ### Tracking
 
