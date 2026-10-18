@@ -5,6 +5,7 @@ const isRed = (c) => c[0] > 200 && c[1] < 60 && c[2] < 60;
 
 export default {
   name: 'text-node',
+  tags: ['nodes'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('red.mov')]);

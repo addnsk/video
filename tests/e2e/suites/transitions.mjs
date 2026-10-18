@@ -2,6 +2,7 @@ import { Editor, fixture } from '../harness.mjs';
 
 export default {
   name: 'transitions',
+  tags: ['edit'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('red.mov'), fixture('blue.mov')]);

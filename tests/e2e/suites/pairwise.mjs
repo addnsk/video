@@ -25,6 +25,7 @@ const NODE_CODE = {
 
 export default {
   name: 'pairwise',
+  tags: ['export'],
   async run({ browser, url, checks }) {
     const rows = allPairs(FACTORS);
     const editor = await Editor.open(browser, url, { viewport: { width: 1000, height: 700 } });

@@ -7,6 +7,7 @@ const fmt = (v) => v.map((x) => x.toFixed(4)).join(',');
 
 export default {
   name: 'color-math',
+  tags: ['color'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('gray.mov')]);

@@ -64,6 +64,13 @@ class Coalescer<T> {
     return this.pending;
   }
 
+  private waiters: (() => void)[] = [];
+
+  idle(): Promise<void> {
+    if (!this.running && this.pending === null) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+
   private async drain() {
     this.running = true;
     while (this.pending !== null) {
@@ -72,6 +79,7 @@ class Coalescer<T> {
       await this.run(value).catch(() => undefined);
     }
     this.running = false;
+    for (const resolve of this.waiters.splice(0)) resolve();
   }
 }
 
@@ -207,6 +215,10 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.lastStill = { time, bypass: bypassFilters };
     if (this.playback) return Promise.resolve(false);
     return new Promise((done) => this.stillQueue.push({ time, bypass: bypassFilters, done }));
+  }
+
+  whenIdle(): Promise<void> {
+    return this.stillQueue.idle();
   }
 
   play(anchor: ClockAnchor, bypassFilters: boolean): void {

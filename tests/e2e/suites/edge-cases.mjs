@@ -4,6 +4,7 @@ const fmt = (c) => c.map((v) => v.toFixed(3)).join(',');
 
 export default {
   name: 'edge-cases',
+  tags: ['media'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url, { inline: true });
     await editor.import([fixture('gray.mov'), fixture('red.mov')]);

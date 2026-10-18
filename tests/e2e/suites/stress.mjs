@@ -53,6 +53,8 @@ async function stress(browser, url, checks, inline) {
 
 export default {
   name: 'stress',
+  tags: ['media'],
+  exclusive: true,
   async run({ browser, url, checks }) {
     await stress(browser, url, checks, false);
     await stress(browser, url, checks, true);

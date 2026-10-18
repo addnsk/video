@@ -4,6 +4,7 @@ const snapshot = () => JSON.stringify(montage.tracks().flatMap((t) => montage.cl
 
 export default {
   name: 'persistence',
+  tags: ['edit', 'media'],
   async run({ browser, url, checks }) {
     const files = [fixture('red.mov'), fixture('blue.mov')];
     const editor = await Editor.open(browser, url);

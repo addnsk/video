@@ -2,6 +2,7 @@ import { Editor, fixture } from '../harness.mjs';
 
 export default {
   name: 'proxies',
+  tags: ['media'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('testsrc.mov')]);

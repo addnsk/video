@@ -19,6 +19,7 @@ function exportedPixels(path, time, width, height) {
 
 export default {
   name: 'export-parity',
+  tags: ['export'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('gray.mov'), fixture('red.mov')]);

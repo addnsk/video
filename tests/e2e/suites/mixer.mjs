@@ -30,6 +30,8 @@ const levelsWhilePlaying = async (editor) => {
 
 export default {
   name: 'mixer',
+  tags: ['audio'],
+  exclusive: true,
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('bars.mov')]);

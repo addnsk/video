@@ -9,6 +9,7 @@ const probe = (path) =>
 
 export default {
   name: 'prores-export',
+  tags: ['export'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('red.mov'), fixture('bars.mov'), fixture('blue.mov')]);

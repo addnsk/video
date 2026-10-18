@@ -2,6 +2,7 @@ import { Editor, fixture } from '../harness.mjs';
 
 export default {
   name: 'media-bins',
+  tags: ['edit'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     const { page } = editor;

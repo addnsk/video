@@ -6,6 +6,7 @@ const V1_TOP = RULER + 4 + 56 + 4;
 
 export default {
   name: 'edit-page',
+  tags: ['edit'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     const { page } = editor;
@@ -15,14 +16,14 @@ export default {
       for (const c of montage.clips().filter((x) => x.name === 'testsrc.mov')) montage.remove(c.id);
     });
     await editor.run(() => montage.seek(0.5));
-    await editor.settle(800);
+    await editor.frame();
     const timelineColor = await editor.previewColor();
 
     await page.dblclick(`.media-item[data-asset="${asset}"] b`);
     await editor.until(() => montage.source.state().viewer === 'source');
     checks.check((await page.getAttribute('#viewer-source', 'aria-selected')) === 'true', 'double-clicking a media item opens it in the source viewer');
     await editor.run(() => montage.source.seek(0.5));
-    await editor.settle(1200);
+    await editor.frame();
     const sourceColor = await editor.previewColor({ x: 0.1, y: 0.1, size: 0.05 });
     checks.check(Math.abs(sourceColor[0] - timelineColor[0]) > 0.05 || Math.abs(sourceColor[2] - timelineColor[2]) > 0.05, `the viewer shows the source clip, not the timeline (${sourceColor.map((v) => v.toFixed(2))} vs ${timelineColor.map((v) => v.toFixed(2))})`);
 

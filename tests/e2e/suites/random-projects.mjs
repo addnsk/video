@@ -9,6 +9,7 @@ const FILES = () => [fixture('prores-1080-10s.mov'), fixture('red.mov'), fixture
 
 export default {
   name: 'random-projects',
+  tags: ['export'],
   async run({ browser, url, checks }) {
     for (let n = 0; n < COUNT; n++) {
       const seed = BASE_SEED + n;

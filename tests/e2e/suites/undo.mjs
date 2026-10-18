@@ -26,6 +26,7 @@ const STEPS = [
 
 export default {
   name: 'undo',
+  tags: ['edit'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('gray.mov')]);

@@ -2,6 +2,8 @@ import { Editor, fixture } from '../harness.mjs';
 
 export default {
   name: 'long-timeline',
+  tags: ['media'],
+  exclusive: true,
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('prores-2160-4s.mov'), fixture('prores-1080-10s.mov')]);

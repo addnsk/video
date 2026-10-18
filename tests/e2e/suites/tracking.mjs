@@ -2,6 +2,7 @@ import { Editor, fixture } from '../harness.mjs';
 
 export default {
   name: 'tracking',
+  tags: ['nodes'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('moving.mov')]);

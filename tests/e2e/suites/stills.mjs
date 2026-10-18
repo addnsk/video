@@ -4,6 +4,7 @@ const fmt = (c) => c.map((v) => v.toFixed(0)).join(',');
 
 export default {
   name: 'stills',
+  tags: ['color'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('gray.mov'), fixture('red.mov')]);
@@ -18,12 +19,12 @@ export default {
     await editor.seekAndSettle(0.5);
     const plain = await editor.previewColor({ x: 0.5, y: 0.5, size: 0.04 });
     await editor.run((id) => montage.stills.compare(id, 0.5), still.id);
-    await editor.settle(800);
+    await editor.frame();
     const left = await editor.previewColor({ x: 0.3, y: 0.5, size: 0.04 });
     const right = await editor.previewColor({ x: 0.7, y: 0.5, size: 0.04 });
     checks.check(Math.abs(left[0] - graded[0]) < 8 && Math.abs(right[0] - plain[0]) < 8, `wipe shows the still on the left and the live frame on the right (${fmt(left)} | ${fmt(right)})`);
     await editor.run(() => montage.stills.wipe(0));
-    await editor.settle(800);
+    await editor.frame();
     const closed = await editor.previewColor({ x: 0.3, y: 0.5, size: 0.04 });
     checks.check(Math.abs(closed[0] - plain[0]) < 8, `moving the wipe to the edge shows the live frame (${fmt(closed)})`);
     await editor.run(() => montage.stills.compare(null));

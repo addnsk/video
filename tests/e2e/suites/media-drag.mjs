@@ -22,6 +22,7 @@ const drag = async (editor, from, to, steps = 12) => {
 
 export default {
   name: 'media-drag',
+  tags: ['edit'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('red.mov'), fixture('blue.mov'), fixture('music.wav')]);

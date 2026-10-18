@@ -7,6 +7,7 @@ const isRed = ([r, , b]) => r > 180 && b < 80;
 
 export default {
   name: 'multitrack',
+  tags: ['edit'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('red.mov'), fixture('blue.mov'), fixture('music.wav')]);

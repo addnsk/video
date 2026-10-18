@@ -159,9 +159,15 @@ export class Editor {
     await this.page.waitForTimeout(ms);
   }
 
-  async seekAndSettle(time, ms = 1500) {
+  async frame() {
+    await this.run(() => montage.idle());
+    await this.page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await this.page.waitForTimeout(Number(process.env.FRAME_EXTRA ?? 0));
+  }
+
+  async seekAndSettle(time) {
     await this.run((t) => montage.seek(t), time);
-    await this.settle(ms);
+    await this.frame();
   }
 
   async previewNoise(region = { x: 0.5, y: 0.5, size: 0.2 }) {

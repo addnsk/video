@@ -5,6 +5,7 @@ const CENTER = { x: 0.5, y: 0.5, size: 0.04 };
 
 export default {
   name: 'color-nodes',
+  tags: ['color'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('red.mov'), fixture('gray.mov')]);

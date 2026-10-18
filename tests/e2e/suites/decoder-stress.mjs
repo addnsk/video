@@ -4,6 +4,7 @@ const MINUTES = Number(process.env.STRESS_MINUTES ?? 0);
 
 export default {
   name: 'decoder-stress',
+  tags: ['media'],
   async run({ browser, url, checks }) {
     const deadline = Date.now() + MINUTES * 60000;
     let rounds = 0;

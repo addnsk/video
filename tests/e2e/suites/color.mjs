@@ -5,6 +5,7 @@ const INVERT_CUBE = ['LUT_3D_SIZE 2', ...Array.from({ length: 8 }, (_, i) => `${
 
 export default {
   name: 'color',
+  tags: ['color'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('gray.mov'), fixture('red.mov')]);

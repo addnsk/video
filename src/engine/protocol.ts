@@ -53,6 +53,7 @@ export interface EngineMethods {
   resize(width: number, height: number): void;
   setProject(project: Project): void;
   setSource(project: Project | null): void;
+  whenIdle(): Promise<void>;
   setEffects(defs: EffectDef[]): void;
   setLut(id: string, lut: Lut3D | null): void;
   probe(assetId: string, file: File): Promise<AssetMeta>;

@@ -4,6 +4,7 @@ const fmt = (c) => c.map((v) => v.toFixed(0)).join(',');
 
 export default {
   name: 'render-cache',
+  tags: ['media'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('prores-1080-10s.mov')]);

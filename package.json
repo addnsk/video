@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "npm run build && node tests/e2e/run.mjs",
+    "test:e2e": "node tests/e2e/run.mjs --build",
     "test:stress": "npm run build && node tests/e2e/run.mjs stress",
     "bench": "npm run build && node tests/bench/run.mjs",
     "test:mutation": "FUZZ_RUNS=40 stryker run"

@@ -8,6 +8,8 @@ const advance = async (editor, ms) => {
 
 export default {
   name: 'playback',
+  tags: ['audio'],
+  exclusive: true,
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('testsrc.mov'), fixture('bars.mov'), fixture('red.mov'), fixture('blue.mov')]);

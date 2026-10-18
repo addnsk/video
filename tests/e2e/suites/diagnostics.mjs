@@ -5,6 +5,7 @@ import { Editor, fixture } from '../harness.mjs';
 
 export default {
   name: 'diagnostics',
+  tags: ['media'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     const broken = join(mkdtempSync(join(tmpdir(), 'montage-bad-')), 'broken.mov');

@@ -5,6 +5,7 @@ const near = (a, b, d = 6) => a.every((v, i) => Math.abs(v - b[i]) <= d);
 
 export default {
   name: 'fusion-nodes',
+  tags: ['nodes'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('prores-1080-10s.mov')]);

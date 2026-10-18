@@ -49,6 +49,7 @@ async function build(editor) {
 
 export default {
   name: 'project-roundtrip',
+  tags: ['edit'],
   async run({ browser, url, checks }) {
     const files = [fixture('gray.mov'), fixture('red.mov')];
     const editor = await Editor.open(browser, url);

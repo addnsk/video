@@ -15,6 +15,8 @@ const playFor = async (editor, ms) => {
 
 export default {
   name: 'audio',
+  exclusive: true,
+  tags: ['audio'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     await editor.import([fixture('bars.mov')]);

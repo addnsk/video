@@ -8,6 +8,7 @@ const setRange = (editor, selector, value) =>
 
 export default {
   name: 'ui-interactions',
+  tags: ['edit', 'nodes'],
   async run({ browser, url, checks }) {
     const editor = await Editor.open(browser, url);
     const { page } = editor;
