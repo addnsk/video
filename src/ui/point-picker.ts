@@ -4,12 +4,14 @@ import { h } from './dom';
 export class PointPicker {
   private pending: ((point: { x: number; y: number } | null) => void) | null = null;
   private layer: HTMLDivElement;
+  private label: HTMLSpanElement;
 
   constructor(
     private screen: HTMLElement,
     private aspect: () => number,
   ) {
-    this.layer = h('div', { class: 'point-picker', id: 'point-picker', hidden: true }, h('span', {}, t('trackPick')));
+    this.label = h('span', {}, t('trackPick'));
+    this.layer = h('div', { class: 'point-picker', id: 'point-picker', hidden: true }, this.label);
     this.layer.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       this.finish(this.toFrame(e.clientX, e.clientY));
@@ -20,8 +22,9 @@ export class PointPicker {
     screen.append(this.layer);
   }
 
-  pick(): Promise<{ x: number; y: number } | null> {
+  pick(hint: string = t('trackPick')): Promise<{ x: number; y: number } | null> {
     this.finish(null);
+    this.label.textContent = hint;
     this.layer.hidden = false;
     return new Promise((resolve) => (this.pending = resolve));
   }

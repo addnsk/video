@@ -10,6 +10,7 @@ import { MaskOverlay } from './mask-overlay';
 import { NodeEditor } from './node-editor';
 import { PointPicker } from './point-picker';
 import { trackFromViewer } from './track-action';
+import { pickQualifier } from '../host/qualifier-pick';
 import { languageSelect } from './components/language-select';
 import { offlineBanner } from './components/offline-banner';
 import { projectMenu } from './project-menu';
@@ -131,7 +132,16 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new ScriptPanel(api).element,
   );
 
-  const nodeEditor = new NodeEditor(session, selection, track);
+  const pickColor = async (itemId: string, nodeId: string, add: boolean) => {
+    const point = await picker.pick(t('qualifierPickHint'));
+    if (!point) return;
+    try {
+      await pickQualifier(session, itemId, nodeId, point, { add });
+    } catch (error) {
+      toast((error as Error).message, 'error');
+    }
+  };
+  const nodeEditor = new NodeEditor(session, selection, track, (itemId, nodeId, add) => void pickColor(itemId, nodeId, add));
   const maskOverlay = new MaskOverlay(session, screen);
   nodeEditor.on('select', (target) => maskOverlay.show(target));
   const viewing = h('button', { class: 'viewing', id: 'viewing-node', hidden: true, onClick: () => session.viewNode(null) });

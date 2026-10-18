@@ -60,6 +60,7 @@ import type { ExportSettings } from '../engine/export/exporter';
 import type { LogSource } from '../core/log';
 import type { EditorSession } from '../host/session';
 import { createLoudnessApi, createMixerApi } from './mixer-api';
+import { pickQualifier } from '../host/qualifier-pick';
 
 export type ItemRef = string | number;
 export type ItemTarget = ItemRef | 'all';
@@ -372,6 +373,10 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),
       disable: (ref: ItemRef) => void apply(disableGraph(resolve(ref).item.id)),
+      pick: (ref: ItemRef, nodeId: string, point: { x: number; y: number }, options: { add?: boolean; time?: number } = {}) => {
+        const { item, start } = resolve(ref);
+        return pickQualifier(session, item.id, nodeId, point, { ...options, time: options.time ?? Math.max(transport.time, start) });
+      },
       get(ref: ItemRef) {
         const { item } = resolve(ref);
         const graph = materialize(item.effects, item.graph, registry);

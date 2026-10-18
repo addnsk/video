@@ -39,8 +39,6 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 - Grade versions and stills copy node keyframes but not keyframed clip transforms or opacity.
 - Spatial noise reduction is a bilateral filter, not non-local means; strong settings soften fine texture.
 
-- Qualifiers have no blur or clean-up of their own; follow them with a `matte` node.
-- There is no color-picker on the viewer for qualifiers yet; colors are set as parameters.
 
 ## Text node
 

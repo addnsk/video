@@ -1,3 +1,4 @@
+import { QUALIFIER_TYPES } from '../effects/qualifier-pick';
 import type { TrackApply } from '../core/tracking';
 import { OUTPUT_ID, OUTPUT_NODE, SOURCE_ID, SOURCE_NODE, evaluationOrder, materialize, nodeById, type NodeGraph } from '../core/graph';
 import { captureTemplate, placeTemplate } from '../core/graph-templates';
@@ -51,6 +52,7 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
     private session: EditorSession,
     private selection: Selection,
     private onTrack: (itemId: string, apply: TrackApply) => void = () => undefined,
+    private onPickColor: (itemId: string, nodeId: string, add: boolean) => void = () => undefined,
   ) {
     super();
     this.canvas = h('canvas', { id: 'node-canvas', tabindex: 0 });
@@ -338,6 +340,12 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
         ? params
             .filter((p) => p.type === 'vec2')
             .map((p) => h('button', { class: 'btn small', dataset: { track: p.name }, onClick: () => this.onTrack(item!.id, { node: node.id, param: p.name }) }, t('trackPoint', { name: p.label ?? p.name })))
+        : []),
+      ...((QUALIFIER_TYPES as readonly string[]).includes(node.type)
+        ? [
+            h('button', { class: 'btn small', id: 'qualifier-pick', onClick: () => this.onPickColor(item!.id, node.id, false) }, t('qualifierPick')),
+            ...(node.type === 'qualifier-3d' ? [h('button', { class: 'btn small', id: 'qualifier-add', onClick: () => this.onPickColor(item!.id, node.id, true) }, t('qualifierAdd'))] : []),
+          ]
         : []),
     );
   }

@@ -200,6 +200,9 @@ export const en = {
   mixerPreFader: 'Pre-fader',
   mixerTrim: 'Trim (dB)',
   colorInputClipOnly: 'This clip only',
+  qualifierPick: 'Pick color on viewer',
+  qualifierAdd: 'Add color from viewer',
+  qualifierPickHint: 'Click the color to select',
 };
 
 export type Strings = typeof en;

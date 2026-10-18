@@ -3,7 +3,8 @@ import { Emitter } from '../core/emitter';
 import type { AssetMeta, Project } from '../core/model';
 import { emptyProject } from '../core/model';
 import { transfer } from '../core/rpc';
-import { compositionAt, projectDuration } from '../core/timeline';
+import { compositionAt, findPlacement, projectDuration } from '../core/timeline';
+import { SOURCE_ID, materialize } from '../core/graph';
 import { registerBuiltins } from '../effects/builtin';
 import type { Lut3D } from '../effects/cube';
 import { EffectRegistry } from '../effects/registry';
@@ -400,6 +401,29 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.compositor.render(frame, images, { viewNode: this.viewNode, readback: (full) => (copy = { ...full, data: full.data.slice() }) });
     this.drawCompare();
     return copy;
+  }
+
+  async sampleNodeInput(time: number, itemId: string, nodeId: string, points: { x: number; y: number }[]): Promise<number[][] | null> {
+    if (!this.compositor || this.playback) return null;
+    const placement = findPlacement(this.project, itemId);
+    if (!placement) return null;
+    const graph = materialize(placement.item.effects, placement.item.graph, this.registry);
+    const feed = graph.links.find((l) => l.to === nodeId && (l.input === 'source' || l.input === 'input')) ?? graph.links.find((l) => l.to === nodeId);
+    const upstream = feed?.from ?? SOURCE_ID;
+    const frame = compositionAt(this.project, Math.min(Math.max(time, placement.start), placement.end - 1e-3));
+    const images = await this.stills.load(this.project, frame, this.compositor.size);
+    if (!images) return null;
+    let full: FullFrame | null = null;
+    this.compositor.render(frame, images, { viewNode: { itemId, nodeId: upstream }, isolate: itemId, workingSpace: true, readback: (f) => (full = { ...f, data: f.data.slice() }) });
+    this.redraw();
+    const read = full as FullFrame | null;
+    if (!read) return null;
+    return points.map(({ x, y }) => {
+      const px = Math.min(read.width - 1, Math.max(0, Math.floor((x + 0.5) * read.width)));
+      const py = Math.min(read.height - 1, Math.max(0, Math.floor((0.5 - y) * read.height)));
+      const i = (py * read.width + px) * 4;
+      return [0, 1, 2, 3].map((c) => read.data[i + c] * read.scale);
+    });
   }
 
   async sampleFrame(time: number, points: { x: number; y: number }[]): Promise<number[][] | null> {

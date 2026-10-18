@@ -184,6 +184,8 @@ montage.graph.toggle(0, merge, false);
 montage.graph.get(0);                                    // { editable, nodes, links }
 montage.graph.view(0, merge);                            // show one node's result in the viewer; view(null) returns to the output
 montage.graph.disable(0);                                // back to the plain effect chain; enable() brings the wiring back
+await montage.graph.pick(0, qualifierId, { x: 0.1, y: -0.2 });             // set a qualifier from the color at that point (the node's input, working space)
+await montage.graph.pick(0, qualifier3d, { x: 0.3, y: 0 }, { add: true }); // 3D qualifier: add a key color instead of replacing
 ```
 
 Built-in nodes:

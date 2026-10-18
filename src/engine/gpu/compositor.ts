@@ -38,6 +38,8 @@ export interface RenderOptions {
   readonly viewNode?: ViewNode | null;
   readonly capture?: (pixels: Uint8Array, width: number, height: number) => void;
   readonly readback?: (frame: FullFrame) => void;
+  readonly isolate?: string;
+  readonly workingSpace?: boolean;
 }
 
 const CAPTURE_WIDTH = 320;
@@ -147,6 +149,7 @@ export class Compositor {
     let accumulator: RenderTarget | null = null;
     this.passes = 0;
     for (const layer of frame.layers) {
+      if (options.isolate && layer.base.placement.item.id !== options.isolate) continue;
       const result = this.renderTrack(layer, images, options);
       if (!result) continue;
       const opacity = layer.transition ? 1 : resolveItem(layer.base.placement.item, layer.base.local).opacity;
@@ -161,7 +164,7 @@ export class Compositor {
       this.blend(result, accumulator, opacity);
       this.targets.release(result);
     }
-    if (accumulator) accumulator = this.outputTransform(accumulator);
+    if (accumulator && !options.workingSpace) accumulator = this.outputTransform(accumulator);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, this.ctx.surface.width, this.ctx.surface.height);
     gl.clearColor(0, 0, 0, 1);

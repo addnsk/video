@@ -202,4 +202,7 @@ export const ru: Strings = {
   mixerPreFader: 'До фейдера',
   mixerTrim: 'Вход (дБ)',
   colorInputClipOnly: 'Только этот клип',
+  qualifierPick: 'Взять цвет с картинки',
+  qualifierAdd: 'Добавить цвет с картинки',
+  qualifierPickHint: 'Щёлкните по нужному цвету',
 };
