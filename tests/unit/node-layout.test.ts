@@ -25,7 +25,7 @@ describe('node layout', () => {
   });
 
   it('fits the whole graph into the view', () => {
-    const graph = chainGraph([{ id: 'g', type: 'grade', enabled: true, params: {} }], () => 0);
+    const graph = chainGraph([{ id: 'g', type: 'grade', enabled: true, params: {} }], { stageOf: () => 0, isVisual: () => true, chainable: () => true });
     const view = fitView(graph, 800, 200);
     const boxes = graph.nodes.map((n) => layoutNode(n, ['source'], true, view));
     for (const box of boxes) {

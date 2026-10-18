@@ -15,9 +15,9 @@ import { emptyProject, type Item, type Project } from '../../src/core/model';
 import { addAsset, copyEffects, insertItem, replaceEffect, sequence, splitAt, upsertEffect } from '../../src/core/operations';
 import { asset } from './fixtures';
 
-const context = { stageOf: (t: string) => ({ grade: 10, curves: 20 })[t] ?? 50, isVisual: (t: string) => t !== 'eq' };
+const context = { stageOf: (t: string) => ({ grade: 10, curves: 20 })[t] ?? 50, isVisual: (t: string) => t !== 'eq', chainable: (t: string) => t !== 'merge' && t !== 'background' };
 const item = (p: Project, id = 'c') => p.tracks.flatMap((t) => t.items).find((i) => i.id === id)!;
-const graphOf = (i: Item): NodeGraph => materialize(i.effects, i.graph, context.stageOf, context.isVisual);
+const graphOf = (i: Item): NodeGraph => materialize(i.effects, i.graph, context);
 const order = (i: Item) => evaluationOrder(graphOf(i), 'output').map((id) => i.effects.find((e) => e.id === id)?.type ?? id);
 
 const base = () =>

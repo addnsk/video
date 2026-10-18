@@ -106,15 +106,23 @@ export function validateGraph(graph: NodeGraph, lookup: SignatureLookup): string
 
 const SPACING = 180;
 
-export function chainGraph(effects: readonly EffectInstance[], stageOf: (type: string) => number): NodeGraph {
-  const ordered = effects.slice().sort((a, b) => stageOf(a.type) - stageOf(b.type));
-  const nodes: GraphNode[] = [
+export interface GraphTypes {
+  stageOf(type: string): number;
+  isVisual(type: string): boolean;
+  chainable(type: string): boolean;
+}
+
+export function chainGraph(effects: readonly EffectInstance[], types: GraphTypes): NodeGraph {
+  const ordered = effects.filter((e) => types.chainable(e.type)).sort((a, b) => types.stageOf(a.type) - types.stageOf(b.type));
+  const loose = effects.filter((e) => !types.chainable(e.type));
+  const chain: GraphNode[] = [
     { id: 'source', type: SOURCE_NODE, params: {}, enabled: true, position: [0, 0] },
     ...ordered.map((e, i): GraphNode => ({ id: e.id, type: e.type, params: e.params, enabled: e.enabled, position: [(i + 1) * SPACING, 0] })),
     { id: 'output', type: OUTPUT_NODE, params: {}, enabled: true, position: [(ordered.length + 1) * SPACING, 0] },
   ];
-  const links = nodes.slice(1).map((node, i): GraphLink => ({ from: nodes[i].id, to: node.id, input: node.type === OUTPUT_NODE ? 'input' : 'source' }));
-  return { nodes, links };
+  const links = chain.slice(1).map((node, i): GraphLink => ({ from: chain[i].id, to: node.id, input: node.type === OUTPUT_NODE ? 'input' : 'source' }));
+  const extra = loose.map((e, i): GraphNode => ({ id: e.id, type: e.type, params: e.params, enabled: e.enabled, position: [(i + 1) * SPACING, 160] }));
+  return { nodes: [...chain, ...extra], links };
 }
 
 export function connect(graph: NodeGraph, link: GraphLink): NodeGraph {
@@ -171,9 +179,9 @@ export function remapNodeAnimations<T>(animations: Readonly<Record<string, T>>, 
 export const SOURCE_ID = 'source';
 export const OUTPUT_ID = 'output';
 
-export function materialize(effects: readonly EffectInstance[], graph: ItemGraph | undefined, stageOf: (type: string) => number, isVisual: (type: string) => boolean): NodeGraph {
-  const visual = effects.filter((e) => isVisual(e.type));
-  if (!graph) return chainGraph(visual.filter((e) => e.enabled), stageOf);
+export function materialize(effects: readonly EffectInstance[], graph: ItemGraph | undefined, types: GraphTypes): NodeGraph {
+  const visual = effects.filter((e) => types.isVisual(e.type));
+  if (!graph) return chainGraph(visual.filter((e) => e.enabled), types);
   const at = (id: string, fallback: readonly [number, number]) => graph.positions[id] ?? fallback;
   const nodes: GraphNode[] = [
     { id: SOURCE_ID, type: SOURCE_NODE, params: {}, enabled: true, position: at(SOURCE_ID, [0, 0]) },

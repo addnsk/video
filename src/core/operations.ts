@@ -303,18 +303,19 @@ export const upsertEffect = (itemId: string, type: string, params: ParamValues):
 
 export const replaceEffect = (itemId: string, type: string, params: ParamValues | null): Operation => (project) =>
   mapItem(project, itemId, (item) => {
-    const rest = item.effects.filter((e) => e.type !== type);
     if (!params) {
-      if (rest.length === item.effects.length) return item;
       const removed = item.effects.filter((e) => e.type === type);
+      if (!removed.length) return item;
       const graph = item.graph && removed.reduce((g, e) => graphWithoutNode(g, e.id), item.graph);
-      return { ...item, effects: rest, ...(graph ? { graph } : {}) };
+      const gone = new Set(removed.map((e) => e.id));
+      const animations = Object.fromEntries(Object.entries(item.animations).filter(([path]) => !(path.startsWith('node.') && gone.has(path.split('.')[1]))));
+      return { ...item, effects: item.effects.filter((e) => e.type !== type), animations, ...(graph ? { graph } : {}) };
     }
     const previous = item.effects.find((e) => e.type === type);
-    const effect: EffectInstance = { id: previous?.id ?? createId('fx'), type, enabled: true, params };
-    const index = previous ? item.effects.indexOf(previous) : rest.length;
-    const effects = rest.slice();
-    effects.splice(index, 0, effect);
+    const effect: EffectInstance = { id: previous?.id ?? createId('fx'), type, enabled: previous?.enabled ?? true, params };
+    const effects = item.effects.slice();
+    if (previous) effects[effects.indexOf(previous)] = effect;
+    else effects.push(effect);
     return { ...item, effects, ...(item.graph && !previous ? { graph: graphWithNode(item.graph, effect.id) } : {}) };
   });
 

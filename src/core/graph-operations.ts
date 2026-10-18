@@ -6,22 +6,20 @@ import {
   materialize,
   toItemGraph,
   type GraphLink,
+  type GraphTypes,
 } from './graph';
 import { createId } from './ids';
 import type { EffectInstance, Item, ParamValues } from './model';
 import { updateItem, type Operation } from './operations';
 
-export interface GraphContext {
-  stageOf(type: string): number;
-  isVisual(type: string): boolean;
-}
+export type GraphContext = GraphTypes;
 
-const everything = () => true;
+const everything: GraphTypes = { stageOf: () => 0, isVisual: () => true, chainable: () => true };
 
 export const enableGraph = (itemId: string, context: GraphContext): Operation =>
   updateItem(itemId, (item) => {
     if (item.graph) return item;
-    return { ...item, graph: toItemGraph(materialize(item.effects, undefined, (t) => context.stageOf(t), (t) => context.isVisual(t))) };
+    return { ...item, graph: toItemGraph(materialize(item.effects, undefined, context)) };
   });
 
 export const disableGraph = (itemId: string): Operation =>
@@ -46,7 +44,7 @@ export const addGraphNode = (itemId: string, type: string, params: ParamValues, 
 export const connectNodes = (itemId: string, link: GraphLink): Operation =>
   updateItem(itemId, (item) => {
     const graph = requireGraph(item);
-    const next = connect(materialize(item.effects, graph, () => 0, everything), link);
+    const next = connect(materialize(item.effects, graph, everything), link);
     return { ...item, graph: { ...graph, links: next.links } };
   });
 

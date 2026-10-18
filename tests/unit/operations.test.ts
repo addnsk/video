@@ -238,3 +238,19 @@ describe('node keyframes follow copies', () => {
     expect(Object.keys(copied.animations)).toEqual([`node.${copiedNode}.radius`]);
   });
 });
+
+describe('replaceEffect with several nodes of one type', () => {
+  it('edits only the first node and keeps the others', async () => {
+    const { replaceEffect } = await import('../../src/core/operations');
+    const { emptyProject } = await import('../../src/core/model');
+    const base = emptyProject();
+    const item = {
+      id: 'i', kind: 'media' as const, start: 0, source: { assetId: 'x', in: 0, out: 4 }, speed: 1, transitionIn: null, volume: 1, opacity: 1,
+      transform: { x: 0, y: 0, scale: 1, rotation: 0 }, animations: {}, presets: {},
+      effects: [{ id: 'g1', type: 'grade', enabled: false, params: {} }, { id: 'g2', type: 'grade', enabled: true, params: { exposure: 1 } }],
+    };
+    const project = { ...base, tracks: [{ ...base.tracks[0], items: [item] }, ...base.tracks.slice(1)] };
+    const next = replaceEffect('i', 'grade', { exposure: 0.5 })(project).tracks[0].items[0];
+    expect(next.effects.map((e) => [e.id, e.enabled, e.params.exposure])).toEqual([['g1', false, 0.5], ['g2', true, 1]]);
+  });
+});

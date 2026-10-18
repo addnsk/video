@@ -22,6 +22,7 @@
   "devDependencies": {
     "@types/node": "^22.19.1",
     "coi-serviceworker": "0.1.7",
+    "fast-check": "3.23.2",
     "playwright-core": "1.55.0",
     "typescript": "5.8.3",
     "vite": "6.3.5",

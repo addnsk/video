@@ -359,7 +359,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       disable: (ref: ItemRef) => void apply(disableGraph(resolve(ref).item.id)),
       get(ref: ItemRef) {
         const { item } = resolve(ref);
-        const graph = materialize(item.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
+        const graph = materialize(item.effects, item.graph, registry);
         return { editable: !!item.graph, nodes: graph.nodes, links: graph.links };
       },
       add(ref: ItemRef, type: string, params: Record<string, ParamValue> = {}, position?: [number, number]): string {
@@ -369,7 +369,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
         void store.transaction(() => {
           apply(enableGraph(itemId, registry));
           const { item } = resolve(itemId);
-          const existing = materialize(item.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t)).nodes;
+          const existing = materialize(item.effects, item.graph, registry).nodes;
           const free = (): [number, number] => {
             const row = existing.filter((n) => n.position[1] >= 150);
             return [row.length ? Math.max(...row.map((n) => n.position[0])) + 180 : 0, 200];

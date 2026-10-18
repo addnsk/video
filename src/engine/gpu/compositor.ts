@@ -210,7 +210,7 @@ export class Compositor {
     const source = () => this.inputTransform(item, this.fit(texture, image.width, image.height, resolved.transform));
     if (options.bypassFilters) return source();
     const registry = this.registry;
-    const graph = materialize(resolved.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
+    const graph = materialize(resolved.effects, item.graph, registry);
     const viewed = options.viewNode?.itemId === item.id && graph.nodes.some((n) => n.id === options.viewNode!.nodeId) ? options.viewNode.nodeId : OUTPUT_ID;
     return renderGraph<RenderTarget>(
       graph,

@@ -33,7 +33,7 @@ export function migrateProject(raw: unknown): Project {
     muted: !!t.muted,
     items: t.items.map((i) => migrateItem(i as never)),
   }));
-  if (!tracks.some((t) => t.kind === 'video' && !t.magnetic)) tracks.splice(1, 0, { id: 'v2', kind: 'video', magnetic: false, muted: false, items: [] });
+  if ((p.version ?? 1) < 2 && !tracks.some((t) => t.kind === 'video' && !t.magnetic)) tracks.splice(1, 0, { id: 'v2', kind: 'video', magnetic: false, muted: false, items: [] });
   return {
     version: 2,
     settings: p.settings ?? null,

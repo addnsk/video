@@ -56,6 +56,10 @@ export class EffectRegistry extends Emitter<RegistryEvents> {
     return this.filter(type)?.stage ?? 50;
   }
 
+  chainable(type: string): boolean {
+    return this.inputsOf(type)?.includes('source') ?? false;
+  }
+
   isVisual(type: string): boolean {
     const kind = this.defs.get(type)?.kind;
     return kind === 'filter' || kind === 'node';

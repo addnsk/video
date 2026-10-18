@@ -116,7 +116,7 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
 
   private graph(item: Item): NodeGraph {
     const registry = this.session.registry;
-    return materialize(item.effects, item.graph, (type) => registry.stageOf(type), (type) => registry.isVisual(type));
+    return materialize(item.effects, item.graph, registry);
   }
 
   private inputsOf(type: string): string[] {

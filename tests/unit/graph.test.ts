@@ -21,7 +21,7 @@ const lookup = (type: string) => ({ blur: { inputs: ['source'] }, merge: { input
 const node = (id: string, type: string): GraphNode => ({ id, type, params: {}, enabled: true, position: [0, 0] });
 const fx = (id: string, type: string) => ({ id, type, enabled: true, params: { a: 1 } });
 
-const base = (): NodeGraph => chainGraph([fx('b', 'blur'), fx('g', 'grade')], (t) => (t === 'grade' ? 10 : 50));
+const base = (): NodeGraph => chainGraph([fx('b', 'blur'), fx('g', 'grade')], { stageOf: (t) => (t === 'grade' ? 10 : 50), isVisual: () => true, chainable: () => true });
 
 describe('node graph', () => {
   it('builds a chain from effects in stage order', () => {

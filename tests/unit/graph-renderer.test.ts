@@ -47,21 +47,21 @@ const fx = (id: string, type: string, enabled = true) => ({ id, type, enabled, p
 describe('renderGraph', () => {
   it('renders a chain and releases intermediates', () => {
     const rt = runtime();
-    const out = renderGraph(chainGraph([fx('g', 'grade'), fx('m', 'missing')], () => 0), 'output', lookup, rt);
+    const out = renderGraph(chainGraph([fx('g', 'grade'), fx('m', 'missing')], { stageOf: () => 0, isVisual: () => true, chainable: () => true }), 'output', lookup, rt);
     expect(out?.label).toBe('grade(source)');
     expect([...rt.live]).toEqual([out]);
   });
 
   it('passes disabled nodes through', () => {
     const rt = runtime();
-    const out = renderGraph(chainGraph([fx('g', 'grade', false)], () => 0), 'output', lookup, rt);
+    const out = renderGraph(chainGraph([fx('g', 'grade', false)], { stageOf: () => 0, isVisual: () => true, chainable: () => true }), 'output', lookup, rt);
     expect(out?.label).toBe('source');
     expect(rt.calls).toEqual([]);
     expect(rt.live.size).toBe(1);
   });
 
   it('shares a branch between consumers and frees it after the last one', () => {
-    let g: NodeGraph = chainGraph([fx('g', 'grade')], () => 0);
+    let g: NodeGraph = chainGraph([fx('g', 'grade')], { stageOf: () => 0, isVisual: () => true, chainable: () => true });
     g = addNode(g, { id: 'mix', type: 'merge', params: {}, enabled: true, position: [0, 0] });
     g = connect(g, { from: 'source', to: 'mix', input: 'background' });
     g = connect(g, { from: 'g', to: 'mix', input: 'foreground' });
@@ -73,17 +73,17 @@ describe('renderGraph', () => {
   });
 
   it('renders generators without a source and survives a missing source', () => {
-    let g: NodeGraph = chainGraph([], () => 0);
+    let g: NodeGraph = chainGraph([], { stageOf: () => 0, isVisual: () => true, chainable: () => true });
     g = addNode(g, { id: 'bg', type: 'background', params: {}, enabled: true, position: [0, 0] });
     g = connect(g, { from: 'bg', to: 'output', input: 'input' });
     expect(renderGraph(g, 'output', lookup, runtime(false))?.label).toBe('background()');
     const rt = runtime(false);
-    expect(renderGraph(chainGraph([fx('g', 'grade')], () => 0), 'output', lookup, rt)).toBeNull();
+    expect(renderGraph(chainGraph([fx('g', 'grade')], { stageOf: () => 0, isVisual: () => true, chainable: () => true }), 'output', lookup, rt)).toBeNull();
     expect(rt.live.size).toBe(0);
   });
 
   it('releases unused results such as a dangling source', () => {
-    let g: NodeGraph = chainGraph([], () => 0);
+    let g: NodeGraph = chainGraph([], { stageOf: () => 0, isVisual: () => true, chainable: () => true });
     g = addNode(g, { id: 'bg', type: 'background', params: {}, enabled: true, position: [0, 0] });
     g = connect(g, { from: 'bg', to: 'output', input: 'input' });
     const rt = runtime();
@@ -92,7 +92,7 @@ describe('renderGraph', () => {
   });
 
   it('reuses cached results of static branches and copies a cached output', () => {
-    let g: NodeGraph = chainGraph([], () => 0);
+    let g: NodeGraph = chainGraph([], { stageOf: () => 0, isVisual: () => true, chainable: () => true });
     g = addNode(g, { id: 'bg', type: 'background', params: { color: 1 }, enabled: true, position: [0, 0] });
     g = addNode(g, { id: 'mix', type: 'merge', params: {}, enabled: true, position: [0, 0] });
     g = connect(g, { from: 'bg', to: 'mix', input: 'background' });
