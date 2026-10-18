@@ -119,3 +119,15 @@ describe('noise reduction', () => {
     expect(Math.abs(db(toneLeft) - db(0.3 / Math.SQRT2))).toBeLessThan(1);
   });
 });
+
+describe('true peak', () => {
+  it('finds the inter-sample peak of a tone sampled off its crests', () => {
+    const meter = new LoudnessMeter(RATE);
+    const tone = Float32Array.from({ length: RATE }, (_, i) => 0.5 * Math.sin((2 * Math.PI * 12000 * i) / RATE + Math.PI / 4));
+    meter.push([tone, tone]);
+    const { peak, truePeak } = meter.reading();
+    expect(peak).toBeCloseTo(db(0.5 * Math.SQRT1_2), 1);
+    expect(truePeak).toBeGreaterThan(db(0.5) - 0.6);
+    expect(truePeak).toBeLessThan(db(0.5) + 0.3);
+  });
+});

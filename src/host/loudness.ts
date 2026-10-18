@@ -36,7 +36,7 @@ export async function normalizeLoudness(session: EditorSession, target: Loudness
   const before = await measureLoudness(session);
   if (!Number.isFinite(before.integrated)) throw new Error('The project is silent; there is nothing to normalize');
   const gain = goal.integrated - before.integrated;
-  const limiter = before.peak + gain > goal.peak;
+  const limiter = before.truePeak + gain > goal.peak;
   const { store } = session;
   const previous = stripOf(store.project, MASTER)!.volume;
   await store.transaction(() => {

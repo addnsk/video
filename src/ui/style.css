@@ -320,3 +320,4 @@ input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid v
 .mixer-strip .row, .loudness .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mixer-strip label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
 .mixer summary h2 { display: inline; }
+.loudness-live { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9em; }

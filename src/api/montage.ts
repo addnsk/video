@@ -494,6 +494,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     play: (rate = 1) => transport.play(rate),
     pause: () => transport.pause(),
     levels: () => transport.levels(),
+    liveLoudness: () => transport.loudness(),
 
     project: () => JSON.parse(JSON.stringify(store.project)) as typeof store.project,
     undo: () => store.undo(),

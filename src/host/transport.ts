@@ -1,3 +1,4 @@
+import type { LoudnessReading } from '../effects/audio/loudness';
 import { Emitter } from '../core/emitter';
 import type { Store } from '../core/store';
 import { projectDuration } from '../core/timeline';
@@ -44,6 +45,10 @@ export class Transport extends Emitter<TransportEvents> {
 
   get rate(): number {
     return this.playingState ? this.speed : 0;
+  }
+
+  loudness(): LoudnessReading | null {
+    return this.playingState && !this.reverse ? this.audio.loudness() : null;
   }
 
   levels(): number[] {

@@ -13,6 +13,50 @@ export interface LoudnessReading {
   readonly integrated: number;
   readonly range: number;
   readonly peak: number;
+  readonly truePeak: number;
+}
+
+const OVERSAMPLE = 4;
+const TAPS_PER_PHASE = 12;
+
+const PHASES: readonly Float64Array[] = Array.from({ length: OVERSAMPLE }, (_, phase) => {
+  const taps = new Float64Array(TAPS_PER_PHASE);
+  const length = TAPS_PER_PHASE * OVERSAMPLE;
+  for (let k = 0; k < TAPS_PER_PHASE; k++) {
+    const n = k * OVERSAMPLE + phase;
+    const x = (n - (length - 1) / 2) / OVERSAMPLE;
+    const sinc = Math.abs(x) < 1e-9 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
+    const window = 0.5 - 0.5 * Math.cos((2 * Math.PI * (n + 0.5)) / length);
+    taps[k] = sinc * window;
+  }
+  const sum = taps.reduce((a, b) => a + b, 0);
+  return taps.map((v) => v / sum);
+});
+
+class TruePeak {
+  private history: Float64Array[];
+  private index = 0;
+  value = 0;
+
+  constructor(channels: number) {
+    this.history = Array.from({ length: channels }, () => new Float64Array(TAPS_PER_PHASE));
+  }
+
+  push(planar: readonly Float32Array[]): void {
+    const frames = planar[0]?.length ?? 0;
+    for (let i = 0; i < frames; i++) {
+      this.history.forEach((h, c) => {
+        h[this.index] = planar[Math.min(c, planar.length - 1)][i];
+        for (const taps of PHASES) {
+          let sum = 0;
+          for (let k = 0; k < TAPS_PER_PHASE; k++) sum += taps[k] * h[(this.index - k + TAPS_PER_PHASE) % TAPS_PER_PHASE];
+          const magnitude = Math.abs(sum);
+          if (magnitude > this.value) this.value = magnitude;
+        }
+      });
+      this.index = (this.index + 1) % TAPS_PER_PHASE;
+    }
+  }
 }
 
 const lufs = (power: number) => (power > 0 ? OFFSET + 10 * Math.log10(power) : -Infinity);
@@ -50,6 +94,7 @@ export class LoudnessMeter {
   private shortBlocks: number[] = [];
   private peakValue = 0;
   private scratch: Float32Array[] = [];
+  private truePeakMeter: TruePeak;
 
   constructor(
     private sampleRate: number,
@@ -59,6 +104,7 @@ export class LoudnessMeter {
     this.filters = this.stages.map(() => new BiquadFilter(channels));
     this.step = Math.round(sampleRate * STEP_S);
     this.steps = new Float64Array(Math.round(SHORT_S / STEP_S));
+    this.truePeakMeter = new TruePeak(channels);
   }
 
   push(planar: readonly Float32Array[]): void {
@@ -71,6 +117,7 @@ export class LoudnessMeter {
       return view;
     });
     for (const ch of planar) for (let i = 0; i < frames; i++) this.peakValue = Math.max(this.peakValue, Math.abs(ch[i]));
+    this.truePeakMeter.push(planar);
     this.stages.forEach((c, i) => this.filters[i].process(weighted, c));
     for (let i = 0; i < frames; i++) {
       let sum = 0;
@@ -104,6 +151,7 @@ export class LoudnessMeter {
       integrated: integrate(this.blocks),
       range: loudnessRange(this.shortBlocks),
       peak: this.peakValue > 0 ? 20 * Math.log10(this.peakValue) : -Infinity,
+      truePeak: Math.max(this.peakValue, this.truePeakMeter.value) > 0 ? 20 * Math.log10(Math.max(this.peakValue, this.truePeakMeter.value)) : -Infinity,
     };
   }
 }

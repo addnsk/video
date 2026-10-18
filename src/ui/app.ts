@@ -67,6 +67,12 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const timecode = h('div', { class: 'tc', id: 'tc' });
   const rate = h('span', { class: 'rate', id: 'rate', hidden: true });
   const meter = new LevelMeter(transport, t('audioLevels'));
+  const liveLoudness = h('span', { class: 'loudness-live', id: 'loudness-live', title: t('loudnessLiveHint') });
+  let loudnessTimer = 0;
+  const showLoudness = () => {
+    const reading = transport.loudness();
+    liveLoudness.textContent = reading && Number.isFinite(reading.shortTerm) ? `${reading.momentary.toFixed(1)} / ${reading.shortTerm.toFixed(1)} LUFS` : '';
+  };
   const split = () => {
     const placement = selection.id ? findPlacement(store.project, selection.id) : null;
     const covers = placement && transport.time > placement.start && transport.time < placement.end;
@@ -84,6 +90,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     timecode,
     rate,
     meter.element,
+    liveLoudness,
     h('div', { class: 'spacer' }),
     ...editButtons,
     h('button', { class: 'btn icon', 'aria-label': t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, '−'),
@@ -167,8 +174,12 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     play.textContent = playing ? '❚❚' : '▶';
     play.setAttribute('aria-label', playing ? t('pause') : t('play'));
     rate.hidden = !playing || speed === 1;
-    if (playing) meter.start();
-    else meter.stop();
+    clearInterval(loudnessTimer);
+    if (playing) {
+      meter.start();
+      loudnessTimer = window.setInterval(showLoudness, 250);
+    } else meter.stop();
+    showLoudness();
     rate.textContent = `${speed < 0 ? '−' : ''}${Math.abs(speed)}×`;
   });
 

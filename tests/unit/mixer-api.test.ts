@@ -43,7 +43,7 @@ describe('mixer api', () => {
     expect(result.gain).toBeCloseTo(6);
     expect(result.limiter).toBe(true);
     expect(montage.mixer.state().master).toMatchObject({ volume: 6, effects: [{ type: 'limiter', params: { ceiling: -1 } }] });
-    engine.loudness = { ...engine.loudness, integrated: -10, peak: -12 };
+    engine.loudness = { ...engine.loudness, integrated: -10, peak: -12, truePeak: -12 };
     const quieter = await montage.normalize(-23);
     expect(quieter.gain).toBeCloseTo(-13);
     expect(montage.mixer.state().master.volume).toBeCloseTo(-7);

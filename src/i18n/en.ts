@@ -194,6 +194,7 @@ export const en = {
   loudnessResult: 'Integrated {integrated} LUFS · range {range} LU · peak {peak} dBFS',
   loudnessNormalized: 'Master changed by {gain} dB{limiter}',
   loudnessLimiter: ', limiter added',
+  loudnessLiveHint: 'Momentary / short-term loudness of what is playing',
 };
 
 export type Strings = typeof en;

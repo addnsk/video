@@ -196,4 +196,5 @@ export const ru: Strings = {
   loudnessResult: 'Интегральная {integrated} LUFS · диапазон {range} LU · пик {peak} dBFS',
   loudnessNormalized: 'Мастер изменён на {gain} дБ{limiter}',
   loudnessLimiter: ', добавлен лимитер',
+  loudnessLiveHint: 'Мгновенная / кратковременная громкость воспроизводимого',
 };

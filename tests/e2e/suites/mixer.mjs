@@ -61,6 +61,14 @@ export default {
     const [left, right] = await levelsWhilePlaying(editor);
     checks.check(left > 0.05 && right < left * 0.05, `hard left pan silences the right channel (L ${left.toFixed(3)}, R ${right.toFixed(3)})`);
     await editor.run(() => montage.mixer.set('v1', { pan: 0 }));
+    await editor.run(() => montage.seek(0));
+    await editor.run(() => montage.play());
+    await editor.settle(3500);
+    const live = await editor.run(() => montage.liveLoudness());
+    const shown = await editor.page.textContent('#loudness-live');
+    await editor.run(() => montage.pause());
+    checks.near(live?.shortTerm ?? 0, dry, 0.5, `the live meter reads the playing mix (${live?.shortTerm?.toFixed(2)} LUFS)`);
+    checks.check(/LUFS/.test(shown ?? ''), `the transport shows live loudness (${shown})`);
 
     await editor.run(() => {
       montage.mixer.keyframe('master', 'volume', 0, 0);

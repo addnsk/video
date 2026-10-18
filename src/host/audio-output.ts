@@ -1,6 +1,9 @@
+import { LoudnessMeter, type LoudnessReading } from '../effects/audio/loudness';
+
 export class AudioOutput {
   private context: AudioContext | null = null;
   private sources = new Set<AudioBufferSourceNode>();
+  private meter: LoudnessMeter | null = null;
   private bus: { input: GainNode; analysers: AnalyserNode[]; buffer: Float32Array<ArrayBuffer> } | null = null;
 
   async ready(): Promise<AudioContext> {
@@ -32,6 +35,7 @@ export class AudioOutput {
     const ctx = this.context!;
     const frames = planar[0]?.length ?? 0;
     if (!frames) return;
+    if (rate === 1) (this.meter ??= new LoudnessMeter(ctx.sampleRate, 2)).push(planar);
     const buffer = ctx.createBuffer(planar.length, frames, ctx.sampleRate);
     planar.forEach((data, c) => buffer.copyToChannel(data as Float32Array<ArrayBuffer>, c));
     const node = ctx.createBufferSource();
@@ -68,7 +72,12 @@ export class AudioOutput {
     return { input, analysers, buffer: new Float32Array(1024) };
   }
 
+  loudness(): LoudnessReading | null {
+    return this.meter?.reading() ?? null;
+  }
+
   stopAll(): void {
+    this.meter = null;
     for (const node of this.sources) node.stop();
     this.sources.clear();
   }

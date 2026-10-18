@@ -395,10 +395,10 @@ Targets are track ids, bus ids or `'master'` (`montage.mixer.master`). Strip eff
 
 ## Loudness
 
-`montage.loudness()` mixes the whole project offline and measures it per ITU-R BS.1770 / EBU R128: `integrated`, `shortTerm` and `momentary` (the last 3 s and 400 ms), `range` (LRA) in LUFS/LU, and `peak` in dBFS. `montage.normalize(target)` measures, moves the master volume so the integrated loudness meets the target, and puts a limiter on the master when the peak would go over the target's ceiling.
+`montage.loudness()` mixes the whole project offline and measures it per ITU-R BS.1770 / EBU R128: `integrated`, `shortTerm` and `momentary` (the last 3 s and 400 ms), `range` (LRA) in LUFS/LU, `peak` (sample peak) and `truePeak` (4× oversampled) in dBFS. `montage.normalize(target)` measures, moves the master volume so the integrated loudness meets the target, and puts a limiter on the master when the true peak would go over the target's ceiling. `montage.liveLoudness()` returns the same reading for what has played since playback started (`null` while paused); the transport shows its momentary and short-term values.
 
 ```js
-await montage.loudness();             // { integrated: -19.2, shortTerm: -18.7, momentary: -20.1, range: 6.3, peak: -2.4 }
+await montage.loudness();             // { integrated: -19.2, shortTerm: -18.7, momentary: -20.1, range: 6.3, peak: -2.4, truePeak: -2.1 }
 await montage.normalize('youtube');   // { before, gain, limiter }
 await montage.normalize(-23);         // integrated LUFS with a -1 dBFS ceiling
 await montage.normalize({ integrated: -16, peak: -1.5 });

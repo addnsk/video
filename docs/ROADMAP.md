@@ -73,7 +73,8 @@ Heavy CPU work moves out of plain JavaScript; everything else stays as is (decod
 - Done: mixer with track strips (volume in dB, balance pan, mute, effects, volume and pan automation), buses and a master strip (`core/mix.ts`, `engine/audio/strips.ts`, `ui/panels/mixer-panel.ts`, `montage.mixer`).
 - Done: loudness per BS.1770 / EBU R128 (integrated, short-term, momentary, range, sample peak; matches ffmpeg's `ebur128` within 0.15 LU), platform targets and `normalize`, which adds a master limiter when needed.
 - Done: voice cleanup effects for clips and strips: spectral noise reduction, gate, de-esser, limiter.
-- Open: a live LUFS readout during playback, true-peak (oversampled) measurement, sends and bus-to-bus routing.
+- Done: live momentary and short-term loudness in the transport, true-peak measurement.
+- Open: sends and bus-to-bus routing.
 
 ## Phase 6. Edit page
 
