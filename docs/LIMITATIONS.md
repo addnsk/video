@@ -1,5 +1,7 @@
 # Known limitations
 
+Montage is built as a production-ready editor. This file lists only what cannot be fixed on our side (browser APIs, hardware, physics, standards), each with the reason; anything fixable is fixed instead of being listed.
+
 What Montage does not do yet or does only partly. Each entry names the area, the limit and, where useful, the workaround. Keep this file in sync with every feature commit.
 
 ## Media and formats

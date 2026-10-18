@@ -1,5 +1,7 @@
 # Roadmap
 
+Goal: a production-ready editor. A phase is done only when its features have no known fixable defects; open items are finished before the next phase starts.
+
 What Montage still needs, in the order we plan to build it. Each phase ends with unit and e2e coverage and an update of this file.
 
 ## Principles

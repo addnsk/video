@@ -2,6 +2,7 @@
 
 ## Owner's rules
 
+- The product is production-ready, not a prototype. Anything that can be fixed is fixed in the same block, without asking. "Known limitation" is reserved for what is truly outside our control (browser APIs, hardware, physics, standards) and each entry says why it cannot be fixed. Never report an unfinished feature as a limitation.
 - No comments in code. No Russian anywhere in the repository (code, docs, tests) except the UI translation `src/i18n/ru.ts`, which the owner approved. Talk to the owner in Russian.
 - Code must be abstract and layered; keep the layer boundaries below.
 - Commit and push each finished step to `main` with the session attribution lines.
