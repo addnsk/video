@@ -8,6 +8,7 @@ import { EffectRegistry } from '../effects/registry';
 import type { ExportSettings } from '../engine/export/exporter';
 import type { EngineEvents, ExportTarget } from '../engine/protocol';
 import type { EngineClient } from './engine-client';
+import type { PickedFile } from './file-picker';
 import { LutLibrary } from './luts';
 import { Transport } from './transport';
 
@@ -15,6 +16,8 @@ export type ProxyState = EngineEvents['proxy']['state'];
 
 export interface SessionEvents extends Record<string, unknown> {
   proxy: { assetId: string; state: ProxyState; fraction: number };
+  media: { missing: readonly string[] };
+  imported: { meta: AssetMeta; file: File; handle?: FileSystemFileHandle };
   error: string;
 }
 
@@ -63,18 +66,30 @@ export class EditorSession extends Emitter<SessionEvents> {
     return this.store.project.tracks.find((t) => t.kind === 'video' && t.magnetic)!.id;
   }
 
-  async importFile(file: File): Promise<AssetMeta> {
+  async importFile(file: File, handle?: FileSystemFileHandle): Promise<AssetMeta> {
     const meta = await this.engine.remote.probe(createId('asset'), file);
     this.files.set(meta.id, file);
     this.store.dispatch(addAsset(meta), { history: false });
+    this.emit('imported', { meta, file, handle });
     return meta;
   }
 
-  async importAndPlace(files: Iterable<File>, onError: (file: File, error: Error) => void): Promise<AssetMeta[]> {
+  attachFile(meta: AssetMeta, file: File): void {
+    this.files.set(meta.id, file);
+    void this.engine.remote.attach(meta, file);
+    this.emit('media', { missing: this.missing });
+    void this.engine.remote.renderStill(this.transport.time, this.transport.bypass);
+  }
+
+  get missing(): string[] {
+    return Object.keys(this.store.project.assets).filter((id) => !this.files.has(id));
+  }
+
+  async importAndPlace(picked: Iterable<PickedFile>, onError: (file: File, error: Error) => void): Promise<AssetMeta[]> {
     const added: AssetMeta[] = [];
-    for (const file of files) {
+    for (const { file, handle } of picked) {
       try {
-        const meta = await this.importFile(file);
+        const meta = await this.importFile(file, handle);
         this.store.dispatch(sequence(insertItem(meta.id, { trackId: this.videoTrackId })));
         added.push(meta);
       } catch (e) {

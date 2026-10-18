@@ -69,6 +69,18 @@ export const en = {
   gpuLost: 'The graphics card was reset by the system. Restoring…',
   gpuRestored: 'Graphics restored.',
   fps: 'fps',
+  newProject: 'New',
+  newProjectWarning: 'Start an empty project? The current one is replaced. Save it to a file first if you need it.',
+  openProject: 'Open',
+  saveProject: 'Save',
+  savedAt: 'Saved {time}',
+  projectOpened: 'Opened {name}',
+  projectSaved: 'Project saved',
+  mediaOffline: '{count} media file(s) offline: {names}',
+  reconnect: 'Reconnect',
+  reconnectNone: 'Nothing to reconnect. Use Locate files.',
+  locateFiles: 'Locate files',
+  relinked: 'Reconnected {count} file(s)',
 };
 
 export type Strings = typeof en;

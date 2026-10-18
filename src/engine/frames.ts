@@ -35,6 +35,7 @@ export class StillFrames {
 
   private async loadLayer(project: Project, layer: LayerFrame): Promise<FrameImage | null> {
     const { assetId } = layer.placement.item.source;
+    if (!this.pool.has(assetId)) return null;
     const fps = project.assets[assetId]?.fps || 25;
     const quality: Quality = this.pool.hasProxy(assetId) ? 'preview' : 'master';
     const key = `${assetId}:${quality}:${Math.round(layer.sourceTime * fps)}`;
@@ -70,7 +71,7 @@ export class SequentialFrames {
   ) {}
 
   async load(project: Project, frame: CompositionFrame): Promise<Map<string, FrameImage>> {
-    const layers = layersOf(frame);
+    const layers = layersOf(frame).filter((l) => this.pool.has(l.placement.item.source.assetId));
     const wanted = new Set(layers.map((l) => l.placement.item.id));
     const upcoming = this.upcoming(project, frame.time, wanted);
     for (const [id, reader] of this.readers) {
@@ -93,7 +94,7 @@ export class SequentialFrames {
     for (const track of project.tracks) {
       if (track.kind !== 'video' || track.muted) continue;
       for (const p of placeTrack(track))
-        if (!visible.has(p.item.id) && p.start > time && p.start - time < PREFETCH_SECONDS) out.push(p);
+        if (!visible.has(p.item.id) && this.pool.has(p.item.source.assetId) && p.start > time && p.start - time < PREFETCH_SECONDS) out.push(p);
     }
     return out;
   }

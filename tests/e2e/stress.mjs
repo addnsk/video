@@ -32,12 +32,15 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.addInitScript((inline) => {
     delete window.showSaveFilePicker;
+    delete window.showOpenFilePicker;
     if (inline) delete HTMLCanvasElement.prototype.transferControlToOffscreen;
   }, mode === 'inline');
   page.on('pageerror', (e) => failures.push(`page error: ${e.message}`));
   await page.goto(`http://localhost:${port}/`);
   await page.waitForFunction(() => window.montage, null, { timeout: 20000 });
-  await page.setInputFiles('input[type=file][multiple]', [fixture]);
+  const chooser = page.waitForEvent('filechooser');
+  await page.click('#import');
+  await (await chooser).setFiles([fixture]);
   await page.waitForFunction(() => montage.clips().length === 1, null, { timeout: 60000 });
 
   const stats = () => page.evaluate(() => montage.stats());

@@ -1,7 +1,11 @@
 import { createMontageApi } from '../api/montage';
 import { removeItem, splitAt } from '../core/operations';
 import { projectDuration } from '../core/timeline';
+import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
+import type { ProjectPersistence } from '../host/persistence/project-persistence';
 import type { EditorSession } from '../host/session';
+import { offlineBanner } from './components/offline-banner';
+import { projectMenu } from './project-menu';
 import { t } from '../i18n';
 import { toast } from './components/toast';
 import { formatTimecode, h } from './dom';
@@ -13,15 +17,18 @@ import { TransitionPanel } from './panels/transition-panel';
 import { Selection } from './selection';
 import { TimelineView } from './timeline-view';
 
-export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session: EditorSession): void {
+export interface AppHandle {
+  readonly fit: () => void;
+}
+
+export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session: EditorSession, persistence: ProjectPersistence): AppHandle {
   const { store, transport } = session;
   const selection = new Selection(store);
   const api = createMontageApi(session);
   Object.assign(globalThis, { montage: api });
 
-  const fileInput = h('input', { type: 'file', accept: 'video/*,.mov,.mp4,.mkv,.webm,.mxf', multiple: true, hidden: true });
-  const importFiles = async (files: Iterable<File>) => {
-    const added = await session.importAndPlace(files, (file, error) => toast(`${file.name}: ${error.message}`, 'error'));
+  const importFiles = async (picked: Iterable<PickedFile>) => {
+    const added = await session.importAndPlace(picked, (file, error) => toast(`${file.name}: ${error.message}`, 'error'));
     if (added.length) {
       if (!selection.id) selection.set(store.project.tracks[0].items[0]?.id ?? null);
       timeline.fit();
@@ -29,23 +36,19 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
       toast(t('added', { name: added.map((a) => a.name).join(', ') }));
     }
   };
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files) void importFiles([...fileInput.files]);
-    fileInput.value = '';
-  });
 
   const exportButton = h('button', { class: 'btn primary', id: 'export', onClick: () => openExportDialog(session) }, t('export'));
   const bar = h('header', { class: 'bar' },
     h('div', { class: 'brand' }, t('appName'), h('small', {}, t('tagline'))),
-    h('button', { class: 'btn', id: 'import', onClick: () => fileInput.click() }, t('import')),
+    projectMenu(session, persistence),
+    h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, t('import')),
     exportButton,
-    fileInput,
   );
 
   const info = h('div', { class: 'info' });
   const before = h('div', { class: 'badge', hidden: true }, t('before'));
   const empty = h('div', { class: 'empty' }, h('strong', {}, t('emptyTitle')), h('span', {}, t('emptyHint')));
-  const screen = h('div', { class: 'screen' }, preview, info, before, empty);
+  const screen = h('div', { class: 'screen' }, preview, info, before, empty, offlineBanner(session, persistence));
 
   const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => transport.toggle() }, '▶');
   const timecode = h('div', { class: 'tc', id: 'tc' });
@@ -117,7 +120,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   document.addEventListener('dragover', (e) => e.preventDefault());
   document.addEventListener('drop', (e) => {
     e.preventDefault();
-    if (e.dataTransfer?.files.length) void importFiles([...e.dataTransfer.files]);
+    if (e.dataTransfer?.files.length) void importFiles([...e.dataTransfer.files].map((file) => ({ file })));
   });
 
   document.addEventListener('keydown', (e) => {
@@ -139,4 +142,5 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
 
   session.on('error', (message) => toast(message, 'error'));
   session.engine.events.on('context', ({ state }) => toast(t(state === 'lost' ? 'gpuLost' : 'gpuRestored'), state === 'lost' ? 'error' : 'info'));
+  return { fit: () => timeline.fit() };
 }

@@ -25,7 +25,9 @@ export class AudioMixer {
   async mix(project: Project, t0: number, t1: number, rate: number): Promise<Planar> {
     const frames = Math.max(1, Math.round((t1 - t0) * rate));
     const out = silence(OUTPUT_CHANNELS, frames);
-    const placements = audibleAt(project, t0, t1).filter((p) => project.assets[p.item.source.assetId]?.hasAudio);
+    const placements = audibleAt(project, t0, t1).filter(
+      (p) => project.assets[p.item.source.assetId]?.hasAudio && this.pool.has(p.item.source.assetId),
+    );
     await Promise.all(placements.map((p) => this.mixPlacement(p, out, t0, t1, rate)));
     return out;
   }
