@@ -1,5 +1,6 @@
 import type { ScalarParamSpec } from '../types';
 import { BiquadFilter, biquad } from './biquad';
+import { InterSamplePeak, PEAK_TAPS } from './oversample';
 import { numberParam, type AudioEffectDef } from './types';
 
 const coefficient = (seconds: number, sampleRate: number) => Math.exp(-1 / (Math.max(seconds, 1e-4) * sampleRate));
@@ -8,13 +9,29 @@ const toGain = (db: number) => 10 ** (db / 20);
 const CEILING: ScalarParamSpec = { name: 'ceiling', label: 'Ceiling (dB)', type: 'float', default: -1, min: -12, max: 0, step: 0.1 };
 const LIMIT_RELEASE: ScalarParamSpec = { name: 'release', label: 'Release (ms)', type: 'float', default: 80, min: 5, max: 1000, step: 1 };
 
+export const LIMITER_LOOKAHEAD_S = 0.0015;
+
+const lookaheadFrames = (sampleRate: number) => Math.max(2, Math.round(LIMITER_LOOKAHEAD_S * sampleRate));
+
 export const LIMITER: AudioEffectDef = {
   kind: 'audio',
   id: 'limiter',
   name: 'Limiter',
   params: [CEILING, LIMIT_RELEASE],
-  create(sampleRate) {
-    let gain = 1;
+  latency: (sampleRate) => lookaheadFrames(sampleRate) - 1 + PEAK_TAPS / 2,
+  create(sampleRate, channels) {
+    const window = lookaheadFrames(sampleRate);
+    const delay = window - 1 + PEAK_TAPS / 2;
+    const peaks = new InterSamplePeak(Math.max(1, channels));
+    const lines = Array.from({ length: Math.max(1, channels) }, () => new Float64Array(delay + 1));
+    const required = new Float64Array(window);
+    const smoothed = new Float64Array(window);
+    let head = 0;
+    let line = 0;
+    let held = 1;
+    let sum = window;
+    smoothed.fill(1);
+    required.fill(1);
     return {
       process(data, params) {
         const ceiling = toGain(numberParam(params, CEILING));
@@ -22,10 +39,23 @@ export const LIMITER: AudioEffectDef = {
         const frames = data[0]?.length ?? 0;
         for (let i = 0; i < frames; i++) {
           let peak = 0;
-          for (const ch of data) peak = Math.max(peak, Math.abs(ch[i]));
-          const needed = peak > ceiling ? ceiling / peak : 1;
-          gain = needed < gain ? needed : release * gain + (1 - release) * needed;
-          for (const ch of data) ch[i] *= gain;
+          data.forEach((ch, c) => {
+            peak = Math.max(peak, peaks.next(c, ch[i]));
+            lines[c][line] = ch[i];
+          });
+          required[head] = peak > ceiling ? ceiling / peak : 1;
+          let minimum = 1;
+          for (let k = 0; k < window; k++) if (required[k] < minimum) minimum = required[k];
+          held = Math.min(minimum, release * held + (1 - release));
+          sum += held - smoothed[head];
+          smoothed[head] = held;
+          head = (head + 1) % window;
+          const gain = sum / window;
+          const out = (line + 1) % (delay + 1);
+          data.forEach((ch, c) => {
+            ch[i] = lines[c][out] * gain;
+          });
+          line = out;
         }
       },
     };

@@ -321,3 +321,4 @@ input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid v
 .mixer-strip label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
 .mixer summary h2 { display: inline; }
 .loudness-live { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9em; }
+.mixer-strip .send { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

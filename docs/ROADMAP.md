@@ -74,7 +74,7 @@ Heavy CPU work moves out of plain JavaScript; everything else stays as is (decod
 - Done: loudness per BS.1770 / EBU R128 (integrated, short-term, momentary, range, sample peak; matches ffmpeg's `ebur128` within 0.15 LU), platform targets and `normalize`, which adds a master limiter when needed.
 - Done: voice cleanup effects for clips and strips: spectral noise reduction, gate, de-esser, limiter.
 - Done: live momentary and short-term loudness in the transport, true-peak measurement.
-- Open: sends and bus-to-bus routing.
+- Done: sends (pre/post fader), bus-to-bus routing with loop checks, reverb and delay, latency compensation across clips, tracks and buses, effect tails after the last clip, warm-up after seeks, a true-peak look-ahead limiter and a trim stage that `normalize` uses.
 
 ## Phase 6. Edit page
 

@@ -33,6 +33,7 @@ export const DENOISE: AudioEffectDef = {
   id: 'denoise',
   name: 'Noise reduction',
   params: [AMOUNT, SENSITIVITY],
+  latency: () => DENOISE_SIZE,
   create(sampleRate, channels) {
     const fft = new Fft(DENOISE_SIZE);
     const re = new Float64Array(DENOISE_SIZE);
@@ -66,7 +67,6 @@ export const DENOISE: AudioEffectDef = {
       for (let i = 0; i < DENOISE_SIZE; i++) state.output[i] += (re[i] * WINDOW[i]) / OVERLAP_GAIN;
     };
     return {
-      latency: DENOISE_SIZE,
       process(data, params) {
         const floor = 10 ** (-numberParam(params, AMOUNT) / 20);
         const sensitivity = numberParam(params, SENSITIVITY);

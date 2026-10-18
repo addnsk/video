@@ -95,8 +95,9 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 
 ## Mixer and loudness
 
-- Buses feed only the master (no bus-to-bus routing, sends or sidechains). Pan is a balance control for stereo; there is no surround output.
-- Strip effects keep their state only while playback runs continuously; after a seek they restart (noise reduction relearns, compressor envelopes reset). A track's strip runs only while one of its clips is sounding, so effect tails (the 21 ms of noise reduction delay) are cut at the end of the last clip.
-- `normalize` measures, then applies gain; a limiter it adds lowers the loudness of loud peaks a little, so the result can land a fraction of a LU under the target. Measuring a long project mixes all of it once (roughly real time divided by the decoding speed).
-- The master limiter works on sample peaks, so after `normalize` the true peak can sit a few tenths of a dB above the ceiling on bright material. True peak uses a 48-tap windowed-sinc 4× interpolator, close to but not exactly the BS.1770-4 reference filter.
+- Pan is a balance control for stereo; there is no surround output.
+- After a seek or a jump the mixer replays the 1.5 s before the new position through every effect (and decodes it), so playback starts a little later when the project has audio effects. Effects with a memory longer than that (a very large reverb, a delay over 1.5 s) still start partly empty.
+- Tails of track and bus effects (reverb, delay, noise reduction delay) ring out after the last clip, but export stops at the end of the last clip, so a tail past the end of the project is cut; leave some room at the end. Effects on a clip itself stop with the clip; put reverb and delay on a track or a bus.
+- Changing an effect that delays the sound (adding or removing noise reduction or the limiter) while playing shifts the timing of the whole mix by its delay and resets the effects once.
+- `normalize` moves the master trim within ±36 dB; a limiter it adds lowers loud peaks, so the result can land a fraction of a LU under the target. True peak is measured with a 48-tap windowed-sinc 4× interpolator, close to but not exactly the BS.1770-4 reference filter. Measuring a long project mixes all of it once.
 - The live loudness readout measures audio as it is scheduled for playback, which runs ahead of what is heard by the scheduling lookahead, and restarts on every seek or play; it is skipped during shuttle (rates other than 1×).

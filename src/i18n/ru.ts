@@ -197,4 +197,8 @@ export const ru: Strings = {
   loudnessNormalized: 'Мастер изменён на {gain} дБ{limiter}',
   loudnessLimiter: ', добавлен лимитер',
   loudnessLiveHint: 'Мгновенная / кратковременная громкость воспроизводимого',
+  mixerSend: 'Посыл → {name}',
+  mixerSendOff: 'выкл.',
+  mixerPreFader: 'До фейдера',
+  mixerTrim: 'Вход (дБ)',
 };

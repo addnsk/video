@@ -7,7 +7,10 @@ import {
   removeBus,
   renameBus,
   routeOf,
+  routeBus,
   routeTrack,
+  setSend,
+  busOutput,
   setStrip,
   setStripEffect,
   setStripEffectEnabled,
@@ -25,6 +28,7 @@ import { measureLoudness, normalizeLoudness, type NormalizeResult, type Normaliz
 import type { EditorSession } from '../host/session';
 
 export interface StripInfo {
+  readonly trim: number;
   readonly volume: number;
   readonly pan: number;
   readonly mute: boolean;
@@ -33,6 +37,7 @@ export interface StripInfo {
 }
 
 const describeStrip = (strip: Strip): StripInfo => ({
+  trim: strip.trim ?? 0,
   volume: strip.volume,
   pan: strip.pan,
   mute: strip.mute,
@@ -60,9 +65,9 @@ export function createMixerApi(session: EditorSession) {
       return {
         tracks: store.project.tracks.map((t) => {
           const route = routeOf(store.project, t.id);
-          return { id: t.id, kind: t.kind, output: route.output, ...describeStrip(route.strip), mute: t.muted };
+          return { id: t.id, kind: t.kind, output: route.output, sends: (route.sends ?? []).map((x) => ({ ...x })), ...describeStrip(route.strip), mute: t.muted };
         }),
-        buses: mix.buses.map((b) => ({ id: b.id, name: b.name, ...describeStrip(b.strip) })),
+        buses: mix.buses.map((b) => ({ id: b.id, name: b.name, output: busOutput(mix, b), ...describeStrip(b.strip) })),
         master: describeStrip(mix.master),
       };
     },
@@ -99,7 +104,11 @@ export function createMixerApi(session: EditorSession) {
     },
     renameBus: (id: string, name: string) => void apply(renameBus(id, name)),
     removeBus: (id: string) => void apply(removeBus(id)),
-    route: (trackId: string, output: string) => void apply(routeTrack(trackId, output)),
+    route(source: string, output: string) {
+      if (mixOf(store.project).buses.some((b) => b.id === source)) apply(routeBus(source, output));
+      else apply(routeTrack(source, output));
+    },
+    send: (trackId: string, busId: string, level: number | null, options: { pre?: boolean } = {}) => void apply(setSend(trackId, busId, level, options.pre ?? false)),
     master: MASTER,
   };
 }

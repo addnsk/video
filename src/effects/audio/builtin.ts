@@ -1,3 +1,4 @@
+import { DELAY, REVERB } from './space';
 import { DENOISE } from './denoise';
 import { DEESSER, GATE, LIMITER } from './dynamics';
 import type { ScalarParamSpec } from '../types';
@@ -85,6 +86,6 @@ export const COMPRESSOR: AudioEffectDef = {
   },
 };
 
-export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [HIGHPASS, DENOISE, GATE, EQ, DEESSER, COMPRESSOR, LIMITER];
+export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [HIGHPASS, DENOISE, GATE, EQ, DEESSER, COMPRESSOR, DELAY, REVERB, LIMITER];
 
 export const audioEffect = (id: string): AudioEffectDef | undefined => AUDIO_EFFECTS.find((d) => d.id === id);

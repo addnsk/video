@@ -359,7 +359,11 @@ Audio effects run in the engine's mixer per clip, in the order they were added. 
 | `eq` | Equalizer | `low`, `mid`, `high` (dB) |
 | `deesser` | De-esser | `frequency` (Hz), `threshold`, `reduction` (dB) |
 | `compressor` | Compressor | `threshold` (dB), `ratio`, `makeup` (dB) |
-| `limiter` | Limiter | `ceiling` (dB), `release` (ms) |
+| `delay` | Delay | `time` (ms, up to 2000), `feedback` (%), `pingpong` (0 or 1), `mix` (% wet) |
+| `reverb` | Reverb | `size`, `damping`, `width` (0–1), `predelay` (ms), `mix` (% wet) |
+| `limiter` | Limiter | `ceiling` (dBTP), `release` (ms). Looks 1.5 ms ahead and limits the true (inter-sample) peak |
+
+Effects that delay the sound (noise reduction, limiter) are compensated: the mixer shifts everything else so clips, tracks and buses stay in sync with each other and with the picture.
 
 ```js
 montage.audioEffects();                                   // [{ id, name, params }]
@@ -372,14 +376,21 @@ montage.audioEffect(0, 'eq', null);                       // remove
 
 ## Mixer
 
-Every track has a channel strip: volume in dB (−60 to +12, −60 is silence), pan (−1 left to 1 right, a balance control), mute, audio effects and automation. Tracks go to the master or to a bus; buses have their own strips and go to the master. Clip effects and clip volume run first, then the track strip, then the bus, then the master.
+Every track has a channel strip: trim (input gain before the effects, ±36 dB), audio effects, volume in dB (the fader after the effects, −60 to +12, −60 is silence), pan (−1 left to 1 right, a balance control), mute and automation. Tracks go to the master or to a bus and can also send to any number of buses, before or after their fader. Buses have their own strips and go to the master or to another bus (loops are refused). Clip effects and clip volume run first, then the track strip, then the buses, then the master.
 
 ```js
-montage.mixer.state();                         // { tracks: [{ id, kind, output, volume, pan, mute, effects, automation }], buses: [...], master: {...} }
+montage.mixer.state();                         // { tracks: [{ id, kind, output, sends, trim, volume, pan, mute, effects, automation }], buses: [{ id, name, output, ... }], master: {...} }
 montage.mixer.set('a1', { volume: -6, pan: -0.3 });
 montage.mixer.set('a1', { mute: true });       // same as montage.muteTrack('a1', true)
 const music = montage.mixer.addBus('Music');   // returns the bus id
-montage.mixer.route('a1', music);              // or 'master'
+montage.mixer.route('a1', music);              // or 'master'; a bus id as the source routes that bus
+const verb = montage.mixer.addBus('Reverb');
+montage.mixer.effect(verb, 'reverb', { size: 0.7, mix: 100 });
+montage.mixer.send('a1', verb, -10);           // post-fader send at -10 dB
+montage.mixer.send('a2', verb, -6, { pre: true });
+montage.mixer.send('a1', verb, null);          // remove the send
+montage.mixer.route(verb, music);              // bus into bus
+montage.mixer.set('master', { trim: -3 });
 montage.mixer.renameBus(music, 'Score');
 montage.mixer.removeBus(music);                // its tracks go back to the master
 montage.mixer.effect('a2', 'denoise', { reduction: 12 });
@@ -395,7 +406,7 @@ Targets are track ids, bus ids or `'master'` (`montage.mixer.master`). Strip eff
 
 ## Loudness
 
-`montage.loudness()` mixes the whole project offline and measures it per ITU-R BS.1770 / EBU R128: `integrated`, `shortTerm` and `momentary` (the last 3 s and 400 ms), `range` (LRA) in LUFS/LU, `peak` (sample peak) and `truePeak` (4× oversampled) in dBFS. `montage.normalize(target)` measures, moves the master volume so the integrated loudness meets the target, and puts a limiter on the master when the true peak would go over the target's ceiling. `montage.liveLoudness()` returns the same reading for what has played since playback started (`null` while paused); the transport shows its momentary and short-term values.
+`montage.loudness()` mixes the whole project offline and measures it per ITU-R BS.1770 / EBU R128: `integrated`, `shortTerm` and `momentary` (the last 3 s and 400 ms), `range` (LRA) in LUFS/LU, `peak` (sample peak) and `truePeak` (4× oversampled) in dBFS. `montage.normalize(target)` measures, moves the master trim (so the gain goes into the master effects, not after them) until the integrated loudness meets the target, and puts a limiter on the master when the true peak would go over the target's ceiling. `montage.liveLoudness()` returns the same reading for what has played since playback started (`null` while paused); the transport shows its momentary and short-term values.
 
 ```js
 await montage.loudness();             // { integrated: -19.2, shortTerm: -18.7, momentary: -20.1, range: 6.3, peak: -2.4, truePeak: -2.1 }

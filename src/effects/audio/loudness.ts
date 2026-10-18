@@ -1,3 +1,4 @@
+import { InterSamplePeak } from './oversample';
 import { BiquadFilter, type BiquadCoefficients } from './biquad';
 
 const BLOCK_S = 0.4;
@@ -16,46 +17,21 @@ export interface LoudnessReading {
   readonly truePeak: number;
 }
 
-const OVERSAMPLE = 4;
-const TAPS_PER_PHASE = 12;
-
-const PHASES: readonly Float64Array[] = Array.from({ length: OVERSAMPLE }, (_, phase) => {
-  const taps = new Float64Array(TAPS_PER_PHASE);
-  const length = TAPS_PER_PHASE * OVERSAMPLE;
-  for (let k = 0; k < TAPS_PER_PHASE; k++) {
-    const n = k * OVERSAMPLE + phase;
-    const x = (n - (length - 1) / 2) / OVERSAMPLE;
-    const sinc = Math.abs(x) < 1e-9 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
-    const window = 0.5 - 0.5 * Math.cos((2 * Math.PI * (n + 0.5)) / length);
-    taps[k] = sinc * window;
-  }
-  const sum = taps.reduce((a, b) => a + b, 0);
-  return taps.map((v) => v / sum);
-});
-
 class TruePeak {
-  private history: Float64Array[];
-  private index = 0;
+  private peaks: InterSamplePeak;
   value = 0;
 
-  constructor(channels: number) {
-    this.history = Array.from({ length: channels }, () => new Float64Array(TAPS_PER_PHASE));
+  constructor(private channels: number) {
+    this.peaks = new InterSamplePeak(channels);
   }
 
   push(planar: readonly Float32Array[]): void {
     const frames = planar[0]?.length ?? 0;
-    for (let i = 0; i < frames; i++) {
-      this.history.forEach((h, c) => {
-        h[this.index] = planar[Math.min(c, planar.length - 1)][i];
-        for (const taps of PHASES) {
-          let sum = 0;
-          for (let k = 0; k < TAPS_PER_PHASE; k++) sum += taps[k] * h[(this.index - k + TAPS_PER_PHASE) % TAPS_PER_PHASE];
-          const magnitude = Math.abs(sum);
-          if (magnitude > this.value) this.value = magnitude;
-        }
-      });
-      this.index = (this.index + 1) % TAPS_PER_PHASE;
-    }
+    for (let i = 0; i < frames; i++)
+      for (let c = 0; c < this.channels; c++) {
+        const peak = this.peaks.next(c, planar[Math.min(c, planar.length - 1)][i]);
+        if (peak > this.value) this.value = peak;
+      }
   }
 }
 

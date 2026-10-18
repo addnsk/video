@@ -195,6 +195,10 @@ export const en = {
   loudnessNormalized: 'Master changed by {gain} dB{limiter}',
   loudnessLimiter: ', limiter added',
   loudnessLiveHint: 'Momentary / short-term loudness of what is playing',
+  mixerSend: 'Send → {name}',
+  mixerSendOff: 'off',
+  mixerPreFader: 'Pre-fader',
+  mixerTrim: 'Trim (dB)',
 };
 
 export type Strings = typeof en;

@@ -6,6 +6,7 @@ import type { Operation } from './operations';
 export const MASTER = 'master';
 
 export interface Strip {
+  readonly trim?: number;
   readonly volume: number;
   readonly pan: number;
   readonly mute: boolean;
@@ -13,15 +14,23 @@ export interface Strip {
   readonly animations: Animations;
 }
 
+export interface Send {
+  readonly bus: string;
+  readonly level: number;
+  readonly pre: boolean;
+}
+
 export interface TrackRoute {
   readonly strip: Strip;
   readonly output: string;
+  readonly sends?: readonly Send[];
 }
 
 export interface Bus {
   readonly id: string;
   readonly name: string;
   readonly strip: Strip;
+  readonly output?: string;
 }
 
 export interface Mix {
@@ -42,10 +51,41 @@ export const EMPTY_MIX: Mix = { tracks: {}, buses: [], master: UNITY };
 
 export const mixOf = (project: Project): Mix => project.mix ?? EMPTY_MIX;
 
+const hasBus = (mix: Mix, id: string) => mix.buses.some((b) => b.id === id);
+
 export const routeOf = (project: Project, trackId: string): TrackRoute => {
-  const route = mixOf(project).tracks[trackId];
-  const output = route && (route.output === MASTER || mixOf(project).buses.some((b) => b.id === route.output)) ? route.output : MASTER;
-  return { strip: route?.strip ?? UNITY, output };
+  const mix = mixOf(project);
+  const route = mix.tracks[trackId];
+  const output = route && (route.output === MASTER || hasBus(mix, route.output)) ? route.output : MASTER;
+  const sends = (route?.sends ?? []).filter((s) => hasBus(mix, s.bus));
+  return { strip: route?.strip ?? UNITY, output, sends };
+};
+
+export const busOutput = (mix: Mix, bus: Bus): string => (bus.output && bus.output !== bus.id && hasBus(mix, bus.output) ? bus.output : MASTER);
+
+export const busOrder = (mix: Mix): Bus[] => {
+  const order: Bus[] = [];
+  const state = new Map<string, 'visiting' | 'done'>();
+  const visit = (bus: Bus) => {
+    if (state.get(bus.id) === 'done') return;
+    if (state.get(bus.id) === 'visiting') throw new MixError(`Bus routing loops through "${bus.name}"`);
+    state.set(bus.id, 'visiting');
+    for (const source of mix.buses) if (source !== bus && busOutput(mix, source) === bus.id) visit(source);
+    state.set(bus.id, 'done');
+    order.push(bus);
+  };
+  for (const bus of mix.buses) visit(bus);
+  return order;
+};
+
+const feeds = (mix: Mix, from: string, to: string): boolean => {
+  for (let current = from, steps = 0; current !== MASTER && steps <= mix.buses.length; steps++) {
+    if (current === to) return true;
+    const bus = mix.buses.find((b) => b.id === current);
+    if (!bus) return false;
+    current = busOutput(mix, bus);
+  }
+  return false;
 };
 
 export const stripOf = (project: Project, target: string): Strip | null => {
@@ -92,11 +132,12 @@ const mapStrip = (target: string, update: (strip: Strip) => Strip): Operation =>
 const clampProperty = (property: StripProperty, value: number) =>
   property === 'pan' ? Math.max(-1, Math.min(1, value)) : Math.max(MIN_DB, Math.min(MAX_DB, value));
 
-export type StripPatch = Partial<Pick<Strip, 'volume' | 'pan' | 'mute'>>;
+export type StripPatch = Partial<Pick<Strip, 'trim' | 'volume' | 'pan' | 'mute'>>;
 
 export const setStrip = (target: string, patch: StripPatch): Operation =>
   mapStrip(target, (strip) => ({
     ...strip,
+    ...(patch.trim !== undefined ? { trim: Math.max(-TRIM_LIMIT, Math.min(TRIM_LIMIT, patch.trim)) } : {}),
     ...(patch.volume !== undefined ? { volume: clampProperty('volume', patch.volume) } : {}),
     ...(patch.pan !== undefined ? { pan: clampProperty('pan', patch.pan) } : {}),
     ...(patch.mute !== undefined ? { mute: patch.mute } : {}),
@@ -138,9 +179,30 @@ export const renameBus = (id: string, name: string): Operation => (project) =>
 
 export const removeBus = (id: string): Operation => (project) => {
   const mix = mixOf(project);
-  if (!mix.buses.some((b) => b.id === id)) return project;
-  const tracks = Object.fromEntries(Object.entries(mix.tracks).map(([k, r]) => [k, r.output === id ? { ...r, output: MASTER } : r]));
-  return { ...project, mix: { ...mix, tracks, buses: mix.buses.filter((b) => b.id !== id) } };
+  if (!hasBus(mix, id)) return project;
+  const tracks = Object.fromEntries(
+    Object.entries(mix.tracks).map(([k, r]) => [k, { ...r, output: r.output === id ? MASTER : r.output, ...(r.sends ? { sends: r.sends.filter((s) => s.bus !== id) } : {}) }]),
+  );
+  const buses = mix.buses.filter((b) => b.id !== id).map((b) => (b.output === id ? { ...b, output: MASTER } : b));
+  return { ...project, mix: { ...mix, tracks, buses } };
+};
+
+export const routeBus = (busId: string, output: string): Operation => (project) => {
+  const mix = mixOf(project);
+  if (!hasBus(mix, busId)) throw new MixError(`No bus "${busId}"`);
+  if (output !== MASTER && !hasBus(mix, output)) throw new MixError(`No bus "${output}"`);
+  if (output !== MASTER && feeds(mix, output, busId)) throw new MixError('That routing would make a loop');
+  return { ...project, mix: { ...mix, buses: mix.buses.map((b) => (b.id === busId ? { ...b, output } : b)) } };
+};
+
+export const setSend = (trackId: string, busId: string, level: number | null, pre = false): Operation => (project) => {
+  if (!project.tracks.some((t) => t.id === trackId)) throw new MixError(`No track "${trackId}"`);
+  const mix = mixOf(project);
+  if (!hasBus(mix, busId)) throw new MixError(`No bus "${busId}"`);
+  const route = routeOf(project, trackId);
+  const others = (route.sends ?? []).filter((s) => s.bus !== busId);
+  const sends = level === null ? others : [...others, { bus: busId, level: Math.max(MIN_DB, Math.min(MAX_DB, level)), pre }];
+  return { ...project, mix: { ...mix, tracks: { ...mix.tracks, [trackId]: { ...route, sends } } } };
 };
 
 export const routeTrack = (trackId: string, output: string): Operation => (project) => {
@@ -156,5 +218,7 @@ export const forgetTrack = (project: Project, trackId: string): Project => {
   return { ...project, mix: { ...mix, tracks } };
 };
 
+export const TRIM_LIMIT = 36;
+
 export const scaleMaster = (deltaDb: number): Operation =>
-  mapStrip(MASTER, (strip) => ({ ...strip, volume: clampProperty('volume', strip.volume + deltaDb) }));
+  mapStrip(MASTER, (strip) => ({ ...strip, trim: Math.max(-TRIM_LIMIT, Math.min(TRIM_LIMIT, (strip.trim ?? 0) + deltaDb)) }));

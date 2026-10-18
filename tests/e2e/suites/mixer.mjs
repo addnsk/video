@@ -7,10 +7,10 @@ import { Editor, fixture } from '../harness.mjs';
 const integrated = (editor) => editor.run(async () => (await montage.loudness()).integrated);
 
 const ffmpegLoudness = (path, upmix = false) => {
-  const filter = `${upmix ? 'pan=stereo|c0=c0|c1=c0,' : ''}ebur128=peak=sample`;
+  const filter = `${upmix ? 'pan=stereo|c0=c0|c1=c0,' : ''}ebur128=peak=true`;
   const log = spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-i', path, '-vn', '-af', filter, '-f', 'null', '-']).stderr.toString();
   const summary = log.slice(log.lastIndexOf('Summary:'));
-  return { integrated: Number(/I:\s+(-?[\d.]+) LUFS/.exec(summary)?.[1]), peak: Number(/Peak:\s+(-?[\d.]+) dBFS/.exec(summary)?.[1]) };
+  return { integrated: Number(/I:\s+(-?[\d.]+) LUFS/.exec(summary)?.[1]), truePeak: Number(/Peak:\s+(-?[\d.]+) dBFS/.exec(summary)?.[1]) };
 };
 
 const levelsWhilePlaying = async (editor) => {
@@ -94,16 +94,61 @@ export default {
     const reference = ffmpegLoudness(path);
     checks.near(reference.integrated, -23, 0.5, `ffmpeg's EBU R128 meter agrees on the export (${reference.integrated} LUFS)`);
 
-    await editor.run(() => montage.mixer.set('master', { volume: 20 }));
-    await editor.run(() => montage.normalize('youtube'));
+    await editor.run(() => montage.mixer.set('v1', { volume: 12 }));
+    const pushed = await editor.run(() => montage.normalize({ integrated: 0, peak: -1 }));
     const loud = await editor.run(() => montage.loudness());
-    checks.check(loud.peak <= -0.95, `normalizing up adds a limiter that holds the -1 dBFS ceiling (peak ${loud.peak.toFixed(2)})`);
-    checks.check(loud.integrated > -15.5 && loud.integrated < -13.5, `and lands near the -14 LUFS target (${loud.integrated.toFixed(2)})`);
+    checks.check(pushed.limiter && pushed.before.truePeak + pushed.gain > 0, `normalizing far up needs the limiter (peaks would reach ${(pushed.before.truePeak + pushed.gain).toFixed(1)} dBTP)`);
+    checks.check(loud.peak <= -0.95, `the limiter holds the -1 dBFS ceiling (peak ${loud.peak.toFixed(2)})`);
+    checks.check(loud.truePeak <= -0.9, `the look-ahead limiter holds the true peak too (${loud.truePeak.toFixed(2)} dBTP)`);
+    const limited = await editor.run(async () => {
+      const r = await montage.render({ height: 360, prores: 'proxy' });
+      const bytes = new Uint8Array(await r.file.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(binary);
+    });
+    const limitedPath = join(mkdtempSync(join(tmpdir(), 'montage-mixer-')), 'limited.mov');
+    writeFileSync(limitedPath, Buffer.from(limited, 'base64'));
+    const limitedReference = ffmpegLoudness(limitedPath);
+    checks.check(limitedReference.truePeak <= -0.8 && limitedReference.truePeak > -2, `ffmpeg's true-peak meter agrees on the export (${limitedReference.truePeak} dBTP)`);
+
+    await editor.run(() => montage.mixer.set('v1', { volume: 0 }));
+    await editor.run(() => montage.normalize('youtube'));
+    const youtube = await editor.run(() => montage.loudness());
+    checks.check(youtube.integrated > -14.6 && youtube.integrated < -13.4, `normalizing back down lands near the -14 LUFS target (${youtube.integrated.toFixed(2)})`);
+    await editor.run(() => {
+      montage.mixer.set('master', { volume: 0, trim: 0 });
+      montage.mixer.effect('master', 'limiter', null);
+    });
+    const plain = await integrated(editor);
+    const reverb = await editor.run(() => {
+      const id = montage.mixer.addBus('Reverb');
+      montage.mixer.effect(id, 'reverb', { size: 0.8, mix: 100 });
+      montage.mixer.send('v1', id, 0);
+      return id;
+    });
+    const wet = await integrated(editor);
+    checks.check(wet > plain + 0.5, `a send to a reverb bus adds to the mix (${plain.toFixed(2)} → ${wet.toFixed(2)} LUFS)`);
+    const group = await editor.run(() => montage.mixer.addBus('Group'));
+    await editor.run(({ reverb, group }) => montage.mixer.route(reverb, group), { reverb, group });
+    checks.near(await integrated(editor), wet, 0.1, 'routing the reverb bus through a group bus keeps the level');
+    let loop = null;
+    await editor.run(({ reverb, group }) => montage.mixer.route(group, reverb), { reverb, group }).catch((e) => (loop = e.message));
+    checks.check(/loop/.test(loop ?? ''), 'a bus routing loop is refused');
+    await editor.run(({ reverb, group }) => {
+      montage.mixer.removeBus(reverb);
+      montage.mixer.removeBus(group);
+    }, { reverb, group });
 
     await editor.run(() => montage.mixer.effect('v1', 'eq', { low: 6 }));
     await editor.page.click('#mixer summary');
     await editor.page.click('#mixer-add-bus');
     checks.check((await editor.page.$$('.mixer-strip.bus')).length === 1, 'the add bus button creates a strip');
+    const busId = await editor.run(() => montage.mixer.state().buses[0].id);
+    await editor.page.fill(`#mixer-v1-send-${busId}`, '-6');
+    await editor.page.dispatchEvent(`#mixer-v1-send-${busId}`, 'input');
+    const sent = await editor.run(() => montage.mixer.state().tracks.find((t) => t.id === 'v1').sends);
+    checks.check(sent.length === 1 && sent[0].level === -6, `the send slider creates a send (${JSON.stringify(sent)})`);
     await editor.page.click('#mixer-v1-edit');
     await editor.page.click('#strip-eq summary');
     const low = await editor.page.textContent('#strip-eq output');

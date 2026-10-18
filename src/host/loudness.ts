@@ -38,11 +38,11 @@ export async function normalizeLoudness(session: EditorSession, target: Loudness
   const gain = goal.integrated - before.integrated;
   const limiter = before.truePeak + gain > goal.peak;
   const { store } = session;
-  const previous = stripOf(store.project, MASTER)!.volume;
+  const previous = stripOf(store.project, MASTER)!.trim ?? 0;
   await store.transaction(() => {
     store.dispatch(scaleMaster(gain));
     const existing = stripOf(store.project, MASTER)!.effects.some((e) => e.type === 'limiter');
     if (limiter || existing) store.dispatch(setStripEffect(MASTER, 'limiter', { ceiling: goal.peak }));
   });
-  return { before, gain: stripOf(store.project, MASTER)!.volume - previous, limiter };
+  return { before, gain: (stripOf(store.project, MASTER)!.trim ?? 0) - previous, limiter };
 }

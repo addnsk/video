@@ -1,4 +1,4 @@
-import { MASTER, MAX_DB, MIN_DB, addBus, mixOf, removeBus, routeOf, routeTrack, setStrip, setStripEffect, stripOf, type Strip } from '../../core/mix';
+import { MASTER, MAX_DB, MIN_DB, TRIM_LIMIT, addBus, busOutput, mixOf, removeBus, routeBus, routeOf, routeTrack, setSend, setStrip, setStripEffect, stripOf, type Strip } from '../../core/mix';
 import { createId } from '../../core/ids';
 import { setTrackMuted } from '../../core/operations';
 import { LOUDNESS_TARGETS, type LoudnessTarget } from '../../effects/audio/loudness';
@@ -13,10 +13,12 @@ import { AudioEffectsSection } from './audio-effects-section';
 interface StripView {
   readonly id: string;
   readonly element: HTMLElement;
+  readonly trim: Slider;
   readonly volume: Slider;
   readonly pan: Slider;
   readonly mute: HTMLInputElement;
   readonly output: HTMLSelectElement | null;
+  readonly sends: { bus: string; level: Slider; pre: HTMLInputElement }[];
 }
 
 const format = (value: number, digits = 1) => (Number.isFinite(value) ? value.toFixed(digits) : '−∞');
@@ -96,11 +98,20 @@ export class MixerPanel {
     for (const view of this.views) {
       const strip = stripOf(project, view.id);
       if (!strip) continue;
+      view.trim.set(strip.trim ?? 0);
       view.volume.set(strip.volume);
       view.pan.set(strip.pan);
       const track = project.tracks.find((tr) => tr.id === view.id);
       view.mute.checked = track ? track.muted : strip.mute;
-      if (view.output) view.output.value = routeOf(project, view.id).output;
+      const mix = mixOf(project);
+      const bus = mix.buses.find((b) => b.id === view.id);
+      if (view.output) view.output.value = bus ? busOutput(mix, bus) : routeOf(project, view.id).output;
+      const sends = track ? routeOf(project, view.id).sends ?? [] : [];
+      for (const send of view.sends) {
+        const current = sends.find((x) => x.bus === send.bus);
+        send.level.set(current?.level ?? MIN_DB);
+        send.pre.checked = current?.pre ?? false;
+      }
       view.element.classList.toggle('editing', view.id === this.editing);
     }
     const editing = stripOf(project, this.editing)!;
@@ -112,6 +123,11 @@ export class MixerPanel {
     const { store } = this.session;
     const project = store.project;
     const strip: Strip = stripOf(project, id)!;
+    const trim = new Slider({
+      id: `mixer-${id}-trim`, label: t('mixerTrim'), min: -TRIM_LIMIT, max: TRIM_LIMIT, step: 0.5, value: strip.trim ?? 0, neutral: 0,
+      format: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`,
+      onInput: (v) => store.dispatch(setStrip(id, { trim: v }), { coalesce: `mixer:${id}:trim` }),
+    });
     const volume = new Slider({
       id: `mixer-${id}-volume`, label: t('mixerVolume'), min: MIN_DB, max: MAX_DB, step: 0.5, value: strip.volume, neutral: 0,
       format: (v) => (v <= MIN_DB ? '−∞' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`),
@@ -125,20 +141,45 @@ export class MixerPanel {
     const mute = h('input', { type: 'checkbox', id: `mixer-${id}-mute` });
     mute.addEventListener('change', () => store.dispatch(kind === 'track' ? setTrackMuted(id, mute.checked) : setStrip(id, { mute: mute.checked })));
     let output: HTMLSelectElement | null = null;
-    if (kind === 'track') {
+    const buses = mixOf(project).buses;
+    if (kind !== 'master') {
       output = h('select', { id: `mixer-${id}-output`, 'aria-label': t('mixerOutput') },
         h('option', { value: MASTER }, t('mixerMaster')),
-        ...mixOf(project).buses.map((b) => h('option', { value: b.id }, b.name)));
+        ...buses.filter((b) => b.id !== id).map((b) => h('option', { value: b.id }, b.name)));
       const select = output;
-      select.addEventListener('change', () => store.dispatch(routeTrack(id, select.value)));
+      select.addEventListener('change', () => {
+        try {
+          store.dispatch(kind === 'bus' ? routeBus(id, select.value) : routeTrack(id, select.value));
+        } catch (e) {
+          toast((e as Error).message, 'error');
+          this.sync();
+        }
+      });
     }
+    const sends = kind === 'track'
+      ? buses.map((b) => {
+          const pre = h('input', { type: 'checkbox', id: `mixer-${id}-send-${b.id}-pre` });
+          const level = new Slider({
+            id: `mixer-${id}-send-${b.id}`, label: t('mixerSend', { name: b.name }), min: MIN_DB, max: MAX_DB, step: 0.5, value: MIN_DB, neutral: MIN_DB,
+            format: (v) => (v <= MIN_DB ? t('mixerSendOff') : `${v > 0 ? '+' : ''}${v.toFixed(1)}`),
+            onInput: (v) => store.dispatch(setSend(id, b.id, v <= MIN_DB ? null : v, pre.checked), { coalesce: `mixer:${id}:send:${b.id}` }),
+          });
+          pre.addEventListener('change', () => {
+            const current = routeOf(store.project, id).sends?.find((x) => x.bus === b.id);
+            if (current) store.dispatch(setSend(id, b.id, current.level, pre.checked));
+          });
+          return { bus: b.id, level, pre };
+        })
+      : [];
     const edit = h('button', { class: 'btn small', id: `mixer-${id}-edit`, onClick: () => { this.editing = id; this.sync(); } }, t('mixerEdit'));
     const remove = kind === 'bus' ? h('button', { class: 'btn small', id: `mixer-${id}-remove`, onClick: () => store.dispatch(removeBus(id)) }, t('mixerRemoveBus')) : null;
     const element = h('div', { class: `mixer-strip ${kind}`, id: `mixer-${id}` },
       h('div', { class: 'row' }, h('strong', {}, name), h('label', {}, mute, t('mixerMute')), output, edit, remove),
+      trim.element,
       volume.element,
       pan.element,
+      ...sends.map((x) => h('div', { class: 'send' }, x.level.element, h('label', {}, x.pre, t('mixerPreFader')))),
     );
-    return { id, element, volume, pan, mute, output };
+    return { id, element, trim, volume, pan, mute, output, sends };
   }
 }

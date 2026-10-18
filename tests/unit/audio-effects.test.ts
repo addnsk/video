@@ -30,7 +30,7 @@ describe('biquad', () => {
 
 describe('audio effects', () => {
   it('registers ids and lookups', () => {
-    expect(AUDIO_EFFECTS.map((d) => d.id)).toEqual(['highpass', 'denoise', 'gate', 'eq', 'deesser', 'compressor', 'limiter']);
+    expect(AUDIO_EFFECTS.map((d) => d.id)).toEqual(['highpass', 'denoise', 'gate', 'eq', 'deesser', 'compressor', 'delay', 'reverb', 'limiter']);
     expect(audioEffect('eq')).toBe(EQ);
     expect(audioEffect('grade')).toBeUndefined();
   });

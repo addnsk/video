@@ -8,7 +8,9 @@ import { audioEffect } from '../../effects/audio/builtin';
 import type { AudioProcessor } from '../../effects/audio/types';
 import { addInto, mixInto, resampleLinear, silence, type Envelope, type Planar } from './pcm';
 import { StripBank } from './strips';
-import { MASTER, mixOf, routeOf } from '../../core/mix';
+import { MASTER } from '../../core/mix';
+import { planMix, type MixPlan } from './mix-plan';
+import { effectLatency } from '../../effects/audio/types';
 
 interface ChainState {
   processors: Map<string, AudioProcessor>;
@@ -17,6 +19,10 @@ interface ChainState {
 }
 
 export const OUTPUT_CHANNELS = 2;
+const WARMUP_SECONDS = 1.5;
+
+const clipLatency = (item: MediaItem, rate: number) =>
+  item.effects.reduce((sum, e) => sum + (e.enabled ? effectLatency(audioEffect(e.type), rate) : 0), 0);
 
 function envelopeFor(placement: Placement): Envelope {
   const { start, end, fadeIn, fadeOut, item } = placement;
@@ -62,38 +68,59 @@ export class AudioMixer {
     state.next = time + (planar[0]?.length ?? 0) / rate;
   }
 
+  private expected: number | null = null;
+
   async mix(project: Project, t0: number, t1: number, rate: number): Promise<Planar> {
+    const plan = planMix(project, rate);
+    const jumped = this.expected === null || Math.abs(this.expected - t0) > 2 / rate;
+    if (jumped && t0 > 0 && this.stateful(project, plan)) await this.render(project, plan, Math.max(0, t0 - WARMUP_SECONDS), t0, rate);
+    const out = await this.render(project, plan, t0, t1, rate);
+    this.expected = t1;
+    return out;
+  }
+
+  private stateful(project: Project, plan: MixPlan): boolean {
+    if (plan.delay > 0 || plan.nodes.some((n) => n.strip.effects.some((e) => e.enabled))) return true;
+    return project.tracks.some((t) => t.items.some((i) => i.effects.some((e) => e.enabled && audioEffect(e.type))));
+  }
+
+  private async render(project: Project, plan: MixPlan, t0: number, t1: number, rate: number): Promise<Planar> {
     const frames = Math.max(1, Math.round((t1 - t0) * rate));
-    const placements = audibleAt(project, t0, t1).filter((p) => {
+    const s0 = t0 + plan.delay / rate;
+    const s1 = s0 + frames / rate;
+    const tails = new Map(plan.nodes.map((n) => [n.id, n.tail]));
+    const longest = Math.max(0, ...tails.values());
+    const placements = audibleAt(project, Math.max(0, s0 - longest), s1).filter((p) => {
       const item = p.item;
       return item.kind === 'media' && project.assets[item.source.assetId]?.hasAudio && this.pool.has(item.source.assetId);
     });
     const tracks = new Map<string, Planar>();
-    for (const p of placements) if (!tracks.has(p.track.id)) tracks.set(p.track.id, silence(OUTPUT_CHANNELS, frames));
+    for (const p of placements) if (p.end > s0 - (tails.get(p.track.id) ?? 0) && !tracks.has(p.track.id)) tracks.set(p.track.id, silence(OUTPUT_CHANNELS, frames));
     for (const state of this.chains.values()) state.used = false;
-    await Promise.all(placements.map((p) => this.mixPlacement(p, p.item as MediaItem, tracks.get(p.track.id)!, t0, t1, rate)));
+    const sounding = placements.filter((p) => p.end > s0 && p.start < s1);
+    await Promise.all(sounding.map((p) => {
+      const item = p.item as MediaItem;
+      const ahead = clipLatency(item, rate) / rate;
+      return this.mixPlacement(p, item, tracks.get(p.track.id)!, s0 + ahead, s1 + ahead, rate);
+    }));
     for (const [id, state] of this.chains) if (!state.used) this.chains.delete(id);
-    return this.route(project, tracks, frames, t0, rate);
-  }
-
-  private route(project: Project, tracks: Map<string, Planar>, frames: number, t0: number, rate: number): Planar {
-    const mix = mixOf(project);
-    const buses = new Map<string, Planar>(mix.buses.map((b) => [b.id, silence(OUTPUT_CHANNELS, frames)]));
-    const master = silence(OUTPUT_CHANNELS, frames);
+    const inputs = new Map<string, Planar>(plan.nodes.filter((n) => n.kind !== 'track').map((n) => [n.id, silence(OUTPUT_CHANNELS, frames)]));
     this.strips.begin();
-    for (const [trackId, planar] of tracks) {
-      const route = routeOf(project, trackId);
-      this.strips.process(`track:${trackId}`, route.strip, planar, t0, rate);
-      addInto(buses.get(route.output) ?? master, planar);
+    for (const node of plan.nodes) {
+      const buffer = node.kind === 'track' ? tracks.get(node.id) : inputs.get(node.id);
+      if (!buffer) continue;
+      const inTime = s0 - (node.arrival - node.latency) / rate;
+      const outTime = s0 - node.arrival / rate;
+      this.strips.effects(`${node.kind}:${node.id}`, node.strip, buffer, inTime, rate);
+      const pre = node.edges.some((e) => e.pre) ? buffer.map((ch) => ch.slice()) : null;
+      this.strips.gain(node.strip, buffer, outTime, rate);
+      for (const edge of node.edges) {
+        const target = inputs.get(edge.to);
+        if (target) addInto(target, this.strips.delay(edge.id, edge.pre ? pre! : buffer, edge.pad, edge.gain, outTime, rate));
+      }
     }
-    for (const bus of mix.buses) {
-      const planar = buses.get(bus.id)!;
-      this.strips.process(`bus:${bus.id}`, bus.strip, planar, t0, rate);
-      addInto(master, planar);
-    }
-    this.strips.process(MASTER, mix.master, master, t0, rate);
     this.strips.end();
-    return master;
+    return inputs.get(MASTER)!;
   }
 
   private async mixPlacement(placement: Placement, item: MediaItem, out: Planar, t0: number, t1: number, rate: number) {

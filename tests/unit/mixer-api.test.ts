@@ -29,10 +29,25 @@ describe('mixer api', () => {
     expect(montage.mixer.state().buses[0].automation).toEqual({});
   });
 
+  it('routes buses into buses and sends tracks to buses', async () => {
+    const { montage } = await setup();
+    const verb = montage.mixer.addBus('Reverb');
+    const group = montage.mixer.addBus('Group');
+    montage.mixer.route(verb, group);
+    montage.mixer.send('a1', verb, -8, { pre: true });
+    const state = montage.mixer.state();
+    expect(state.buses.find((b) => b.id === verb)!.output).toBe(group);
+    expect(state.tracks.find((t) => t.id === 'a1')!.sends).toEqual([{ bus: verb, level: -8, pre: true }]);
+    expect(() => montage.mixer.route(group, verb)).toThrow(/loop/);
+    montage.mixer.removeBus(verb);
+    expect(montage.mixer.state().tracks.find((t) => t.id === 'a1')!.sends).toEqual([]);
+    montage.mixer.send('a1', group, null);
+  });
+
   it('rejects unknown targets, effects and properties', async () => {
     const { montage } = await setup();
     expect(() => montage.mixer.set('zzz', { volume: 1 })).toThrow(/No track, bus or master/);
-    expect(() => montage.mixer.effect('master', 'reverb', {})).toThrow(/Unknown audio effect/);
+    expect(() => montage.mixer.effect('master', 'chorus', {})).toThrow(/Unknown audio effect/);
     expect(() => montage.mixer.keyframe('master', 'width', 0, 1)).toThrow(/volume, pan/);
     expect(() => montage.mixer.route('a1', 'nobus')).toThrow(/No bus/);
   });
@@ -42,11 +57,11 @@ describe('mixer api', () => {
     const result = await montage.normalize('youtube');
     expect(result.gain).toBeCloseTo(6);
     expect(result.limiter).toBe(true);
-    expect(montage.mixer.state().master).toMatchObject({ volume: 6, effects: [{ type: 'limiter', params: { ceiling: -1 } }] });
+    expect(montage.mixer.state().master).toMatchObject({ trim: 6, volume: 0, effects: [{ type: 'limiter', params: { ceiling: -1 } }] });
     engine.loudness = { ...engine.loudness, integrated: -10, peak: -12, truePeak: -12 };
     const quieter = await montage.normalize(-23);
     expect(quieter.gain).toBeCloseTo(-13);
-    expect(montage.mixer.state().master.volume).toBeCloseTo(-7);
+    expect(montage.mixer.state().master.trim).toBeCloseTo(-7);
     await expect(montage.normalize('cinema' as never)).rejects.toThrow(/Unknown loudness target/);
     engine.loudness = { ...engine.loudness, integrated: -Infinity };
     await expect(montage.normalize()).rejects.toThrow(/silent/);

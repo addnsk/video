@@ -48,7 +48,8 @@ describe('mix model', () => {
 
   it('offsets the master and survives a save', () => {
     const project = sequence(scaleMaster(-4.5), scaleMaster(-1), addBus('Music', 'bus2'))(emptyProject());
-    expect(stripOf(project, MASTER)!.volume).toBeCloseTo(-5.5);
+    expect(stripOf(project, MASTER)!.trim).toBeCloseTo(-5.5);
+    expect(stripOf(project, MASTER)!.volume).toBe(0);
     expect(migrateProject(JSON.parse(JSON.stringify(project))).mix).toEqual(project.mix);
   });
 
