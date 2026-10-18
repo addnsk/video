@@ -89,6 +89,7 @@ export interface NodeDef {
   readonly params: readonly ParamSpec[];
   readonly passes: readonly NodePass[];
   readonly raster?: string;
+  readonly temporal?: boolean;
 }
 
 export const MAX_RASTER_GLYPHS = 128;

@@ -103,6 +103,8 @@ vec4 glyph(int i) { return u_glyphs[i]; }`
   return `${HEADER}
 uniform vec2 u_resolution;
 uniform float u_pixel_scale;
+uniform float u_time;
+float time() { return u_time; }
 vec2 texel() { return 1.0 / u_resolution; }
 float px(float projectPixels) { return projectPixels * u_pixel_scale; }
 float aspect() { return u_resolution.x / u_resolution.y; }

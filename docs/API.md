@@ -184,7 +184,14 @@ montage.graph.view(0, merge);                            // show one node's resu
 montage.graph.disable(0);                                // back to the plain effect chain
 ```
 
-Built-in nodes: `text` (see below), `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `blur`, `glow`, `crop`, `invert`, `background`, `gradient`, `ellipse-mask`, `rectangle-mask`, plus every color filter.
+Built-in nodes:
+
+- Generators: `text` (see below), `background`, `gradient`, `noise` (animated fractal noise: `scale`, `detail`, `speed`, `seed`, `low` and `high` colors).
+- Compositing and transforms: `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `crop`, `letterbox` (`ratio`, `offset`, bar color), `corner-pin` (`topLeft`, `topRight`, `bottomRight`, `bottomLeft` in frame units), `lens-distortion` (`k1`, `k2`, `zoom`, `dispersion` for chromatic fringing), `displace` (second input `map`; `strength`, `channel` `red-green` or `luma`).
+- Blur and detail: `blur`, `glow`, `directional-blur` (`blurLength` in project pixels, `angle`, `centered`), `radial-blur` (`center`, `amount`, `mode` `zoom` or `spin`), `sharpen` (`amount`, `radius`, `threshold`).
+- Stylize: `vignette` (`amount`, `radius`, `softness`, `roundness`, `tint`), `film-grain` (`amount`, `grainSize`, `shadows`, `mono`; changes every frame), `invert`.
+- Masks and keys: `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `ellipse-mask`, `rectangle-mask`, `mask-combine` (inputs `a` and `b`; `mode` `union`, `intersect`, `subtract`, `difference`; `invert`), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `luma-key` (`low`, `high`, `softness`, `invert`, `matte`).
+- Every color filter is also a node.
 
 ### Text node
 
@@ -233,7 +240,7 @@ await montage.track(0, { x: -0.27, y: 0, apply: 'stabilize', patch: 31, search: 
 
 In the UI, the Stabilize button in the clip panel and the Track buttons of vec2 node params ask for a click on the viewer and track from the playhead to the clip end.
 
-Custom nodes are GLSL with any number of inputs and passes. Each pass defines `vec4 process(vec2 uv)` and can call `input_<name>(uv)`, `has_<name>()`, `previous(uv)` (the previous pass), `texel()` and `aspect()`. Values are not clamped, so highlights above 1.0 survive to HDR export.
+Custom nodes are GLSL with any number of inputs and passes. Each pass defines `vec4 process(vec2 uv)` and can call `input_<name>(uv)`, `has_<name>()`, `previous(uv)` (the previous pass), `texel()`, `aspect()`, `px(projectPixels)` and `time()` (seconds from the clip start). Nodes that read `time()` must be registered with `temporal: true` so their output is not cached between frames. Values are not clamped, so highlights above 1.0 survive to HDR export.
 
 ```js
 montage.nodes.register({

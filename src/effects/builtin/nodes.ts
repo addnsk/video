@@ -1,3 +1,4 @@
+import { STYLIZE_NODES } from './stylize-nodes';
 import { TEXT_NODE } from './text-node';
 import type { NodeDef, ParamSpec } from '../types';
 
@@ -326,4 +327,4 @@ vec4 process(vec2 uv) {
   ],
 };
 
-export const BUILTIN_NODES: readonly NodeDef[] = [TEXT_NODE, KEYER, POLYGON_MASK, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];
+export const BUILTIN_NODES: readonly NodeDef[] = [TEXT_NODE, ...STYLIZE_NODES, KEYER, POLYGON_MASK, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];

@@ -38,6 +38,7 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 - Compositing now runs in project frame space (`Compositor.setFrame`, `px()` helper in node GLSL scales project pixels to preview).
 - Point tracker done: `engine/tracking/{tracker,track-media}.ts` (engine `track`), `core/tracking.ts` (frame/source mapping, follow and stabilize keyframes), `host/point-tracking.ts`, API `montage.track`, viewer pick (`ui/point-picker.ts`, `ui/track-action.ts`), e2e `tracking`.
 - Text node done: `effects/builtin/text-node.ts` (`raster: 'text'` nodes get `raster(uv)`, `glyph(i)`), `engine/text-raster.ts`, `engine/gpu/raster.ts` (rasterizers registered on the compositor), `text` param type, e2e `text-node`.
+- Stylize/transform nodes in `effects/builtin/stylize-nodes.ts`; `time()` in node GLSL with `temporal` defs excluded from the node cache; e2e `fusion-nodes` compiles every built-in node.
 - Next: render cache spill to OPFS (phase 1), color page (phase 4).
 - GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
 

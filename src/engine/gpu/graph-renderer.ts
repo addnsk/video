@@ -53,7 +53,7 @@ export function renderGraph<T>(graph: NodeGraph, outputId: string, lookup: NodeL
     const primary = read.get('source') ?? read.get('input') ?? read.values().next().value ?? null;
     const inputKeys = [...inputs].map(([name, from]) => [name, keys.get(from)] as const);
     const key =
-      node.type === SOURCE_NODE || inputKeys.some(([, k]) => k === null)
+      node.type === SOURCE_NODE || lookup.node(node.type)?.temporal || inputKeys.some(([, k]) => k === null)
         ? null
         : `${node.type}:${node.enabled}:${JSON.stringify(node.params)}(${inputKeys.map(([n, k]) => `${n}=${k}`).join(',')})`;
     keys.set(id, key);

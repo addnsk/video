@@ -76,6 +76,7 @@ export class Compositor {
   }
 
   private rasterTextures: RasterTextures;
+  private nodeTime = 0;
   private rasterizers = new Map<string, Rasterizer>();
 
   registerRasterizer(id: string, rasterizer: Rasterizer): void {
@@ -177,6 +178,7 @@ export class Compositor {
     if (!upload) this.uploads.set(item.id, (upload = new UploadTexture(this.ctx)));
     const texture = upload.upload(image.source, image.width, image.height, image.key);
     const resolved = resolveItem(item, layer.local);
+    this.nodeTime = layer.local;
     const source = () => this.fit(texture, image.width, image.height, resolved.transform);
     if (options.bypassFilters) return source();
     const registry = this.registry;
@@ -272,6 +274,7 @@ export class Compositor {
       gl.useProgram(program);
       gl.uniform2f(this.ctx.uniform(program, 'u_resolution'), this.width, this.height);
       gl.uniform1f(this.ctx.uniform(program, 'u_pixel_scale'), this.pixelScale);
+      gl.uniform1f(this.ctx.uniform(program, 'u_time'), this.nodeTime);
       let unit = 0;
       for (const { name } of def.inputs) {
         const input = inputs.get(name);
