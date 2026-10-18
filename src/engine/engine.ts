@@ -25,6 +25,7 @@ import { metrics } from './metrics';
 import { resources } from './resources';
 import { analyze } from './scopes';
 import { TextRenderer } from './text';
+import { TextRasterizer } from './text-raster';
 import { loadFonts } from './fonts';
 import { computePeaks } from './audio/peaks';
 import { decodeThumbnails } from './media/thumbnails';
@@ -116,6 +117,7 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.gpu = new GpuContext(surface);
     this.compositor = new Compositor(this.gpu, this.registry, { lut: (id) => this.luts.get(id) });
     if (this.project.settings) this.compositor.setFrame(this.project.settings.width, this.project.settings.height);
+    this.compositor.registerRasterizer('text', new TextRasterizer());
     this.compositor.onError = (message) => this.emit('error', { message });
     this.gpu.on('lost', () => this.emit('context', { state: 'lost' }));
     this.gpu.on('restored', () => {

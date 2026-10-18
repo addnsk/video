@@ -2,7 +2,7 @@ import { resolveItem } from '../../core/resolve';
 import type { EffectInstance, ParamValue, ParamValues, Transform } from '../../core/model';
 import type { CompositionFrame, LayerFrame, TrackFrame } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';
-import type { FilterDef, NodeDef, ParamSpec, TransitionDef } from '../../effects/types';
+import { defaultParams, type FilterDef, type NodeDef, type ParamSpec, type TransitionDef } from '../../effects/types';
 import type { FrameImage } from '../media/frame';
 import type { GpuContext } from './context';
 import { COPY, FIT, filterSource, nodeHasUniform, nodeInputUniform, nodeSource, transitionSource } from './shaders';
@@ -10,6 +10,7 @@ import { OUTPUT_ID, materialize } from '../../core/graph';
 import { renderGraph } from './graph-renderer';
 import { sampleCurve } from '../../effects/curves';
 import { catmullRom } from '../../effects/points';
+import { RasterTextures, type Rasterizer } from './raster';
 import { CurveTextures, LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
 
 export interface LutProvider {
@@ -71,6 +72,14 @@ export class Compositor {
     this.targets = new TargetPool(ctx);
     this.luts = new LutTextures(ctx);
     this.curves = new CurveTextures(ctx);
+    this.rasterTextures = new RasterTextures(ctx);
+  }
+
+  private rasterTextures: RasterTextures;
+  private rasterizers = new Map<string, Rasterizer>();
+
+  registerRasterizer(id: string, rasterizer: Rasterizer): void {
+    this.rasterizers.set(id, rasterizer);
   }
 
   private project: { width: number; height: number } | null = null;
@@ -270,12 +279,30 @@ export class Compositor {
         this.bindTexture(program, nodeInputUniform(name), unit++, input?.texture ?? this.emptyTexture());
       }
       if (previous) this.bindTexture(program, 'u_previous', unit++, previous.texture);
+      if (def.raster) unit = this.bindRaster(program, def.raster, { ...defaultParams(def.params), ...params }, unit);
       this.applyParams(program, def.params, params, unit);
       this.ctx.drawQuad();
       if (previous) this.targets.release(previous);
       previous = out;
     }
     return previous ?? this.blankTarget();
+  }
+
+  private bindRaster(program: WebGLProgram, id: string, params: ParamValues, unit: number): number {
+    const gl = this.ctx.gl;
+    const rasterizer = this.rasterizers.get(id);
+    if (!rasterizer) {
+      this.bindTexture(program, 'u_raster', unit, this.emptyTexture());
+      gl.uniform1i(this.ctx.uniform(program, 'u_glyph_count'), 0);
+      return unit + 1;
+    }
+    const image = rasterizer.rasterize(params, this.width, this.height, this.pixelScale);
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    this.bindTexture(program, 'u_raster', unit, this.rasterTextures.get(image));
+    gl.useProgram(program);
+    gl.uniform4fv(this.ctx.uniform(program, 'u_glyphs[0]'), image.glyphs);
+    gl.uniform1i(this.ctx.uniform(program, 'u_glyph_count'), image.count);
+    return unit + 1;
   }
 
   private empty: { texture: WebGLTexture; generation: number } | null = null;
@@ -391,6 +418,8 @@ export class Compositor {
           this.bindTexture(program, spec.name, unit++, texture);
           break;
         }
+        case 'text':
+          break;
         case 'enum':
           gl.uniform1i(loc, Math.max(0, spec.options.findIndex((o) => o.value === value)));
           break;
@@ -503,6 +532,8 @@ export class Compositor {
     this.fullFrame = null;
     for (const upload of this.uploads.values()) upload.dispose();
     this.uploads.clear();
+    this.rasterTextures.clear();
+    for (const rasterizer of this.rasterizers.values()) rasterizer.clear();
     this.targets.trim();
   }
 

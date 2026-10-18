@@ -37,6 +37,12 @@ export class ParamControls {
       const input = h('input', { type: 'checkbox', id, checked: !!value, onChange: () => onChange(input.checked) });
       return h('label', { class: 'check' }, input, h('span', {}, label));
     }
+    if (spec.type === 'text') {
+      const area = h('textarea', { id, rows: 3, class: 'plain', 'aria-label': label });
+      area.value = String(value);
+      area.addEventListener('input', () => onChange(area.value));
+      return h('label', { class: 'field' }, label, area);
+    }
     if (spec.type === 'enum') {
       const select = h('select', { id, onChange: () => onChange(select.value) }, ...spec.options.map((o) => h('option', { value: o.value }, o.label)));
       select.value = String(value);

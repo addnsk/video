@@ -45,7 +45,12 @@ export interface PointsParamSpec extends ParamSpecBase {
   readonly max: number;
 }
 
-export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec | CurveParamSpec | ColorParamSpec | PointsParamSpec;
+export interface TextParamSpec extends ParamSpecBase {
+  readonly type: 'text';
+  readonly default: string;
+}
+
+export type ParamSpec = ScalarParamSpec | EnumParamSpec | ResourceParamSpec | CurveParamSpec | ColorParamSpec | PointsParamSpec | TextParamSpec;
 
 export interface FilterDef {
   readonly kind: 'filter';
@@ -83,7 +88,10 @@ export interface NodeDef {
   readonly inputs: readonly NodeInputSpec[];
   readonly params: readonly ParamSpec[];
   readonly passes: readonly NodePass[];
+  readonly raster?: string;
 }
+
+export const MAX_RASTER_GLYPHS = 128;
 
 export type EffectDef = FilterDef | TransitionDef | NodeDef;
 

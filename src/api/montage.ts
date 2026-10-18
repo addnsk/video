@@ -371,7 +371,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     },
 
     nodes: {
-      register(def: { id: string; name: string; category?: NodeCategory; inputs?: string[]; params?: ParamSpec[]; passes: string[] | string }) {
+      register(def: { id: string; name: string; category?: NodeCategory; inputs?: string[]; params?: ParamSpec[]; passes: string[] | string; raster?: 'text' }) {
         registry.register({
           kind: 'node',
           id: def.id,
@@ -380,6 +380,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
           inputs: (def.inputs ?? ['source']).map((name) => ({ name })),
           params: def.params ?? [],
           passes: (Array.isArray(def.passes) ? def.passes : [def.passes]).map((glsl) => ({ glsl })),
+          ...(def.raster ? { raster: def.raster } : {}),
         });
       },
     },

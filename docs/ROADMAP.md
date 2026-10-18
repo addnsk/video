@@ -39,7 +39,7 @@ Status: model, operations, evaluation with pooled targets, built-in nodes, API a
 
 ## Phase 3. Compositing nodes
 
-Status: merge, transform, crop, background, gradient, blur, glow, polygon and shape masks, keyer and the point tracker (follow and stabilize) are done.
+Status: merge, transform, crop, background, gradient, blur, glow, polygon and shape masks, keyer, the point tracker (follow and stabilize) and the Text+ style text node (per-character animation, outline, shadow) are done.
 
 - Merge with blend modes, Transform, Crop, Resize, Letterbox, Background, Gradient, Noise.
 - Blur, Glow, Sharpen, Directional and Radial blur, Displace, Corner pin, Lens distortion, Vignette, Film grain.

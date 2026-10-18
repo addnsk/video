@@ -5,6 +5,7 @@
 - No comments in code. No Russian anywhere in the repository (code, docs, tests) except the UI translation `src/i18n/ru.ts`, which the owner approved. Talk to the owner in Russian.
 - Code must be abstract and layered; keep the layer boundaries below.
 - Commit and push each finished step to `main` with the session attribution lines.
+- Every scripting API addition or change is documented in `docs/API.md` (the source for the future user documentation) in the same commit.
 - The owner checks results only when a whole block is done; work autonomously, report at the end.
 
 ## Layers
@@ -36,7 +37,8 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 - Phase 2/3 (Fusion) in progress. Done: node graph core (`core/graph.ts`, `core/graph-operations.ts`; graph lives in `item.graph` as links + positions, node params stay in `item.effects`), GPU evaluation (`engine/gpu/graph-renderer.ts` with refcounted targets and a static-branch node cache), built-in nodes (`effects/builtin/nodes.ts`: merge, transform, blur, glow, crop, invert, background, gradient, ellipse/rectangle/polygon masks, keyer), `color` and `points` param types, per-node keyframes (`node.<id>.<param>`, array components as `param.<index>`), node editor tab (`ui/node-editor.ts`, `ui/node-layout.ts`), node view in viewer, polygon point editing on the viewer (`ui/mask-overlay.ts`), API `montage.graph.*` and `montage.nodes.register`.
 - Compositing now runs in project frame space (`Compositor.setFrame`, `px()` helper in node GLSL scales project pixels to preview).
 - Point tracker done: `engine/tracking/{tracker,track-media}.ts` (engine `track`), `core/tracking.ts` (frame/source mapping, follow and stabilize keyframes), `host/point-tracking.ts`, API `montage.track`, viewer pick (`ui/point-picker.ts`, `ui/track-action.ts`), e2e `tracking`.
-- Next: Text+ style text node, render cache spill to OPFS (phase 1), color page (phase 4).
+- Text node done: `effects/builtin/text-node.ts` (`raster: 'text'` nodes get `raster(uv)`, `glyph(i)`), `engine/text-raster.ts`, `engine/gpu/raster.ts` (rasterizers registered on the compositor), `text` param type, e2e `text-node`.
+- Next: render cache spill to OPFS (phase 1), color page (phase 4).
 - GLSL gotchas: `half`, `smooth`, `input`, `output`, `sample` are reserved; unbound sampler inputs must get the empty texture (feedback loop otherwise).
 
 ## Known issues

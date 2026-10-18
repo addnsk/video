@@ -1,4 +1,4 @@
-import type { FilterDef, NodeDef, ParamSpec, TransitionDef } from '../../effects/types';
+import { MAX_RASTER_GLYPHS, type FilterDef, type NodeDef, type ParamSpec, type TransitionDef } from '../../effects/types';
 
 export const VERTEX = `#version 300 es
 layout(location = 0) in vec2 position;
@@ -52,6 +52,7 @@ const GLSL_TYPES: Record<string, string> = {
 };
 
 function uniformDeclaration(spec: ParamSpec): string {
+  if (spec.type === 'text') return '';
   if (spec.type === 'points') return `uniform vec2 ${spec.name}[${spec.max}];\nuniform int ${spec.name}_count;`;
   if (spec.type === 'resource') return `uniform sampler3D ${spec.name};`;
   if (spec.type === 'curve') return `uniform sampler2D ${spec.name};`;
@@ -87,6 +88,17 @@ vec4 input_${name}(vec2 uv) {
   return texture(${nodeInputUniform(name)}, uv);
 }`)
     .join('\n');
+  const raster = def.raster
+    ? `uniform sampler2D u_raster;
+uniform vec4 u_glyphs[${MAX_RASTER_GLYPHS}];
+uniform int u_glyph_count;
+vec4 raster(vec2 uv) {
+  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
+  return texture(u_raster, vec2(uv.x, 1.0 - uv.y));
+}
+int glyph_count() { return u_glyph_count; }
+vec4 glyph(int i) { return u_glyphs[i]; }`
+    : '';
   const previous = pass > 0 ? 'uniform sampler2D u_previous;\nvec4 previous(vec2 uv) { return texture(u_previous, uv); }' : 'vec4 previous(vec2 uv) { return vec4(0.0); }';
   return `${HEADER}
 uniform vec2 u_resolution;
@@ -96,6 +108,7 @@ float px(float projectPixels) { return projectPixels * u_pixel_scale; }
 float aspect() { return u_resolution.x / u_resolution.y; }
 ${CURVE_HELPER}
 ${inputs}
+${raster}
 ${previous}
 ${def.params.map(uniformDeclaration).join('\n')}
 ${def.passes[pass].glsl}

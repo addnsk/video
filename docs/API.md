@@ -184,7 +184,41 @@ montage.graph.view(0, merge);                            // show one node's resu
 montage.graph.disable(0);                                // back to the plain effect chain
 ```
 
-Built-in nodes: `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `blur`, `glow`, `crop`, `invert`, `background`, `gradient`, `ellipse-mask`, `rectangle-mask`, plus every color filter.
+Built-in nodes: `text` (see below), `polygon-mask` (animatable `points` as x, y pairs in frame units from -0.5 to 0.5 with y down, Catmull-Rom `spline`, `feather`, editable on the viewer), `keyer` (chroma key with spill removal, choke, garbage mask and matte view), `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `blur`, `glow`, `crop`, `invert`, `background`, `gradient`, `ellipse-mask`, `rectangle-mask`, plus every color filter.
+
+### Text node
+
+`text` is a generator node in the spirit of Text+: it lays out text on the GPU with per-character animation, an outline and a soft shadow, and outputs it with alpha for a `merge`. Parameters:
+
+- Layout: `text` (multi-line string), `font` (`IBM Plex Sans`, `IBM Plex Mono`, `serif`, `sans-serif`), `weight` (`'400'`, `'600'`, `'700'`), `size` (fraction of frame height), `tracking` (extra spacing in em), `lineSpacing`, `align` (`left`, `center`, `right`), `center` (frame units, y down), `rotation` (degrees).
+- Look: `fill`, `outline` and `shadow` colors as `[r, g, b, a]`, `outlineWidth` (em), `shadowOffset` (frame units), `shadowSoftness`.
+- Per-character animation: every glyph moves from a start state to its resting place as `progress` goes from 0 to 1. The start state is `fromOffset` (frame units), `fromScale`, `fromRotation` and `fromOpacity`. `stagger` (0 to 0.99) spreads the glyphs in time, `order` is `forward`, `backward` or `center`, `ease` is `linear`, `out`, `inOut` or `back`. Keyframe `progress` to animate.
+
+Up to 128 glyphs animate individually; longer text still renders but the extra glyphs stay hidden.
+
+```js
+const title = montage.graph.add(0, 'text', {
+  text: 'Opening night',
+  size: 0.12,
+  outline: [0, 0, 0, 1],
+  outlineWidth: 0.04,
+  shadow: [0, 0, 0, 0.6],
+  fromOffset: [0, 0.08],
+  fromOpacity: 0,
+  stagger: 0.6,
+  ease: 'back',
+});
+const merge = montage.graph.add(0, 'merge');
+montage.graph.connect(0, 'source', merge, 'background');
+montage.graph.connect(0, title, merge, 'foreground');
+montage.graph.connect(0, merge, 'output');
+montage.graph.keyframe(0, title, 'progress', 0, 0);
+montage.graph.keyframe(0, title, 'progress', 1.5, 1);
+```
+
+Useful start states: typewriter (`fromOpacity: 0, stagger: 0.95, ease: 'linear'`), drop in (`fromOffset: [0, -0.1], ease: 'back'`), zoom (`fromScale: 3, fromOpacity: 0`), spin (`fromRotation: 180, fromScale: 0`).
+
+Custom nodes can rasterize text too: a node definition with `raster: 'text'` receives `raster(uv)` (fill coverage in red, outline coverage in green), `glyph_count()` and `glyph(i)` (each glyph's box in uv, y up).
 
 ### Tracking
 

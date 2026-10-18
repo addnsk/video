@@ -1,3 +1,4 @@
+import { TEXT_NODE } from './text-node';
 import type { NodeDef, ParamSpec } from '../types';
 
 const float = (name: string, label: string, value: number, min: number, max: number, step = 0.01): ParamSpec => ({ name, label, type: 'float', default: value, min, max, step });
@@ -325,4 +326,4 @@ vec4 process(vec2 uv) {
   ],
 };
 
-export const BUILTIN_NODES: readonly NodeDef[] = [KEYER, POLYGON_MASK, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];
+export const BUILTIN_NODES: readonly NodeDef[] = [TEXT_NODE, KEYER, POLYGON_MASK, MERGE, TRANSFORM, BLUR, GLOW, BACKGROUND, GRADIENT, ELLIPSE_MASK, RECTANGLE_MASK, CROP, INVERT];
