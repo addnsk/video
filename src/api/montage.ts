@@ -34,7 +34,19 @@ import { placeTrack, projectDuration, type Placement } from '../core/timeline';
 import { AUDIO_EFFECTS, audioEffect } from '../effects/audio/builtin';
 import { parseCube } from '../effects/cube';
 import { glTransition } from '../effects/gl-transitions';
-import { defaultParams, type FilterDef, type ParamSpec } from '../effects/types';
+import { defaultParams, type FilterDef, type NodeCategory, type ParamSpec } from '../effects/types';
+import { OUTPUT_ID, materialize, nodeProperty } from '../core/graph';
+import {
+  addGraphNode,
+  connectNodes,
+  disableGraph,
+  disconnectInput,
+  enableGraph,
+  moveGraphNode,
+  removeGraphNode,
+  setNodeEnabled,
+  setNodeParams,
+} from '../core/graph-operations';
 import type { ExportSettings } from '../engine/export/exporter';
 import type { LogSource } from '../core/log';
 import type { EditorSession } from '../host/session';
@@ -308,6 +320,57 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
         registry.register(filter);
       },
       list: () => registry.filters().map(({ id, name, params }) => ({ id, name, params })),
+    },
+
+    graph: {
+      enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),
+      disable: (ref: ItemRef) => void apply(disableGraph(resolve(ref).item.id)),
+      get(ref: ItemRef) {
+        const { item } = resolve(ref);
+        const graph = materialize(item.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
+        return { editable: !!item.graph, nodes: graph.nodes, links: graph.links };
+      },
+      add(ref: ItemRef, type: string, params: Record<string, ParamValue> = {}, position: [number, number] = [0, 200]): string {
+        if (!registry.isVisual(type)) throw new Error(`Unknown node "${type}". Available: ${[...registry.nodes(), ...registry.filters()].map((d) => d.id).join(', ')}`);
+        const itemId = resolve(ref).item.id;
+        const id = createId('fx');
+        void store.transaction(() => {
+          apply(enableGraph(itemId, registry));
+          apply(addGraphNode(itemId, type, params, position, id));
+        });
+        return id;
+      },
+      connect: (ref: ItemRef, from: string, to: string, input = 'source') =>
+        void apply(connectNodes(resolve(ref).item.id, { from, to, input: to === OUTPUT_ID ? 'input' : input })),
+      disconnect: (ref: ItemRef, to: string, input = 'source') => void apply(disconnectInput(resolve(ref).item.id, to, to === OUTPUT_ID ? 'input' : input)),
+      remove: (ref: ItemRef, nodeId: string) => void apply(removeGraphNode(resolve(ref).item.id, nodeId)),
+      set: (ref: ItemRef, nodeId: string, params: Record<string, ParamValue>) => void apply(setNodeParams(resolve(ref).item.id, nodeId, params), `node:${nodeId}`),
+      toggle: (ref: ItemRef, nodeId: string, enabled: boolean) => void apply(setNodeEnabled(resolve(ref).item.id, nodeId, enabled)),
+      move: (ref: ItemRef, nodeId: string, position: [number, number]) => void apply(moveGraphNode(resolve(ref).item.id, nodeId, position)),
+      keyframe: (ref: ItemRef, nodeId: string, param: string, time: number, value: number) =>
+        void apply(setKeyframe(resolve(ref).item.id, nodeProperty(nodeId, param), time, value)),
+      types: () =>
+        [...registry.nodes(), ...registry.filters()].map((d) => ({
+          id: d.id,
+          name: d.name,
+          category: d.kind === 'node' ? d.category : 'color',
+          inputs: registry.inputsOf(d.id) ?? [],
+          params: d.params,
+        })),
+    },
+
+    nodes: {
+      register(def: { id: string; name: string; category?: NodeCategory; inputs?: string[]; params?: ParamSpec[]; passes: string[] | string }) {
+        registry.register({
+          kind: 'node',
+          id: def.id,
+          name: def.name,
+          category: def.category ?? 'stylize',
+          inputs: (def.inputs ?? ['source']).map((name) => ({ name })),
+          params: def.params ?? [],
+          passes: (Array.isArray(def.passes) ? def.passes : [def.passes]).map((glsl) => ({ glsl })),
+        });
+      },
     },
 
     transitions: {

@@ -2,10 +2,12 @@ import { resolveItem } from '../../core/resolve';
 import type { EffectInstance, ParamValue, ParamValues, Transform } from '../../core/model';
 import type { CompositionFrame, LayerFrame, TrackFrame } from '../../core/timeline';
 import type { EffectRegistry } from '../../effects/registry';
-import type { FilterDef, ParamSpec, TransitionDef } from '../../effects/types';
+import type { FilterDef, NodeDef, ParamSpec, TransitionDef } from '../../effects/types';
 import type { FrameImage } from '../media/frame';
 import type { GpuContext } from './context';
-import { COPY, FIT, filterSource, transitionSource } from './shaders';
+import { COPY, FIT, filterSource, nodeHasUniform, nodeInputUniform, nodeSource, transitionSource } from './shaders';
+import { OUTPUT_ID, materialize } from '../../core/graph';
+import { renderGraph } from './graph-renderer';
 import { sampleCurve } from '../../effects/curves';
 import { CurveTextures, LutTextures, TargetPool, UploadTexture, type RenderTarget } from './textures';
 
@@ -35,6 +37,13 @@ const sourceOf = (def: FilterDef | TransitionDef) => {
   let s = sources.get(def);
   if (!s) sources.set(def, (s = def.kind === 'filter' ? filterSource(def) : transitionSource(def)));
   return s;
+};
+
+const nodeSources = new WeakMap<NodeDef, string[]>();
+const nodeSourceOf = (def: NodeDef, pass: number) => {
+  let list = nodeSources.get(def);
+  if (!list) nodeSources.set(def, (list = def.passes.map((_, i) => nodeSource(def, i))));
+  return list[pass];
 };
 
 export class Compositor {
@@ -137,21 +146,71 @@ export class Compositor {
     if (!upload) this.uploads.set(item.id, (upload = new UploadTexture(this.ctx)));
     const texture = upload.upload(image.source, image.width, image.height, image.key);
     const resolved = resolveItem(item, layer.local);
-    let current = this.fit(texture, image.width, image.height, resolved.transform);
-    if (options.bypassFilters) return current;
-    for (const effect of this.ordered(resolved.effects)) {
-      const next = this.applyFilter(effect, current);
-      if (next !== current) {
-        this.targets.release(current);
-        current = next;
-      }
-    }
-    return current;
+    const source = () => this.fit(texture, image.width, image.height, resolved.transform);
+    if (options.bypassFilters) return source();
+    const registry = this.registry;
+    const graph = materialize(resolved.effects, item.graph, (t) => registry.stageOf(t), (t) => registry.isVisual(t));
+    return renderGraph<RenderTarget>(graph, OUTPUT_ID, registry, {
+      source,
+      filter: (_def, effect, input) => this.applyFilter(effect, input),
+      node: (def, params, inputs) => this.renderNode(def, params, inputs),
+      release: (target) => this.targets.release(target),
+    });
   }
 
-  private ordered(effects: readonly EffectInstance[]): EffectInstance[] {
-    const stage = (e: EffectInstance) => this.registry.filter(e.type)?.stage ?? 50;
-    return effects.filter((e) => e.enabled).sort((a, b) => stage(a) - stage(b));
+  private renderNode(def: NodeDef, params: ParamValues, inputs: ReadonlyMap<string, RenderTarget>): RenderTarget {
+    const gl = this.ctx.gl;
+    let previous: RenderTarget | null = null;
+    for (let pass = 0; pass < def.passes.length; pass++) {
+      const out = this.targets.acquire(this.width, this.height);
+      let program: WebGLProgram;
+      try {
+        program = this.ctx.program(nodeSourceOf(def, pass));
+      } catch (e) {
+        this.onError(`Node "${def.name}": ${(e as Error).message}`);
+        this.clearTarget(out);
+        if (previous) this.targets.release(previous);
+        return out;
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, out.framebuffer);
+      gl.viewport(0, 0, this.width, this.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(program);
+      gl.uniform2f(this.ctx.uniform(program, 'u_resolution'), this.width, this.height);
+      let unit = 0;
+      for (const { name } of def.inputs) {
+        const input = inputs.get(name);
+        gl.uniform1i(this.ctx.uniform(program, nodeHasUniform(name)), input ? 1 : 0);
+        this.bindTexture(program, nodeInputUniform(name), unit++, input?.texture ?? this.emptyTexture());
+      }
+      if (previous) this.bindTexture(program, 'u_previous', unit++, previous.texture);
+      this.applyParams(program, def.params, params, unit);
+      this.ctx.drawQuad();
+      if (previous) this.targets.release(previous);
+      previous = out;
+    }
+    return previous ?? this.blankTarget();
+  }
+
+  private empty: { texture: WebGLTexture; generation: number } | null = null;
+
+  private emptyTexture(): WebGLTexture {
+    if (this.empty?.generation === this.ctx.generation) return this.empty.texture;
+    const gl = this.ctx.gl;
+    const texture = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    this.empty = { texture, generation: this.ctx.generation };
+    return texture;
+  }
+
+  private blankTarget(): RenderTarget {
+    const target = this.targets.acquire(this.width, this.height);
+    this.clearTarget(target);
+    return target;
   }
 
   private fit(texture: WebGLTexture, width: number, height: number, transform: Transform): RenderTarget {

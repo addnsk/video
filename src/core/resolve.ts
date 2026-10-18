@@ -1,5 +1,6 @@
 import { PROPERTY, effectProperty, valueAt } from './animation';
 import type { EffectInstance, Item, ParamValues, Transform } from './model';
+import { nodeProperty } from './graph';
 import { effectiveAnimations } from './presets';
 
 export interface ResolvedItem {
@@ -14,11 +15,13 @@ export function resolveItem(item: Item, local: number): ResolvedItem {
   if (!Object.keys(a).length) return item;
   const effects = item.effects.map((e) => {
     let params: ParamValues | null = null;
-    for (const name of Object.keys(e.params)) {
-      const keys = a[effectProperty(e.type, name)];
+    const prefixes = [`${nodeProperty(e.id, '')}`, `${effectProperty(e.type, '')}`];
+    const animated = Object.keys(a).flatMap((path) => prefixes.filter((p) => path.startsWith(p)).map((p) => path.slice(p.length)));
+    for (const name of new Set([...Object.keys(e.params), ...animated])) {
+      const keys = a[nodeProperty(e.id, name)] ?? a[effectProperty(e.type, name)];
       if (!keys) continue;
       params ??= { ...e.params };
-      (params as Record<string, unknown>)[name] = valueAt(keys, local, Number(e.params[name]));
+      (params as Record<string, unknown>)[name] = valueAt(keys, local, Number(e.params[name] ?? 0));
     }
     return params ? { ...e, params } : e;
   });

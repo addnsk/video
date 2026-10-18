@@ -17,6 +17,9 @@ What Montage still needs, in the order we plan to build it. Each phase ends with
 
 ## Phase 1. Limits, memory and performance
 
+Status: engine metrics, benchmark runner (`docs/BENCHMARK.md`), memory governor and platform capability detection are done; the render cache is next.
+
+
 - Benchmark suite first: find where we hit limits (decode throughput per codec and resolution, upload and render cost per effect, memory per open source, cache hit rates, playback frame drops, export speed) on desktop and phone profiles, recorded per run so regressions show up.
 - Global memory governor: one budget across frame cache, textures, render targets, audio buffers, thumbnails and graph intermediates; pressure levels that shrink caches and lower preview resolution.
 - Render cache: cached composited frames for heavy ranges (in memory within budget, spilled to OPFS), invalidated by graph and project hashes.
@@ -24,6 +27,9 @@ What Montage still needs, in the order we plan to build it. Each phase ends with
 - Telemetry in `montage.stats()` and the problem log for memory pressure events.
 
 ## Phase 2. Node graph core (Fusion foundation)
+
+Status: model, operations, evaluation with pooled targets, built-in nodes, API and per-node keyframes are done; the node editor UI and per-node caching are next.
+
 
 - Graph model in `core`: nodes, typed ports (image, mask, number), links, parameters with keyframes, groups/macros; operations and undo like the rest of the model.
 - Graph evaluation in the engine: topological scheduling, pooled render targets, region of interest and domain of definition, per-node caching.

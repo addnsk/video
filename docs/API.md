@@ -163,6 +163,43 @@ montage.animate(0, 'whole', 'ken-burns');   // ken-burns, drift
 montage.animate(t.id, 'in', null);
 ```
 
+## Node graph (compositing)
+
+Every clip renders through a node graph. Without an explicit graph it is the effect chain (source → color → curves → LUT → custom → output). `graph.enable` turns that chain into an editable graph; effect edits from the color panel keep working on it. Node parameters animate with `graph.keyframe`.
+
+```js
+montage.graph.types();                                   // built-in and registered nodes with inputs and params
+const bg = montage.graph.add(0, 'background', { color: [0, 0.2, 0.4, 1] });
+const mask = montage.graph.add(0, 'ellipse-mask', { size: [0.4, 0.4], softness: 0.05 });
+const merge = montage.graph.add(0, 'merge', { mode: 'screen' });
+montage.graph.connect(0, bg, merge, 'background');
+montage.graph.connect(0, 'source', merge, 'foreground');
+montage.graph.connect(0, mask, merge, 'mask');
+montage.graph.connect(0, merge, 'output');
+montage.graph.set(0, merge, { opacity: 0.8 });
+montage.graph.keyframe(0, merge, 'opacity', 0, 0);
+montage.graph.toggle(0, merge, false);
+montage.graph.get(0);                                    // { editable, nodes, links }
+montage.graph.disable(0);                                // back to the plain effect chain
+```
+
+Built-in nodes: `merge` (normal, add, screen, multiply, overlay, difference, lighten, darken, with mask and offset), `transform`, `blur`, `glow`, `crop`, `invert`, `background`, `gradient`, `ellipse-mask`, `rectangle-mask`, plus every color filter.
+
+Custom nodes are GLSL with any number of inputs and passes. Each pass defines `vec4 process(vec2 uv)` and can call `input_<name>(uv)`, `has_<name>()`, `previous(uv)` (the previous pass), `texel()` and `aspect()`. Values are not clamped, so highlights above 1.0 survive to HDR export.
+
+```js
+montage.nodes.register({
+  id: 'chromatic',
+  name: 'Chromatic aberration',
+  inputs: ['source'],
+  params: [{ name: 'amount', type: 'float', default: 2, min: 0, max: 20 }],
+  passes: `vec4 process(vec2 uv) {
+    vec2 d = (uv - 0.5) * amount * texel();
+    return vec4(input_source(uv + d).r, input_source(uv).g, input_source(uv - d).b, input_source(uv).a);
+  }`,
+});
+```
+
 ## Audio effects
 
 Audio effects run in the engine's mixer per clip, in order: low cut, equalizer, compressor. Parameters are in hertz and decibels.

@@ -53,7 +53,28 @@ export interface TransitionDef {
   readonly glsl: string;
 }
 
-export type EffectDef = FilterDef | TransitionDef;
+export type NodeCategory = 'composite' | 'transform' | 'blur' | 'generator' | 'mask' | 'color' | 'stylize';
+
+export interface NodeInputSpec {
+  readonly name: string;
+  readonly label?: string;
+}
+
+export interface NodePass {
+  readonly glsl: string;
+}
+
+export interface NodeDef {
+  readonly kind: 'node';
+  readonly id: string;
+  readonly name: string;
+  readonly category: NodeCategory;
+  readonly inputs: readonly NodeInputSpec[];
+  readonly params: readonly ParamSpec[];
+  readonly passes: readonly NodePass[];
+}
+
+export type EffectDef = FilterDef | TransitionDef | NodeDef;
 
 export const defaultParams = (params: readonly ParamSpec[]): Record<string, ParamValue> =>
   Object.fromEntries(params.map((p) => [p.name, p.default as ParamValue]));

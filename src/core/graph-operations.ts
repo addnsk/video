@@ -21,7 +21,7 @@ const everything = () => true;
 export const enableGraph = (itemId: string, context: GraphContext): Operation =>
   updateItem(itemId, (item) => {
     if (item.graph) return item;
-    return { ...item, graph: toItemGraph(materialize(item.effects, undefined, context.stageOf, context.isVisual)) };
+    return { ...item, graph: toItemGraph(materialize(item.effects, undefined, (t) => context.stageOf(t), (t) => context.isVisual(t))) };
   });
 
 export const disableGraph = (itemId: string): Operation =>

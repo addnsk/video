@@ -1,4 +1,4 @@
-import type { FilterDef, ParamSpec, TransitionDef } from '../../effects/types';
+import type { FilterDef, NodeDef, ParamSpec, TransitionDef } from '../../effects/types';
 
 export const VERTEX = `#version 300 es
 layout(location = 0) in vec2 position;
@@ -66,7 +66,37 @@ ${def.glsl}
 void main() {
   vec4 color = texture(u_source, v_uv);
   vec4 result = effect(color, v_uv);
-  outColor = vec4(clamp(result.rgb, 0.0, 1.0), color.a);
+  outColor = vec4(max(result.rgb, 0.0), color.a);
+}`;
+}
+
+const CURVE_HELPER = 'float curve(sampler2D c, float x) { return texture(c, vec2(clamp(x, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).r; }';
+
+export const nodeInputUniform = (name: string): string => `u_in_${name}`;
+export const nodeHasUniform = (name: string): string => `u_has_${name}`;
+
+export function nodeSource(def: NodeDef, pass: number): string {
+  const inputs = def.inputs
+    .map(({ name }) => `uniform sampler2D ${nodeInputUniform(name)};
+uniform bool ${nodeHasUniform(name)};
+bool has_${name}() { return ${nodeHasUniform(name)}; }
+vec4 input_${name}(vec2 uv) {
+  if (!${nodeHasUniform(name)} || any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
+  return texture(${nodeInputUniform(name)}, uv);
+}`)
+    .join('\n');
+  const previous = pass > 0 ? 'uniform sampler2D u_previous;\nvec4 previous(vec2 uv) { return texture(u_previous, uv); }' : 'vec4 previous(vec2 uv) { return vec4(0.0); }';
+  return `${HEADER}
+uniform vec2 u_resolution;
+vec2 texel() { return 1.0 / u_resolution; }
+float aspect() { return u_resolution.x / u_resolution.y; }
+${CURVE_HELPER}
+${inputs}
+${previous}
+${def.params.map(uniformDeclaration).join('\n')}
+${def.passes[pass].glsl}
+void main() {
+  outColor = process(v_uv);
 }`;
 }
 
