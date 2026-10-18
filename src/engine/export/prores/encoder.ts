@@ -48,83 +48,148 @@ interface PlaneGeometry {
 const LUMA: PlaneGeometry = { blockWidth: 16, blocksPerMb: 4 };
 const CHROMA: PlaneGeometry = { blockWidth: 8, blocksPerMb: 2 };
 
+export interface SliceCoder {
+  code(planes: Planes422, bitsPerMacroblock: number, quantStart: number): Uint8Array[];
+}
+
 export class ProresFrameEncoder {
-  private writers = [new BitWriter(), new BitWriter(), new BitWriter()];
-  private blocks = [new Int32Array(0), new Int32Array(0), new Int32Array(0)];
-  private pixels = new Float64Array(64);
   private quantStart: number;
   private readonly bitsPerMb: number;
 
   constructor(
     readonly profile: ProresProfile,
     private colors: ColorTags = REC709,
+    private coder: SliceCoder = new ScriptSliceCoder(),
   ) {
     this.bitsPerMb = PROFILES[profile].bitsPerMacroblock;
     this.quantStart = QUANT_STEPS.indexOf(PROFILES[profile].minQuant);
   }
 
   encode(planes: Planes422): Uint8Array {
+    return this.assemble(planes, this.coder.code(planes, this.bitsPerMb, this.quantStart));
+  }
+
+  private assemble(planes: Planes422, slices: Uint8Array[]): Uint8Array {
+    const frameHeader = 20;
+    const pictureHeader = 8;
+    const table = slices.length * 2;
+    const payload = slices.reduce((n, s) => n + s.length, 0);
+    const pictureSize = pictureHeader + table + payload;
+    const size = 8 + frameHeader + pictureSize;
+    const out = new Uint8Array(size);
+    const view = new DataView(out.buffer);
+    view.setUint32(0, size);
+    view.setUint32(4, FRAME_ID);
+    let p = 8;
+    view.setUint16(p, frameHeader);
+    view.setUint16(p + 2, 0);
+    out.set(VENDOR, p + 4);
+    view.setUint16(p + 8, planes.width);
+    view.setUint16(p + 10, planes.height);
+    out[p + 12] = 2 << 6;
+    out[p + 13] = 0;
+    out[p + 14] = this.colors.primaries;
+    out[p + 15] = this.colors.transfer;
+    out[p + 16] = this.colors.matrix;
+    out[p + 17] = 0;
+    out[p + 18] = 0;
+    out[p + 19] = 0;
+    p += frameHeader;
+    out[p] = pictureHeader << 3;
+    view.setUint32(p + 1, pictureSize);
+    view.setUint16(p + 5, slices.length);
+    out[p + 7] = LOG2_SLICE_MBS << 4;
+    p += pictureHeader;
+    slices.forEach((s, i) => view.setUint16(p + i * 2, s.length));
+    p += table;
+    for (const s of slices) {
+      out.set(s, p);
+      p += s.length;
+    }
+    return out;
+  }
+}
+
+export function searchQuant(start: number, min: number, max: number, fits: (index: number) => boolean): number {
+  let index = Math.min(max, Math.max(min, start));
+  if (fits(index)) {
+    while (index > min && fits(index - 1)) index--;
+    return index;
+  }
+  while (index < max && !fits(++index));
+  return index;
+}
+
+export const sliceLayout = (mbWidth: number) => {
+  const out: { x: number; mbs: number }[] = [];
+  let size = 1 << LOG2_SLICE_MBS;
+  for (let x = 0; x < mbWidth; x += size) {
+    while (mbWidth - x < size) size >>= 1;
+    out.push({ x, mbs: size });
+  }
+  return out;
+};
+
+export class ScriptSliceCoder implements SliceCoder {
+  private writers = [new BitWriter(), new BitWriter(), new BitWriter()];
+  private blocks = [new Int32Array(0), new Int32Array(0), new Int32Array(0)];
+  private pixels = new Float64Array(64);
+  private lastIndex = 0;
+
+  code(planes: Planes422, bitsPerMb: number, quantStart: number): Uint8Array[] {
+    this.lastIndex = quantStart;
     const mbWidth = Math.ceil(planes.width / MB);
     const mbHeight = Math.ceil(planes.height / MB);
-    const slices = this.sliceLayout(mbWidth);
+    const slices = sliceLayout(mbWidth);
     const sliceData: Uint8Array[] = [];
     let remainingMbs = mbWidth * mbHeight;
-    let remainingBits = remainingMbs * this.bitsPerMb;
+    let remainingBits = remainingMbs * bitsPerMb;
     for (let row = 0; row < mbHeight; row++) {
       for (const slice of slices) {
         const allowance = Math.min(remainingBits, (remainingBits / remainingMbs) * slice.mbs * BORROW_FACTOR);
-        const bytes = this.encodeSlice(planes, slice.x, row, slice.mbs, allowance);
+        const bytes = this.encodeSlice(planes, slice.x, row, slice.mbs, allowance, quantStart);
         remainingBits -= bytes.length * 8;
         remainingMbs -= slice.mbs;
         sliceData.push(bytes);
       }
     }
-    return this.assemble(planes, sliceData);
+    return sliceData;
   }
 
-  private sliceLayout(mbWidth: number) {
-    const out: { x: number; mbs: number }[] = [];
-    let size = 1 << LOG2_SLICE_MBS;
-    for (let x = 0; x < mbWidth; x += size) {
-      while (mbWidth - x < size) size >>= 1;
-      out.push({ x, mbs: size });
-    }
-    return out;
-  }
-
-  private encodeSlice(planes: Planes422, mbX: number, mbY: number, mbs: number, budget: number): Uint8Array {
+  private encodeSlice(planes: Planes422, mbX: number, mbY: number, mbs: number, budget: number, quantStart: number): Uint8Array {
     const sources = [
       { data: planes.y, width: planes.width, geometry: LUMA },
       { data: planes.cb, width: planes.width >> 1, geometry: CHROMA },
       { data: planes.cr, width: planes.width >> 1, geometry: CHROMA },
     ];
     sources.forEach((source, i) => this.gather(source.data, source.width, planes.height, source.geometry, mbX, mbY, mbs, i));
-    let index = this.quantStart;
-    for (;;) {
-      const quant = QUANT_STEPS[index];
+    let tried = -1;
+    const fits = (index: number) => {
+      tried = index;
       let bits = 0;
       sources.forEach((source, i) => {
-        this.encodePlane(i, source.geometry.blocksPerMb * mbs, quant);
+        this.encodePlane(i, source.geometry.blocksPerMb * mbs, QUANT_STEPS[index]);
         bits += this.writers[i].bitLength;
       });
-      if (bits <= budget || index === QUANT_STEPS.length - 1) {
-        const sizes = this.writers.map((w) => w.byteLength);
-        const bytes = new Uint8Array(SLICE_HEADER_BYTES + sizes[0] + sizes[1] + sizes[2]);
-        bytes[0] = SLICE_HEADER_BYTES << 3;
-        bytes[1] = quant;
-        bytes[2] = sizes[0] >> 8;
-        bytes[3] = sizes[0] & 0xff;
-        bytes[4] = sizes[1] >> 8;
-        bytes[5] = sizes[1] & 0xff;
-        let offset = SLICE_HEADER_BYTES;
-        this.writers.forEach((w, i) => {
-          w.copyTo(bytes, offset);
-          offset += sizes[i];
-        });
-        return bytes;
-      }
-      index++;
-    }
+      return bits <= budget;
+    };
+    const index = searchQuant(this.lastIndex, quantStart, QUANT_STEPS.length - 1, fits);
+    if (tried !== index) fits(index);
+    this.lastIndex = index;
+    const sizes = this.writers.map((w) => w.byteLength);
+    const bytes = new Uint8Array(SLICE_HEADER_BYTES + sizes[0] + sizes[1] + sizes[2]);
+    bytes[0] = SLICE_HEADER_BYTES << 3;
+    bytes[1] = QUANT_STEPS[index];
+    bytes[2] = sizes[0] >> 8;
+    bytes[3] = sizes[0] & 0xff;
+    bytes[4] = sizes[1] >> 8;
+    bytes[5] = sizes[1] & 0xff;
+    let offset = SLICE_HEADER_BYTES;
+    this.writers.forEach((w, i) => {
+      w.copyTo(bytes, offset);
+      offset += sizes[i];
+    });
+    return bytes;
   }
 
   private gather(data: Uint16Array, width: number, height: number, geometry: PlaneGeometry, mbX: number, mbY: number, mbs: number, plane: number) {
@@ -190,45 +255,5 @@ export class ProresFrameEncoder {
       }
     }
     writer.align();
-  }
-
-  private assemble(planes: Planes422, slices: Uint8Array[]): Uint8Array {
-    const frameHeader = 20;
-    const pictureHeader = 8;
-    const table = slices.length * 2;
-    const payload = slices.reduce((n, s) => n + s.length, 0);
-    const pictureSize = pictureHeader + table + payload;
-    const size = 8 + frameHeader + pictureSize;
-    const out = new Uint8Array(size);
-    const view = new DataView(out.buffer);
-    view.setUint32(0, size);
-    view.setUint32(4, FRAME_ID);
-    let p = 8;
-    view.setUint16(p, frameHeader);
-    view.setUint16(p + 2, 0);
-    out.set(VENDOR, p + 4);
-    view.setUint16(p + 8, planes.width);
-    view.setUint16(p + 10, planes.height);
-    out[p + 12] = 2 << 6;
-    out[p + 13] = 0;
-    out[p + 14] = this.colors.primaries;
-    out[p + 15] = this.colors.transfer;
-    out[p + 16] = this.colors.matrix;
-    out[p + 17] = 0;
-    out[p + 18] = 0;
-    out[p + 19] = 0;
-    p += frameHeader;
-    out[p] = pictureHeader << 3;
-    view.setUint32(p + 1, pictureSize);
-    view.setUint16(p + 5, slices.length);
-    out[p + 7] = LOG2_SLICE_MBS << 4;
-    p += pictureHeader;
-    slices.forEach((s, i) => view.setUint16(p + i * 2, s.length));
-    p += table;
-    for (const s of slices) {
-      out.set(s, p);
-      p += s.length;
-    }
-    return out;
   }
 }

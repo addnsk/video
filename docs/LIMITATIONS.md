@@ -12,6 +12,7 @@ What Montage does not do yet or does only partly. Each entry names the area, the
 
 ## Preview and export
 
+- The native ProRes encoder needs WebAssembly SIMD; without it export falls back to the JS encoder, about three times slower. Slices are coded at roughly 5 fps per worker for 1080p HQ, so export speed scales with `encoderThreads`.
 - ProRes 422 stores color at half horizontal resolution: on sharp edges between saturated colors the exported chroma bleeds by a pixel and clips (for example a blue/black edge reads 0.46 blue in the edge pixel). Flat colors round-trip within 0.1%, luma is exact per pixel. Near strong edges ProRes compression adds up to about 3% ringing to saturated colors.
 - A frame n is rendered at the time n / fps (its start). Transitions and animations are sampled there in preview and export alike.
 

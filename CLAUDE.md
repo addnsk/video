@@ -37,7 +37,7 @@ The owner must enable Settings → Pages → Source: GitHub Actions. Published p
 ## Current work (handoff)
 
 - Phases 1–4 of `docs/ROADMAP.md` are done (Fusion-like nodes, tracking, text node, templates, render cache, color nodes, ACES color management, noise reduction, stills/versions). Details of each area are in `docs/API.md` and `docs/LIMITATIONS.md`.
-- Next, agreed with the owner: phase 4.5 (native hot paths): ProRes encoder to WebAssembly SIMD + threads first (`engine/export/prores/*`, keep `encoder-pool` API), then tracker and scopes on the GPU. After that phase 5 (audio).
+- Phase 4.5 (native hot paths): ProRes encoder is done (`native/prores/encoder.c` → `src/engine/export/prores/prores.wasm` via `scripts/build-wasm.sh`; rebuild and commit the .wasm after editing the C; `tests/unit/prores-native.test.ts` checks byte parity with the JS coder, so change both together). Next: tracker and scopes on the GPU, then phase 5 (audio).
 - The owner said to stop spending time on tests for now. Open test items, only if asked: the last `pairwise` run (two combinations failed before the flatness ring was widened to ±5 px; not re-run), and mutation testing (`npm run test:mutation`, Stryker configured, never run).
 - Test infrastructure: property tests in `tests/unit/fuzz` (see Commands), browser suites `random-projects` and `pairwise` compare preview with exported ProRes via `tests/e2e/lib/parity.mjs` (block luma everywhere, RGB only in chroma-flat areas; ProRes 4:2:2 and compression limits are expected and documented).
 - `montage.sample` returns displayed values (composited over black); frames render at n / fps.

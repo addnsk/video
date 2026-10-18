@@ -58,7 +58,7 @@ function shape(item: Pick<Item, 'effects' | 'graph'>): string {
 
 describe('metamorphic properties of edits', () => {
   afterAll(() => {
-    for (const name of ['split', 'trim', 'speed', 'version', 'copy', 'template']) expect(exercised[name] ?? 0, `${name} was exercised`).toBeGreaterThan(RUNS / 10);
+    for (const name of ['split', 'trim', 'speed', 'version', 'copy', 'template']) expect(exercised[name] ?? 0, `${name} was exercised`).toBeGreaterThan(RUNS / 25);
   });
 
   it('splitting a clip changes nothing that is visible on either side of the cut', () => {

@@ -1,4 +1,5 @@
 import { ProresFrameEncoder, type ColorTags, type Planes422 } from './encoder';
+import { loadNativeCoder } from './native-coder';
 import type { ProresProfile } from './tables';
 
 interface Job {
@@ -10,12 +11,12 @@ interface Job {
 
 const encoders = new Map<string, ProresFrameEncoder>();
 
-self.addEventListener('message', (event: MessageEvent<Job>) => {
+self.addEventListener('message', async (event: MessageEvent<Job>) => {
   const { id, profile, planes, colors } = event.data;
   const key = `${profile}:${colors.primaries}:${colors.transfer}:${colors.matrix}`;
   let encoder = encoders.get(key);
-  if (!encoder) encoders.set(key, (encoder = new ProresFrameEncoder(profile, colors)));
   try {
+    if (!encoder) encoders.set(key, (encoder = new ProresFrameEncoder(profile, colors, (await loadNativeCoder()) ?? undefined)));
     const data = encoder.encode(planes);
     (self as unknown as Worker).postMessage({ id, data }, [data.buffer]);
   } catch (e) {

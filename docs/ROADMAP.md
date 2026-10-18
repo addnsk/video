@@ -64,7 +64,7 @@ Status: qualifiers (HSL, 3D), parallel mixer, hue/lum/sat curves, HDR wheels, co
 
 Heavy CPU work moves out of plain JavaScript; everything else stays as is (decoding and encoding through WebCodecs, rendering on the GPU).
 
-- ProRes encoder in WebAssembly with SIMD and threads (our own or a vetted library), keeping the current worker pool API and output; measure against the JS encoder.
+- Done: ProRes encoder slice coding in WebAssembly SIMD (`native/prores/encoder.c`, built by `scripts/build-wasm.sh` with clang). Output is byte-identical to the JS encoder, which stays as the fallback; threads are the existing worker pool. Together with a quantizer search that starts from the previous slice, a 1080p HQ frame went from 2434 ms to 190 ms per worker (Node, one core).
 - Point tracker on the GPU (or WebAssembly SIMD) for large search windows and full-resolution tracking.
 - Scopes (waveform, vectorscope, histogram) computed on the GPU instead of a CPU readback.
 

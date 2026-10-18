@@ -1,4 +1,5 @@
 import { ProresFrameEncoder, type ColorTags, type Planes422 } from './encoder';
+import { loadNativeCoder } from './native-coder';
 import type { ProresProfile } from './tables';
 
 type Reply = { id: number; data: Uint8Array } | { id: number; error: string };
@@ -9,14 +10,14 @@ export interface FrameEncoder {
 }
 
 class InlineEncoder implements FrameEncoder {
-  private encoder: ProresFrameEncoder;
+  private encoder: Promise<ProresFrameEncoder>;
 
   constructor(profile: ProresProfile, colors: ColorTags) {
-    this.encoder = new ProresFrameEncoder(profile, colors);
+    this.encoder = loadNativeCoder().then((coder) => new ProresFrameEncoder(profile, colors, coder ?? undefined));
   }
 
-  encode(planes: Planes422): Promise<Uint8Array> {
-    return Promise.resolve(this.encoder.encode(planes));
+  async encode(planes: Planes422): Promise<Uint8Array> {
+    return (await this.encoder).encode(planes);
   }
 
   close(): void {}
