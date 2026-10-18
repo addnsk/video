@@ -25,6 +25,7 @@
 - Property tests: `tests/unit/fuzz` (fast-check): `world.ts` turns random action lists into real operations on a `Store`, `invariants.ts` checks the project after every step. `FUZZ_RUNS=5000 npm test -- fuzz` for a deep run; a failure prints the seed and a shrunk action list — add it to `fuzz/regressions.test.ts`.
 
 - `npm test` — vitest unit tests (`tests/unit`).
+- E2E discipline: while working run only the affected tag once per step (`node tests/e2e/run.mjs @edit`, tags: edit, color, nodes, audio, export, media); the full run once at the end of a block in the background; the deep tier (`pairwise`, `random-projects`, `stress`) only after engine, export or decoder changes. Never loop suites. Talk to the owner briefly; no long status texts or questions mid-block.
 - `SOFTWARE_GL=1 CHROME_PATH=... npm run test:e2e [-- suite ...]` — browser suites in `tests/e2e/suites` on `tests/e2e/harness.mjs` (audio, color, diagnostics, prores-export, media-drag, multitrack, persistence, playback, proxies, stress, transitions). New suites export `{ name, run({ browser, url, checks }) }`.
 - `npm run build` — type-check and build.
 - `npm run bench [-- profile|source|--quick]` — benchmarks (`tests/bench/run.mjs`, `docs/BENCHMARK.md`). In this cloud use `CHROME_PATH=... SOFTWARE_GL=1`.
