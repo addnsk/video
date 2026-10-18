@@ -68,9 +68,13 @@ export async function exportProject(
   if (audio) output.addAudioTrack(audio);
   await output.start();
 
-  const duration = projectDuration(project);
-  const frameCount = Math.max(1, Math.round(duration * fps));
-  let audioCursor = 0;
+  const full = projectDuration(project);
+  const first = settings.range ? Math.max(0, Math.round(settings.range.in * fps)) : 0;
+  const last = settings.range ? Math.min(Math.round(full * fps), Math.round(settings.range.out * fps)) : Math.round(full * fps);
+  const frameCount = Math.max(1, last - first);
+  const start = first / fps;
+  const duration = start + frameCount / fps;
+  let audioCursor = start;
 
   const tail = mixer.tailSeconds(project, rate);
   const writeAudioUntil = async (limit: number, ringOut = false) => {
@@ -84,7 +88,7 @@ export async function exportProject(
       const frameLength = planar[0].length;
       const data = new Float32Array(frameLength * OUTPUT_CHANNELS);
       planar.forEach((ch, c) => data.set(ch, c * frameLength));
-      const sample = new AudioSample({ data, format: 'f32-planar', numberOfChannels: OUTPUT_CHANNELS, sampleRate: rate, timestamp: audioCursor });
+      const sample = new AudioSample({ data, format: 'f32-planar', numberOfChannels: OUTPUT_CHANNELS, sampleRate: rate, timestamp: audioCursor - start });
       await audio.add(sample);
       sample.close();
       audioCursor = end;
@@ -94,17 +98,17 @@ export async function exportProject(
   try {
     for (let i = 0; i < frameCount; i++) {
       if (isCanceled()) throw new ExportCanceled();
-      const t = i / fps;
+      const t = (first + i) / fps;
       const frame = compositionAt(project, t);
       const images = await metrics.measure('export.load', () => frames.load(project, frame, { width, height }));
       await metrics.measure('export.render', () => compositor.render(frame, images ?? new Map(), video.renderOptions));
-      await metrics.measure('export.encode', () => video.add(t, 1 / fps));
+      await metrics.measure('export.encode', () => video.add(t - start, 1 / fps));
       await metrics.measure('export.audio', () => writeAudioUntil(Math.min(duration, t + 1)));
       metrics.count('export.frames');
       onProgress((i + 1) / frameCount);
     }
     await writeAudioUntil(duration);
-    if (tail > 0) await writeAudioUntil(duration + tail, true);
+    if (tail > 0 && duration >= full - 1e-6) await writeAudioUntil(duration + tail, true);
     await video.finish();
     audio?.close();
     await output.finalize();

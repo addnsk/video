@@ -19,6 +19,7 @@ export interface ExportSettings {
   readonly quality: 'high' | 'medium';
   readonly prores?: ProresProfile | null;
   readonly dynamicRange?: DynamicRange;
+  readonly range?: { readonly in: number; readonly out: number } | null;
 }
 
 export interface FormatPlan {

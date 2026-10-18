@@ -8,16 +8,18 @@ const RING = BLOCK + 3;
 const SIDE = 2 * RING + 1;
 const luma = (v) => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 
-export async function exportProres(editor, height) {
-  const b64 = await editor.run(async (h) => {
-    const res = await montage.render({ prores: 'hq', height: h });
+export async function exportProres(editor, height, until = null) {
+  const started = Date.now();
+  const b64 = await editor.run(async ({ h, until }) => {
+    const res = await montage.render({ prores: 'hq', height: h, range: until === null ? null : { in: 0, out: until } });
     const bytes = new Uint8Array(await res.file.arrayBuffer());
     let binary = '';
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return btoa(binary);
-  }, height);
+  }, { h: height, until });
   const path = join(mkdtempSync(join(tmpdir(), 'montage-parity-')), 'export.mov');
   writeFileSync(path, Buffer.from(b64, 'base64'));
+  if (process.env.E2E_PROFILE) console.log(`PROF export ${Date.now() - started} ${b64.length}`);
   return path;
 }
 
@@ -26,7 +28,9 @@ export async function compareWithExport(editor, path, size, fps, probes) {
   const notes = [];
   for (const { time, points } of probes) {
     const frame = Math.round(time * fps);
+    const decodeStart = Date.now();
     const pixel = decodeFrame(path, frame, size.width, size.height);
+    if (process.env.E2E_PROFILE) console.log(`PROF ffmpeg ${Date.now() - decodeStart}`);
     const centers = points.map(({ x, y }) => [Math.min(size.width - 1 - RING, Math.max(RING, Math.floor((x + 0.5) * size.width))), Math.min(size.height - 1 - RING, Math.max(RING, Math.floor((y + 0.5) * size.height)))]);
     const grid = centers.flatMap(([px, py]) => {
       const cells = [];
@@ -66,5 +70,7 @@ export async function sampleProbes(editor, probes) {
     );
   return out;
 }
+
+export const lastProbeEnd = (probes, fps) => (Math.max(...probes.map((p) => Math.round(p.time * fps))) + 1) / fps;
 
 export const maxDifference = (a, b) => Math.max(...a.map((probe, k) => Math.max(...probe.map((p, i) => Math.max(...p.slice(0, 3).map((v, c) => Math.abs(Math.min(1, Math.max(0, v)) - Math.min(1, Math.max(0, b[k][i][c])))))))));

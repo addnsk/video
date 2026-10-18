@@ -1,6 +1,6 @@
 import { Editor, fixture } from '../harness.mjs';
 import { allPairs } from '../lib/pairwise.mjs';
-import { compareWithExport, exportProres, maxDifference, sampleProbes } from '../lib/parity.mjs';
+import { compareWithExport, exportProres, lastProbeEnd, maxDifference, sampleProbes } from '../lib/parity.mjs';
 import { rng } from '../lib/random-project.mjs';
 
 const FACTORS = {
@@ -27,7 +27,7 @@ export default {
   name: 'pairwise',
   tags: ['export'],
   async run({ browser, url, checks }) {
-    const rows = allPairs(FACTORS);
+    const rows = allPairs(FACTORS).slice(0, Number(process.env.PAIRWISE_ROWS ?? Infinity));
     const editor = await Editor.open(browser, url, { viewport: { width: 1000, height: 700 } });
     await editor.import([fixture('prores-1080-10s.mov'), fixture('moving.mov'), fixture('red.mov')]);
     const failures = [];
@@ -66,7 +66,7 @@ export default {
         const b = await sampleProbes(editor, probes);
         if (maxDifference(a, b) > 0 && row.node !== 'temporal-denoise') failures.push(`${tag}: not deterministic`);
         if (row.node !== 'temporal-denoise') {
-          const path = await exportProres(editor, size.height);
+          const path = await exportProres(editor, size.height, lastProbeEnd(probes, fps));
           const { worst, notes } = await compareWithExport(editor, path, size, fps, probes);
           worstExport = Math.max(worstExport, worst);
           if (worst > (row.node === 'film-grain' ? 0.035 : 0.02)) failures.push(`${tag}: export differs ${notes.slice(0, 2).join('; ')}`);

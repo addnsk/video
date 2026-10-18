@@ -1,5 +1,5 @@
 import { Editor, fixture } from '../harness.mjs';
-import { compareWithExport, exportProres, maxDifference, sampleProbes } from '../lib/parity.mjs';
+import { compareWithExport, exportProres, lastProbeEnd, maxDifference, sampleProbes } from '../lib/parity.mjs';
 import { randomPlan, rng } from '../lib/random-project.mjs';
 
 const COUNT = Number(process.env.RANDOM_PROJECTS ?? 3);
@@ -32,7 +32,7 @@ export default {
       checks.check(maxDifference(base, again) === 0, `${tag}: rendering is deterministic (${maxDifference(base, again)})`);
 
       const size = await editor.run(async () => (await montage.stats()).previewSize);
-      const path = await exportProres(editor, size.height);
+      const path = await exportProres(editor, size.height, lastProbeEnd(probes, fps));
       const { worst: exportWorst, notes } = await compareWithExport(editor, path, size, fps, probes);
       for (const note of notes) console.log(tag, 'export mismatch', note);
       const exportLimit = plan.some((step) => step.includes('film-grain')) ? 0.035 : 0.02;
