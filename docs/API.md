@@ -150,6 +150,18 @@ vec4 transition(vec2 uv) {
 });
 ```
 
+## Audio effects
+
+Audio effects run in the engine's mixer per clip, in order: low cut, equalizer, compressor. Parameters are in hertz and decibels.
+
+```js
+montage.audioEffects();                                   // [{ id, name, params }]
+montage.audioEffect('all', 'highpass', { cutoff: 90 });
+montage.audioEffect(0, 'eq', { low: -3, mid: 2, high: 4 });
+montage.audioEffect(0, 'compressor', { threshold: -20, ratio: 4, makeup: 6 });
+montage.audioEffect(0, 'eq', null);                       // remove
+```
+
 ## Playback, history, export
 
 `play(rate)` shuttles: rates above 1 play faster with pitched audio, negative rates scrub backward without audio. `rate` is 0 while paused.
@@ -161,6 +173,7 @@ await montage.play(4);
 await montage.play(-2);
 montage.pause();
 montage.rate;
+montage.levels();                                // output peak per channel while playing, 0–1
 
 montage.undo();
 montage.redo();

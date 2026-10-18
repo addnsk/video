@@ -4,6 +4,7 @@ import { findPlacement, projectDuration } from '../core/timeline';
 import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
 import type { ProjectPersistence } from '../host/persistence/project-persistence';
 import type { EditorSession } from '../host/session';
+import { LevelMeter } from './components/level-meter';
 import { offlineBanner } from './components/offline-banner';
 import { projectMenu } from './project-menu';
 import { t } from '../i18n';
@@ -56,6 +57,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => transport.toggle() }, '▶');
   const timecode = h('div', { class: 'tc', id: 'tc' });
   const rate = h('span', { class: 'rate', id: 'rate', hidden: true });
+  const meter = new LevelMeter(transport, t('audioLevels'));
   const split = () => {
     const placement = selection.id ? findPlacement(store.project, selection.id) : null;
     const covers = placement && transport.time > placement.start && transport.time < placement.end;
@@ -72,6 +74,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     play,
     timecode,
     rate,
+    meter.element,
     h('div', { class: 'spacer' }),
     ...editButtons,
     h('button', { class: 'btn icon', 'aria-label': t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, '−'),
@@ -122,6 +125,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     play.textContent = playing ? '❚❚' : '▶';
     play.setAttribute('aria-label', playing ? t('pause') : t('play'));
     rate.hidden = !playing || speed === 1;
+    if (playing) meter.start();
+    else meter.stop();
     rate.textContent = `${speed < 0 ? '−' : ''}${Math.abs(speed)}×`;
   });
 

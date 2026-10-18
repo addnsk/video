@@ -3,7 +3,15 @@ import { sourceTimeAt, type MediaItem, type Project } from '../../core/model';
 import { audibleAt, type Placement } from '../../core/timeline';
 import type { MediaPool } from '../media/media-pool';
 import { resources } from '../resources';
+import { audioEffect } from '../../effects/audio/builtin';
+import type { AudioProcessor } from '../../effects/audio/types';
 import { mixInto, resampleLinear, silence, type Envelope, type Planar } from './pcm';
+
+interface ChainState {
+  processors: Map<string, AudioProcessor>;
+  next: number;
+  used: boolean;
+}
 
 export const OUTPUT_CHANNELS = 2;
 
@@ -21,7 +29,34 @@ function envelopeFor(placement: Placement): Envelope {
 }
 
 export class AudioMixer {
+  private chains = new Map<string, ChainState>();
+
   constructor(private pool: MediaPool) {}
+
+  private chain(item: MediaItem, time: number, rate: number): ChainState {
+    let state = this.chains.get(item.id);
+    if (!state || Math.abs(state.next - time) > 2 / rate) {
+      state = { processors: new Map(), next: time, used: true };
+      this.chains.set(item.id, state);
+    }
+    state.used = true;
+    return state;
+  }
+
+  private applyEffects(item: MediaItem, planar: Planar, time: number, rate: number) {
+    const effects = item.effects.filter((e) => e.enabled && audioEffect(e.type));
+    if (!effects.length) return;
+    const state = this.chain(item, time, rate);
+    for (const effect of effects) {
+      let processor = state.processors.get(effect.id);
+      if (!processor) {
+        processor = audioEffect(effect.type)!.create(rate, planar.length);
+        state.processors.set(effect.id, processor);
+      }
+      processor.process(planar, effect.params);
+    }
+    state.next = time + (planar[0]?.length ?? 0) / rate;
+  }
 
   async mix(project: Project, t0: number, t1: number, rate: number): Promise<Planar> {
     const frames = Math.max(1, Math.round((t1 - t0) * rate));
@@ -30,7 +65,9 @@ export class AudioMixer {
       const item = p.item;
       return item.kind === 'media' && project.assets[item.source.assetId]?.hasAudio && this.pool.has(item.source.assetId);
     });
+    for (const state of this.chains.values()) state.used = false;
     await Promise.all(placements.map((p) => this.mixPlacement(p, p.item as MediaItem, out, t0, t1, rate)));
+    for (const [id, state] of this.chains) if (!state.used) this.chains.delete(id);
     return out;
   }
 
@@ -55,6 +92,7 @@ export class AudioMixer {
           const timelineTime = start + (sourceTime - item.source.in) / item.speed;
           const maxFrames = Math.max(0, Math.round((to - sourceTime) * sourceRate));
           const clipped = sliced.map((ch) => ch.subarray(0, maxFrames));
+          this.applyEffects(item, clipped, timelineTime, rate);
           mixInto(out, clipped, Math.round((timelineTime - t0) * rate), timelineTime, rate, envelope);
         } finally {
           sample.close();

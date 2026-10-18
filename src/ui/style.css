@@ -19,6 +19,9 @@
   --waveform: rgb(200 220 210 / 0.55);
   --keyframe: #f2f3f5;
   --label-backdrop: rgb(10 12 15 / 0.7);
+  --meter-low: #4fbf7a;
+  --meter-mid: #e9c23b;
+  --meter-high: #e5675a;
   --wheel-bg: #16191d;
   --clip-band: #22303d;
   --transition: rgb(233 162 59 / 0.18);
@@ -152,6 +155,14 @@ select {
   font-size: 18px; line-height: 1; padding: 6px 8px; margin: -6px -6px -6px 0; border-radius: 4px;
 }
 .media-item .grip:hover { color: var(--fg); background: var(--line); }
+.meter { width: 120px; height: 18px; flex: none; }
+@media (max-width: 720px) { .meter { width: 64px; } }
+.audio-effects h3 { margin: 8px 0 0; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.audio-effect { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+.audio-effect summary { cursor: pointer; font-weight: 500; }
+.audio-effect.active summary::after { content: " ●"; color: var(--accent); }
+.audio-effect[open] { display: grid; gap: 6px; }
+.audio-effect .btn { justify-self: start; }
 .drag-ghost {
   position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; max-width: 240px;
   padding: 6px 10px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line);

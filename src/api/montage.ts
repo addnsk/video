@@ -29,6 +29,7 @@ import {
 import { findPlacement } from '../core/timeline';
 import { createId } from '../core/ids';
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
+import { AUDIO_EFFECTS, audioEffect } from '../effects/audio/builtin';
 import { parseCube } from '../effects/cube';
 import { glTransition } from '../effects/gl-transitions';
 import { defaultParams, type FilterDef, type ParamSpec } from '../effects/types';
@@ -279,6 +280,14 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
       });
     },
 
+    audioEffect(target: ItemTarget, type: string, params: Record<string, number> | null) {
+      if (!audioEffect(type)) throw new Error(`Unknown audio effect "${type}". Available: ${AUDIO_EFFECTS.map((d) => d.id).join(', ')}`);
+      store.transaction(() => {
+        for (const id of targets(target)) apply(params ? upsertEffect(id, type, params) : replaceEffect(id, type, null));
+      });
+    },
+    audioEffects: () => AUDIO_EFFECTS.map(({ id, name, params }) => ({ id, name, params })),
+
     effects: {
       register(def: FilterRegistration) {
         const filter: FilterDef = { kind: 'filter', id: def.id, name: def.name, glsl: def.glsl, params: def.params ?? [] };
@@ -310,6 +319,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     seek: (time: number) => transport.seek(time),
     play: (rate = 1) => transport.play(rate),
     pause: () => transport.pause(),
+    levels: () => transport.levels(),
 
     undo: () => store.undo(),
     redo: () => store.redo(),

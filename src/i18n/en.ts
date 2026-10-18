@@ -82,6 +82,8 @@ export const en = {
   keyframeHint: 'The diamond adds or removes a keyframe at the playhead. Once a property has keyframes, changing it adds one.',
   volume: 'Volume',
   speed: 'Speed',
+  audioEffects: 'Audio effects',
+  audioLevels: 'Audio levels',
   opacity: 'Opacity',
   positionX: 'Position X',
   positionY: 'Position Y',

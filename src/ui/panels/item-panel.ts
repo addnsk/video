@@ -9,6 +9,7 @@ import { KeyedSlider, type KeyState } from '../components/keyed-slider';
 import { Slider } from '../components/slider';
 import { h } from '../dom';
 import type { Selection } from '../selection';
+import { AudioEffectsSection } from './audio-effects-section';
 import { Panel } from './panel';
 
 interface PropertyDef {
@@ -51,6 +52,7 @@ export class ItemPanel extends Panel {
   private backgroundColor: HTMLInputElement;
   private renderedText = '';
   private speed: Slider;
+  private audioEffects: AudioEffectsSection;
 
   constructor(
     private session: EditorSession,
@@ -121,7 +123,8 @@ export class ItemPanel extends Panel {
       h('label', { class: 'check' }, this.background, this.backgroundColor, h('span', {}, t('textBackground'))),
     );
 
-    this.body.append(this.hint, this.textBox, this.speed.element, properties, h('p', { class: 'hint' }, t('keyframeHint')));
+    this.audioEffects = new AudioEffectsSection(session.store);
+    this.body.append(this.hint, this.textBox, this.speed.element, properties, h('p', { class: 'hint' }, t('keyframeHint')), this.audioEffects.element);
     session.store.on('change', () => this.sync());
     selection.on('change', () => this.sync());
     let pending = false;
@@ -172,6 +175,8 @@ export class ItemPanel extends Panel {
     this.textBox.hidden = p?.item.kind !== 'text';
     this.speed.element.hidden = p?.item.kind !== 'media';
     if (p?.item.kind === 'media') this.speed.set(Math.log2(p.item.speed));
+    this.audioEffects.element.hidden = !p || !hasAudio(p, this.session);
+    this.audioEffects.sync(p?.item ?? null);
     for (const { def, slider } of this.rows.values()) {
       const visible = !!p && def.visible(p, this.session);
       slider.element.hidden = !visible;

@@ -1,9 +1,13 @@
 export class AudioOutput {
   private context: AudioContext | null = null;
   private sources = new Set<AudioBufferSourceNode>();
+  private bus: { input: GainNode; analysers: AnalyserNode[]; buffer: Float32Array<ArrayBuffer> } | null = null;
 
   async ready(): Promise<AudioContext> {
-    this.context ??= new AudioContext({ latencyHint: 'playback' });
+    if (!this.context) {
+      this.context = new AudioContext({ latencyHint: 'playback' });
+      this.bus = this.createBus(this.context);
+    }
     if (this.context.state !== 'running') await this.context.resume();
     return this.context;
   }
@@ -33,10 +37,35 @@ export class AudioOutput {
     const node = ctx.createBufferSource();
     node.buffer = buffer;
     node.playbackRate.value = rate;
-    node.connect(ctx.destination);
+    node.connect(this.bus!.input);
     node.onended = () => this.sources.delete(node);
     this.sources.add(node);
     node.start(Math.max(when, ctx.currentTime));
+  }
+
+  levels(): number[] {
+    const bus = this.bus;
+    if (!bus) return [0, 0];
+    return bus.analysers.map((analyser) => {
+      analyser.getFloatTimeDomainData(bus.buffer);
+      let peak = 0;
+      for (const v of bus.buffer) peak = Math.max(peak, Math.abs(v));
+      return peak;
+    });
+  }
+
+  private createBus(ctx: AudioContext) {
+    const input = ctx.createGain();
+    input.connect(ctx.destination);
+    const splitter = ctx.createChannelSplitter(2);
+    input.connect(splitter);
+    const analysers = [0, 1].map((channel) => {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      splitter.connect(analyser, channel);
+      return analyser;
+    });
+    return { input, analysers, buffer: new Float32Array(1024) };
   }
 
   stopAll(): void {

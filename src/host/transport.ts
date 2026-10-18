@@ -46,6 +46,10 @@ export class Transport extends Emitter<TransportEvents> {
     return this.playingState ? this.speed : 0;
   }
 
+  levels(): number[] {
+    return this.playingState && !this.reverse ? this.audio.levels() : [0, 0];
+  }
+
   get bypass(): boolean {
     return this.bypassFilters;
   }
