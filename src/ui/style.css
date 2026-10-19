@@ -613,3 +613,30 @@ details.section[open] { display: flex; flex-direction: column; gap: var(--gap); 
 .curves .tabs::-webkit-scrollbar { display: none; }
 .curves .tabs .tab { flex: none; white-space: nowrap; }
 .workspace.desktop .workspace-body { padding-bottom: var(--island); }
+
+/* one-row timeline toolbar */
+.timeline > .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 0; margin: 0; padding: 8px 10px 4px; background: none; border-radius: 0; }
+.timeline > .transport .transport-side { flex: 1 1 0; display: flex; align-items: center; gap: 2px; min-width: max-content; }
+.timeline > .transport .transport-side.end { justify-content: flex-end; }
+.timeline > .transport .transport-center { flex: none; gap: 4px; }
+.timeline > .transport .btn.icon { width: 32px; height: 32px; border-radius: 10px; color: var(--muted); }
+.timeline > .transport .btn.icon:hover { color: var(--fg-strong); background: var(--glass-hover); }
+.timeline > .transport .btn.icon:disabled { opacity: 0.35; }
+.timeline > .transport #play { width: 42px !important; height: 42px !important; border-radius: 50%; color: var(--accent-ink); }
+.timeline > .transport .view-tabs { height: auto; padding: 0; gap: 2px; background: none; }
+.timeline > .transport .view-tabs .tab { width: 32px; height: 32px; border-radius: 10px; }
+.timeline > .transport .tool-group { display: flex; align-items: center; gap: 2px; }
+.timeline > .transport .tool-group[hidden] { display: none; }
+.timeline > .transport .tab-actions { margin: 0; gap: 2px; }
+.timeline > .transport .segmented { padding: 2px; background: var(--panel-2); }
+.timeline > .transport .seg.icon { width: 30px; height: 28px; }
+.timeline > .transport .picker-button { height: 32px; font-size: var(--text-small); }
+.divider { flex: none; width: 1px; height: 20px; margin: 0 6px; background: var(--edge); }
+.phone-body .timeline > .transport { padding: 6px 8px 2px; }
+.phone-body .timeline > .transport .transport-center { order: 0; flex: 1 1 100%; justify-content: center; }
+.phone-body .timeline > .transport .transport-side { order: 1; flex: 1 1 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
+.phone-body .timeline > .transport .transport-side.end { order: 2; }
+.phone-body .timeline > .transport .transport-side::-webkit-scrollbar { display: none; }
+.phone-body .timeline > .transport .btn.icon, .phone-body .timeline > .transport .view-tabs .tab { width: 40px; height: 40px; flex: none; }
+.phone-body .timeline > .transport #play { width: 48px !important; height: 48px !important; }
+.timeline > .transport .view-tabs { flex: none; overflow: visible !important; }

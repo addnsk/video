@@ -125,23 +125,17 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const compare = tool('bypass', 'compare', t('compare'), () => toggleBypass());
   compare.setAttribute('aria-pressed', 'false');
   const editButtons = [tool('split', 'scissors', t('split'), split, `${t('split')} (S)`), tool('delete', 'trash', t('delete'), remove, `${t('delete')} (Delete)`), compare];
-  const transportBar = h('div', { class: 'transport' },
-    h('div', { class: 'transport-side' },
-      tool('undo', 'undo', t('undo'), () => store.undo(), `${t('undo')} (Ctrl+Z)`),
-      tool('redo', 'redo', t('redo'), () => store.redo(), `${t('redo')} (Ctrl+Shift+Z)`),
-      editButtons[0],
-    ),
-    h('div', { class: 'transport-center' },
-      tool('jump-back', 'back', t('jumpBack'), () => jump(-5)),
-      tool('go-start', 'start', t('goStart'), () => active().seek(0), `${t('goStart')} (Home)`),
-      play,
-      tool('go-end', 'end', t('goEnd'), () => active().seek(projectDuration(session.source.viewer === 'source' ? session.source.store.project : store.project)), `${t('goEnd')} (End)`),
-      tool('jump-forward', 'forward', t('jumpForward'), () => jump(5)),
-    ),
-    h('div', { class: 'transport-side end' },
-      editButtons[1],
-      compare,
-    ),
+  const undoRedo = [
+    tool('undo', 'undo', t('undo'), () => store.undo(), `${t('undo')} (Ctrl+Z)`),
+    tool('redo', 'redo', t('redo'), () => store.redo(), `${t('redo')} (Ctrl+Shift+Z)`),
+    editButtons[0],
+  ];
+  const playback = h('div', { class: 'transport-center' },
+    tool('jump-back', 'back', t('jumpBack'), () => jump(-5)),
+    tool('go-start', 'start', t('goStart'), () => active().seek(0), `${t('goStart')} (Home)`),
+    play,
+    tool('go-end', 'end', t('goEnd'), () => active().seek(projectDuration(session.source.viewer === 'source' ? session.source.store.project : store.project)), `${t('goEnd')} (End)`),
+    tool('jump-forward', 'forward', t('jumpForward'), () => jump(5)),
   );
 
   const timelineCanvas = h('canvas', { id: 'timeline' });
@@ -162,14 +156,13 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     iconButton('videoPlus', t('addVideoTrack'), { id: 'add-video-track', onClick: () => store.dispatch(addTrack('video')) }),
     iconButton('audioPlus', t('addAudioTrack'), { id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }),
   );
-  const timelineTools = h('div', { class: 'timeline-tools' },
-    controls.editBar,
-    controls.toolBar,
-    h('div', { class: 'spacer' }),
-    h('button', { class: 'btn small icon', 'aria-label': t('zoomOut'), title: t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, icon('minus', 16)),
-    h('button', { class: 'btn small icon', 'aria-label': t('zoomFit'), title: t('zoomFit'), onClick: () => timeline.fit() }, icon('fit', 16)),
-    h('button', { class: 'btn small icon', 'aria-label': t('zoomIn'), title: t('zoomIn'), onClick: () => timeline.zoom(1.5) }, icon('plus', 16)),
-  );
+  const zoomTools = [
+    h('button', { class: 'btn icon', 'aria-label': t('zoomOut'), title: t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, icon('minus', 17)),
+    h('button', { class: 'btn icon', 'aria-label': t('zoomFit'), title: t('zoomFit'), onClick: () => timeline.fit() }, icon('fit', 17)),
+    h('button', { class: 'btn icon', 'aria-label': t('zoomIn'), title: t('zoomIn'), onClick: () => timeline.zoom(1.5) }, icon('plus', 17)),
+  ];
+  const timelineLeft = h('div', { class: 'tool-group' }, controls.editBar, controls.toolBar);
+  const timelineRight = h('div', { class: 'tool-group' }, timelineActions, h('span', { class: 'divider' }), ...zoomTools);
 
   const picker = new PointPicker(screen, () => {
     const settings = store.project.settings;
@@ -235,20 +228,25 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     const effect = findPlacement(store.project, target.itemId)?.item.effects.find((e) => e.id === target.nodeId);
     viewing.textContent = t('viewingNode', { name: effect ? (session.registry.get(effect.type)?.name ?? effect.type) : t('nodesSource') });
   });
-  const timelinePane = h('div', { class: 'timeline-pane' }, timelineTools, timelineCanvas);
+  const timelinePane = h('div', { class: 'timeline-pane' }, timelineCanvas);
   const viewTabs = h('div', { class: 'view-tabs', role: 'tablist' });
   const showView = (view: 'timeline' | 'nodes') => {
     timelinePane.hidden = view !== 'timeline';
     nodeEditor.show(view === 'nodes');
     maskOverlay.show(nodeEditor.selected);
-    timelineActions.hidden = view !== 'timeline';
+    timelineLeft.hidden = view !== 'timeline';
+    timelineRight.hidden = view !== 'timeline';
     for (const tab of viewTabs.querySelectorAll('.tab')) tab.setAttribute('aria-selected', String((tab as HTMLElement).dataset.view === view));
     if (view === 'timeline') timeline.draw();
   };
   viewTabs.append(
     h('button', { class: 'tab', role: 'tab', id: 'view-timeline', title: t('viewTimeline'), 'aria-label': t('viewTimeline'), dataset: { view: 'timeline' }, onClick: () => showView('timeline') }, icon('film', 17)),
     h('button', { class: 'tab', role: 'tab', id: 'view-nodes', title: t('viewNodes'), 'aria-label': t('viewNodes'), dataset: { view: 'nodes' }, onClick: () => showView('nodes') }, icon('nodes', 17)),
-    timelineActions,
+  );
+  const toolbar = h('div', { class: 'transport' },
+    h('div', { class: 'transport-side' }, viewTabs, h('span', { class: 'divider' }), ...undoRedo, h('span', { class: 'divider' }), timelineLeft),
+    playback,
+    h('div', { class: 'transport-side end' }, timelineRight, h('span', { class: 'divider' }), editButtons[1], compare),
   );
   showView('timeline');
 
@@ -256,7 +254,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const workspace = mountWorkspace(root, {
     bar,
     viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), liveLoudness, meter.element, rate, timecode)),
-    timeline: h('section', { class: 'timeline' }, transportBar, viewTabs, timelinePane, nodeEditor.element),
+    timeline: h('section', { class: 'timeline' }, toolbar, timelinePane, nodeEditor.element),
     panels,
     onPage: (page) => showView(page === 'fusion' || page === 'color' ? 'nodes' : 'timeline'),
   });
