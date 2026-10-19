@@ -542,7 +542,11 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     stats: () => session.engine.remote.stats(),
     sample: async (points: { x: number; y: number } | { x: number; y: number }[], time = transport.time) => {
       const list = Array.isArray(points) ? points : [points];
-      const values = await session.engine.remote.sampleFrame(time, list);
+      let values = await session.engine.remote.sampleFrame(time, list);
+      for (let attempt = 0; !values && attempt < 20; attempt++) {
+        await new Promise((r) => setTimeout(r, 50));
+        values = await session.engine.remote.sampleFrame(time, list);
+      }
       if (!values) throw new Error('Nothing to sample');
       return Array.isArray(points) ? values : values[0];
     },

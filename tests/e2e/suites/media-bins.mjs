@@ -43,6 +43,7 @@ export default {
     await page.click('#bin-smart');
     checks.check(JSON.stringify(await shown()) === '["red.mov"]', 'a smart bin shows its search results');
     await editor.run((id) => montage.media.metadata(id, { rating: 2 }), ids['blue.mov']);
+    await page.waitForFunction(() => document.querySelectorAll('#media .media-item[data-asset]').length === 2).catch(() => undefined);
     checks.check(JSON.stringify((await shown()).sort()) === '["blue.mov","red.mov"]', 'a smart bin follows metadata changes');
 
     await editor.run(() => montage.clear());

@@ -10,13 +10,29 @@ export class MarkersPanel extends Panel {
   constructor(private session: EditorSession) {
     super('markers', t('markersTitle'));
     session.store.on('change', ({ project, previous }) => {
-      if (project.markers !== previous.markers) this.render();
+      if (project.markers !== previous.markers) this.schedule();
     });
     this.render();
   }
 
   private update(id: string, patch: Partial<Omit<Marker, 'id'>>) {
     this.session.store.dispatch(updateMarker(id, patch), { coalesce: `marker:${id}` });
+  }
+
+  private queued = false;
+
+  private schedule() {
+    if (this.queued) return;
+    this.queued = true;
+    const run = () => {
+      if (this.element.contains(document.activeElement) && document.activeElement !== document.body && (document.activeElement as HTMLElement).matches('input, select, textarea')) {
+        this.element.addEventListener('focusout', () => requestAnimationFrame(run), { once: true });
+        return;
+      }
+      this.queued = false;
+      this.render();
+    };
+    requestAnimationFrame(run);
   }
 
   private render() {

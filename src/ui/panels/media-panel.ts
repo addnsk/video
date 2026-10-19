@@ -51,7 +51,7 @@ export class MediaPanel extends Panel {
     );
     this.body.replaceChildren(this.controls, this.list);
     session.store.on('change', ({ project, previous }) => {
-      if (project.assets !== previous.assets || project.timeline !== previous.timeline || project.timelines !== previous.timelines || project.bins !== previous.bins || project.media !== previous.media) this.render();
+      if (project.assets !== previous.assets || project.timeline !== previous.timeline || project.timelines !== previous.timelines || project.bins !== previous.bins || project.media !== previous.media) this.schedule();
     });
     session.on('proxy', () => this.renderList());
     this.render();
@@ -119,6 +119,22 @@ export class MediaPanel extends Panel {
     walk(null, 0);
     for (const bin of bins.filter((b) => b.query)) out.push(h('option', { value: bin.id, selected: this.bin === bin.id }, `⌕ ${bin.name}`));
     return out;
+  }
+
+  private queued = false;
+
+  private schedule() {
+    if (this.queued) return;
+    this.queued = true;
+    const run = () => {
+      if (this.element.contains(document.activeElement) && document.activeElement !== document.body && (document.activeElement as HTMLElement).matches('input, select, textarea')) {
+        this.element.addEventListener('focusout', () => requestAnimationFrame(run), { once: true });
+        return;
+      }
+      this.queued = false;
+      this.render();
+    };
+    requestAnimationFrame(run);
   }
 
   private render() {

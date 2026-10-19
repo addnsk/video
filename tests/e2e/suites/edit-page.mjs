@@ -98,6 +98,7 @@ export default {
     await editor.until(() => document.querySelectorAll('#markers .marker-row').length === 1);
     await page.fill('#markers .marker-row input[type=text]', 'Cue');
     await page.locator('#markers .marker-row input[type=text]').first().dispatchEvent('change');
+    await page.evaluate(() => document.activeElement?.blur());
     checks.check((await editor.run(() => montage.markers.list()[0].name)) === 'Cue', 'the markers panel renames a marker');
     await editor.run(() => montage.seek(2.5));
     await page.keyboard.press('Shift+ArrowUp');
