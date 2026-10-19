@@ -182,7 +182,7 @@ export class MixerPanel {
     const meter = kind === 'master' ? this.meter.element : null;
     const element = h('div', { class: `mixer-strip ${kind}`, id: `mixer-${id}` },
       h('div', { class: 'strip-head' }, h('strong', { title: name }, name), remove),
-      output ?? h('span', { class: 'strip-out' }, t('mixerMaster')),
+      output,
       trim.element,
       pan.element,
       ...sends.map((x) => h('div', { class: 'send' }, x.level.element, h('label', { class: 'toggle' }, x.pre, t('mixerPreFader')))),

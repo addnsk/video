@@ -4,7 +4,7 @@ import { h } from '../dom';
 
 export function languageSelect(): HTMLSelectElement {
   const select = h('select', { id: 'language', class: 'language', 'aria-label': t('language') },
-    ...Object.entries(LOCALES).map(([id, strings]) => h('option', { value: id }, strings.languageName)));
+    ...Object.entries(LOCALES).map(([id, strings]) => h('option', { value: id, title: strings.languageName }, id.toUpperCase())));
   select.value = currentLocale();
   select.addEventListener('change', () => {
     if (!isLocale(select.value)) return;

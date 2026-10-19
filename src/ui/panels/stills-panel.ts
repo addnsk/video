@@ -28,7 +28,8 @@ export class StillsPanel extends Panel {
       neutral: 0.5,
       onInput: (v) => void session.stills.wipe(v),
     });
-    this.body.append(h('p', { class: 'hint' }, t('stillsHint')), grab, this.grid, this.wipe.element);
+    grab.title = t('stillsHint');
+    this.body.append(grab, this.grid, this.wipe.element);
     session.store.on('change', () => this.render());
     this.render();
   }

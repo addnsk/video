@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { h } from '../dom';
 import { Slider, type SliderOptions } from './slider';
 
@@ -16,7 +17,7 @@ export class KeyedSlider {
 
   constructor(options: KeyedSliderOptions) {
     this.slider = new Slider(options);
-    this.key = h('button', { class: 'key', type: 'button', 'aria-label': `${options.label} keyframe`, onClick: options.onToggleKey }, GLYPH.none);
+    this.key = h('button', { class: 'key', type: 'button', 'aria-label': `${options.label} keyframe`, title: t('keyframeHint'), onClick: options.onToggleKey }, GLYPH.none);
     this.element = h('div', { class: 'keyed' }, this.slider.element, this.key);
   }
 

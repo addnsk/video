@@ -68,7 +68,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
 
   const exportButton = h('button', { class: 'btn primary', id: 'export', onClick: () => openExportDialog(session) }, t('export'));
   const bar = h('header', { class: 'bar' },
-    h('div', { class: 'brand' }, t('appName'), h('small', {}, t('tagline'))),
+    h('div', { class: 'brand' }, t('appName')),
     projectMenu(session, persistence),
     h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, icon('import'), h('span', { class: 'label' }, t('import'))),
     h('button', { class: 'btn icon round', id: 'queue-open', title: t('queue'), 'aria-label': t('queue'), onClick: () => openRenderQueue(session) }, icon('queue')),
@@ -77,10 +77,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     exportButton,
   );
 
-  const info = h('div', { class: 'info' });
   const before = h('div', { class: 'badge', hidden: true }, t('before'));
   const empty = h('div', { class: 'empty' }, h('strong', {}, t('emptyTitle')), h('span', {}, t('emptyHint')));
-  const screen = h('div', { class: 'screen', id: 'timeline-screen' }, preview, subtitleOverlay(session, preview), info, before, empty, offlineBanner(session, persistence));
+  const screen = h('div', { class: 'screen', id: 'timeline-screen' }, preview, subtitleOverlay(session, preview), before, empty, offlineBanner(session, persistence));
   const sourceLabel = h('div', { class: 'info' });
   const sourceScreen = sourcePreview && h('div', { class: 'screen', id: 'source-screen', hidden: true }, sourcePreview, sourceLabel);
   const screens = h('div', { class: 'screens' }, sourceScreen, screen);
@@ -114,7 +113,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   let loudnessTimer = 0;
   const showLoudness = () => {
     const reading = transport.loudness();
-    liveLoudness.textContent = reading && Number.isFinite(reading.shortTerm) ? `${reading.momentary.toFixed(1)} / ${reading.shortTerm.toFixed(1)} LUFS` : '';
+    const live = reading && Number.isFinite(reading.shortTerm);
+    liveLoudness.textContent = live ? `${Math.round(reading.momentary)} LUFS` : '';
+    liveLoudness.title = live ? `${reading.momentary.toFixed(1)} / ${reading.shortTerm.toFixed(1)} LUFS` : '';
   };
   const split = () => {
     const placement = selection.id ? findPlacement(store.project, selection.id) : null;
@@ -246,8 +247,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     if (view === 'timeline') timeline.draw();
   };
   viewTabs.append(
-    h('button', { class: 'tab', role: 'tab', id: 'view-timeline', dataset: { view: 'timeline' }, onClick: () => showView('timeline') }, t('viewTimeline')),
-    h('button', { class: 'tab', role: 'tab', id: 'view-nodes', dataset: { view: 'nodes' }, onClick: () => showView('nodes') }, t('viewNodes')),
+    h('button', { class: 'tab', role: 'tab', id: 'view-timeline', title: t('viewTimeline'), 'aria-label': t('viewTimeline'), dataset: { view: 'timeline' }, onClick: () => showView('timeline') }, icon('film', 17)),
+    h('button', { class: 'tab', role: 'tab', id: 'view-nodes', title: t('viewNodes'), 'aria-label': t('viewNodes'), dataset: { view: 'nodes' }, onClick: () => showView('nodes') }, icon('nodes', 17)),
     timelineActions,
   );
   showView('timeline');
@@ -296,7 +297,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     exportButton.disabled = !hasItems;
     for (const b of editButtons) b.disabled = !hasItems;
     const settings = store.project.settings;
-    info.textContent = settings ? `${settings.width}×${settings.height} · ${+settings.fps.toFixed(3)} ${t('fps')} · ${session.engine.mode}` : '';
+    screen.title = settings ? `${settings.width}×${settings.height} · ${+settings.fps.toFixed(3)} ${t('fps')}` : '';
     renderTime();
   };
   store.on('change', syncChrome);

@@ -25,7 +25,11 @@ export class Slider {
   private current = 0;
 
   constructor(private options: SliderOptions) {
-    this.format = options.format ?? ((v) => v.toFixed(2));
+    const split = /^(.*\S)\s*\(([^()]+)\)$/.exec(options.label);
+    const unit = split && !/\d/.test(split[2]) ? split[2] : '';
+    const base = options.format ?? ((v) => v.toFixed(2));
+    this.format = unit ? (v) => `${base(v)} ${unit}` : base;
+    const shown = unit ? split![1] : options.label;
     this.fill = h('div', { class: 'scrub-fill' });
     this.output = h('span', { class: 'scrub-value' });
     this.editor = h('input', { class: 'scrub-editor', type: 'text', inputmode: 'decimal', hidden: true, 'aria-label': options.label });
@@ -38,7 +42,7 @@ export class Slider {
       'aria-label': options.label,
       'aria-valuemin': options.min,
       'aria-valuemax': options.max,
-    }, this.fill, h('span', { class: 'scrub-label' }, options.label), this.output, this.editor);
+    }, this.fill, h('span', { class: 'scrub-label' }, shown), this.output, this.editor);
     this.element.addEventListener('pointerdown', (e) => this.press(e));
     this.element.addEventListener('dblclick', () => this.commit(options.neutral));
     this.element.addEventListener('keydown', (e) => this.key(e));

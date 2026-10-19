@@ -149,7 +149,7 @@ export class ItemPanel extends Panel {
         return h('label', { class: 'field' }, t(label), select);
       }),
     );
-    this.body.append(this.hint, this.textBox, this.speed.element, this.stabilize, this.presetBox, properties, h('p', { class: 'hint' }, t('keyframeHint')), this.audioEffects.element);
+    this.body.append(this.hint, this.textBox, this.speed.element, this.stabilize, this.presetBox, properties, this.audioEffects.element);
     session.store.on('change', () => this.sync());
     selection.on('change', () => this.sync());
     let pending = false;

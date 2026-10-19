@@ -86,7 +86,7 @@ export class LibraryPanel extends Panel {
       const items = shown.filter((e) => e.kind === section.kind);
       if (!items.length) return [];
       return [
-        h('h3', { class: 'library-heading' }, t(section.label), h('span', {}, String(items.length))),
+        h('h3', { class: 'library-heading' }, t(section.label)),
         h('div', { class: 'library-grid' }, ...items.map((entry) => h('button', {
           type: 'button',
           class: `library-tile${section.needsClip && !hasClip ? ' idle' : ''}`,

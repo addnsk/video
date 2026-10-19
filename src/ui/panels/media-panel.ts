@@ -61,9 +61,9 @@ export class MediaPanel extends Panel {
     this.render();
   }
 
-  private thumbnail(asset: { id: string; hasVideo: boolean }): HTMLElement {
+  private thumbnail(asset: { id: string; hasVideo: boolean }, duration: string): HTMLElement {
     const canvas = h('canvas', { width: 256, height: 144 });
-    const frame = h('div', { class: `media-thumb${asset.hasVideo ? '' : ' audio'}` }, asset.hasVideo ? canvas : icon('audio', 28));
+    const frame = h('div', { class: `media-thumb${asset.hasVideo ? '' : ' audio'}` }, asset.hasVideo ? canvas : icon('audio', 28), h('span', { class: 'media-duration' }, duration));
     if (!asset.hasVideo) return frame;
     const paint = () => {
       const strip = this.session.thumbnails(asset.id);
@@ -212,13 +212,12 @@ export class MediaPanel extends Panel {
         this.renderList();
       } }),
     );
-    const grip = h('span', { class: 'grip', role: 'button', 'aria-label': t('dragToTimeline'), title: t('dragToTimeline') }, '⠿');
+    const grip = h('span', { class: 'grip', role: 'button', 'aria-label': t('dragToTimeline'), title: t('dragToTimeline') }, icon('grip', 16));
     const badges = [meta.rating ? '★'.repeat(meta.rating) : '', meta.flagged ? '⚑' : '', meta.keywords?.join(', ') ?? ''].filter(Boolean).join('  ');
     const element = h('div', { class: 'media-item', 'data-asset': asset.id },
-      this.thumbnail(asset),
-      h('b', { title: asset.name }, asset.name),
+      this.thumbnail(asset, formatDuration(asset.end - asset.start)),
+      h('b', { title: `${asset.name}\n${details}` }, asset.name),
       grip,
-      h('small', {}, details),
       badges && h('small', { class: 'badges' }, badges),
       proxy && h('small', { class: 'proxy' }, proxy),
       actions,

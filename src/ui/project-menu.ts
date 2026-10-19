@@ -10,8 +10,13 @@ import { icon } from './icons';
 import { h } from './dom';
 
 export function projectMenu(session: EditorSession, persistence: ProjectPersistence): HTMLElement {
-  const status = h('span', { class: 'save-status', 'aria-live': 'polite' });
-  persistence.on('saved', (at) => (status.textContent = t('savedAt', { time: at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })));
+  const status = h('span', { class: 'save-status', role: 'status', hidden: true }, icon('check', 16));
+  persistence.on('saved', (at) => {
+    const label = t('savedAt', { time: at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+    status.hidden = false;
+    status.title = label;
+    status.setAttribute('aria-label', label);
+  });
 
   const confirmNew = () => {
     const modal = new Modal(t('newProject'));

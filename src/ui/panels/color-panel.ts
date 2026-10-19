@@ -111,20 +111,17 @@ export class ColorPanel extends Panel {
     this.controls = [this.input, this.inputClip, loadButton, removeButton, resetButton, allButton];
     this.body.append(
       this.hint,
-      h('label', { class: 'field' }, t('colorScience'), this.science),
-      h('label', { class: 'field' }, t('colorInputSpace'), this.input),
-      h('label', { class: 'check' }, this.inputClip, t('colorInputClipOnly')),
-      h('div', { class: 'row' }, h('label', { class: 'field' }, t('versionTitle'), this.version), saveVersion),
+      h('div', { class: 'row tools' }, h('span', { class: 'version', title: t('versionTitle') }, this.version), saveVersion, h('div', { class: 'spacer' }), resetButton, allButton),
       wheelRow,
       sliderBox,
-      h('h2', {}, t('curvesTitle')),
-      this.curves.element,
-      h('p', { class: 'hint' }, t('curvesHint')),
-      h('h2', {}, t('lutTitle')),
-      this.lutName,
-      h('div', { class: 'row' }, loadButton, removeButton, lutFile),
-      this.lutStrength.element,
-      h('div', { class: 'row' }, resetButton, allButton),
+      h('details', { class: 'section', open: true }, h('summary', {}, t('curvesTitle')), this.curves.element),
+      h('details', { class: 'section' }, h('summary', {}, t('lutTitle')),
+        h('div', { class: 'row tools' }, this.lutName, h('div', { class: 'spacer' }), loadButton, removeButton, lutFile),
+        this.lutStrength.element),
+      h('details', { class: 'section' }, h('summary', {}, t('colorManagement')),
+        h('label', { class: 'field' }, t('colorScience'), this.science),
+        h('label', { class: 'field' }, t('colorInputSpace'), this.input),
+        h('label', { class: 'check' }, this.inputClip, t('colorInputClipOnly'))),
     );
     session.store.on('change', () => this.sync());
     selection.on('change', () => this.sync());

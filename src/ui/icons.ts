@@ -65,6 +65,13 @@ const PATHS = {
   transition: '<rect x="2.5" y="6" width="9" height="12" rx="2"/><rect x="12.5" y="6" width="9" height="12" rx="2" opacity=".5"/><path d="M9 12h6M13 10l2 2-2 2"/>',
   motion: '<path d="M4 18c4 0 5-12 9-12s4 6 7 6"/><circle cx="4" cy="18" r="1.6" fill="currentColor"/><circle cx="20" cy="12" r="1.6" fill="currentColor"/>',
   code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
+  cursor: '<path d="M5 3l14 7.5-6.2 1.8L10 19z"/>',
+  ripple: '<path d="M9 5H5v14h4"/><path d="M13 12h8M18 9l3 3-3 3"/>',
+  roll: '<path d="M12 4v16M8 8l-4 4 4 4M16 8l4 4-4 4"/>',
+  slip: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M8 12h8M10 10l-2 2 2 2M14 10l2 2-2 2"/>',
+  slide: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M2 12h3M19 12h3M4 10l-2 2 2 2M20 10l2 2-2 2"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  grip: '<circle cx="9" cy="6" r="1.2" fill="currentColor"/><circle cx="15" cy="6" r="1.2" fill="currentColor"/><circle cx="9" cy="12" r="1.2" fill="currentColor"/><circle cx="15" cy="12" r="1.2" fill="currentColor"/><circle cx="9" cy="18" r="1.2" fill="currentColor"/><circle cx="15" cy="18" r="1.2" fill="currentColor"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/>',
 } as const;

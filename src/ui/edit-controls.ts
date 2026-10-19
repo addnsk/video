@@ -18,6 +18,8 @@ const TOOLS: readonly { tool: TrimTool; key: string }[] = [
   { tool: 'slide', key: 'KeyU' },
 ];
 
+const TOOL_ICONS: Record<TrimTool, IconName> = { select: 'cursor', ripple: 'ripple', roll: 'roll', slip: 'slip', slide: 'slide' };
+
 export class EditControls extends Emitter<{ tool: TrimTool }> {
   readonly viewerTabs: HTMLElement;
   readonly editBar: HTMLElement;
@@ -50,7 +52,8 @@ export class EditControls extends Emitter<{ tool: TrimTool }> {
     this.editBar = h('div', { class: 'edit-bar' }, ...this.editButtons);
     this.toolBar = h('div', { class: 'segmented', id: 'trim-tools', role: 'radiogroup', 'aria-label': t('trimTools') });
     for (const { tool, key } of TOOLS) {
-      const button = h('button', { class: 'seg', role: 'radio', id: `tool-${tool}`, title: key.slice(3), onClick: () => (this.tool = tool) }, t(`tool_${tool}` as const));
+      const label = t(`tool_${tool}` as const);
+      const button = h('button', { class: 'seg icon', role: 'radio', id: `tool-${tool}`, title: `${label} (${key.slice(3)})`, 'aria-label': label, onClick: () => (this.tool = tool) }, icon(TOOL_ICONS[tool], 17));
       this.toolButtons.set(tool, button);
       this.toolBar.append(button);
     }

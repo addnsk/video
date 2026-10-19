@@ -561,3 +561,28 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .viewer-chips .tc { flex: none; }
 .viewer-chips .loudness-live { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .viewer-chips .segmented { flex: none; }
+.seg.icon { width: 34px; padding: 0; display: inline-grid; place-items: center; }
+.view-tabs .tab .icon { margin: auto; }
+.view-tabs .tab:has(.icon) { width: 38px; padding: 0; }
+.save-status { display: inline-grid; place-items: center; width: 28px; height: 28px; color: var(--meter-low); padding: 0; }
+.media-thumb { position: relative; }
+.media-duration { position: absolute; right: 6px; bottom: 6px; padding: 1px 7px; border-radius: 999px; background: var(--label-backdrop); color: var(--fg-strong); font: 500 10.5px var(--font-mono); }
+.media-item .grip { opacity: 0; transition: opacity 0.15s; display: grid; place-items: center; }
+.media-item:hover .grip, .media-item:focus-within .grip { opacity: 1; }
+@media (pointer: coarse) { .media-item .grip { opacity: 1; } }
+.mixer-strip .scrub-label { display: none; }
+.mixer-strip .scrub:not(.vertical) { justify-content: center; }
+.row.tools { flex-wrap: nowrap; gap: 4px; }
+.row.tools .version { flex: 1; min-width: 0; }
+details.section { border-top: 1px solid var(--edge); padding-top: 4px; }
+details.section > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; height: 36px; cursor: pointer; font-weight: 600; color: var(--fg-strong); }
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); transition: transform 0.15s; margin-right: 4px; }
+details.section[open] > summary::after { transform: rotate(45deg); }
+details.section[open] { display: flex; flex-direction: column; gap: var(--gap); padding-bottom: 8px; }
+.mixer-strip .scrub:not(.vertical) .scrub-fill, .wheel .scrub-fill { border-right: 0; }
+.presets { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px !important; }
+.presets .field { min-width: 0; }
+.curves .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; border-radius: 999px; }
+.curves .tabs::-webkit-scrollbar { display: none; }
+.curves .tabs .tab { flex: none; white-space: nowrap; }

@@ -6,6 +6,7 @@ import type { Store } from '../../core/store';
 import { t } from '../../i18n';
 import { Slider } from '../components/slider';
 import { h } from '../dom';
+import { iconButton } from '../icons';
 
 export interface EffectsBinding {
   readonly key: string;
@@ -55,7 +56,7 @@ export class AudioEffectsSection {
         },
       }));
     }
-    const reset = h('button', { class: 'btn small', id: `${this.prefix}-${def.id}-reset`, onClick: () => this.binding && this.store.dispatch(this.binding.set(def.id, null)) }, t('reset'));
+    const reset = iconButton('reset', t('reset'), { id: `${this.prefix}-${def.id}-reset`, onClick: () => this.binding && this.store.dispatch(this.binding.set(def.id, null)) });
     const element = h('details', { class: 'audio-effect', id: `${this.prefix}-${def.id}` },
       h('summary', {}, def.name),
       ...[...sliders.values()].map((s) => s.element),

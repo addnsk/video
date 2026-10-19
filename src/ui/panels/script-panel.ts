@@ -28,7 +28,8 @@ export class ScriptPanel extends Panel {
       }
     });
     this.run = h('button', { class: 'btn primary', id: 'script-run', onClick: () => void this.execute() }, t('scriptRun'));
-    this.body.append(examples, this.code, h('div', { class: 'row' }, this.run), this.output, h('p', { class: 'hint' }, t('scriptHint')));
+    this.body.append(examples, this.code, h('div', { class: 'row' }, this.run), this.output);
+    this.run.title = t('scriptHint');
   }
 
   load(code: string): void {
