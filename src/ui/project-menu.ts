@@ -9,14 +9,6 @@ import { icon } from './icons';
 import { h } from './dom';
 
 export function projectMenu(session: EditorSession, persistence: ProjectPersistence): HTMLElement {
-  const status = h('span', { class: 'save-status', role: 'status', hidden: true }, icon('check', 16));
-  persistence.on('saved', (at) => {
-    const label = t('savedAt', { time: at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-    status.hidden = false;
-    status.title = label;
-    status.setAttribute('aria-label', label);
-  });
-
   const confirmNew = () => {
     const modal = new Modal(t('newProject'));
     modal.body(
@@ -59,6 +51,5 @@ export function projectMenu(session: EditorSession, persistence: ProjectPersiste
     h('button', { class: 'btn icon round', id: 'project-new', title: t('newProject'), 'aria-label': t('newProject'), onClick: confirmNew }, icon('file')),
     h('button', { class: 'btn icon round', id: 'project-open', title: t('openProject'), 'aria-label': t('openProject'), onClick: () => void open() }, icon('folder')),
     h('button', { class: 'btn icon round', id: 'project-save', title: t('saveProject'), 'aria-label': t('saveProject'), onClick: () => void save() }, icon('save')),
-    status,
   );
 }

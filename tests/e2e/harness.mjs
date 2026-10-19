@@ -142,7 +142,13 @@ export class Editor {
     await (await chooser).setFiles(files);
   }
 
+  async reveal(panel) {
+    const tab = this.page.locator(`[data-panel="${panel}"]:visible, [data-sheet="${panel}"]:visible`).first();
+    if (await tab.count() && (await tab.getAttribute('aria-selected')) !== 'true' && (await tab.getAttribute('aria-pressed')) !== 'true') await tab.click();
+  }
+
   async import(files, expectedAssets = files.length) {
+    if (!(await this.page.locator('#import').isVisible())) await this.reveal('media');
     await this.pick('#import', files);
     await this.page.waitForFunction((n) => montage.assets().length >= n, expectedAssets, { timeout: 60000 });
   }

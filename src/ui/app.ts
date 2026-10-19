@@ -68,9 +68,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
 
   const exportButton = h('button', { class: 'btn primary', id: 'export', onClick: () => openExportDialog(session) }, t('export'));
   const bar = h('header', { class: 'bar' },
-    h('div', { class: 'brand' }, t('appName')),
+    h('div', { class: 'brand', role: 'img', 'aria-label': t('appName'), title: t('appName') }),
     projectMenu(session, persistence),
-    h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, icon('import'), h('span', { class: 'label' }, t('import'))),
     h('button', { class: 'btn icon round', id: 'queue-open', title: t('queue'), 'aria-label': t('queue'), onClick: () => openRenderQueue(session) }, icon('queue')),
     ...(remote ? [h('button', { class: 'btn icon round', id: 'cloud-open', title: t('cloud'), 'aria-label': t('cloud'), onClick: () => openCloudDialog(session, remote) }, icon('cloud'))] : []),
     settingsButton(session),
@@ -194,7 +193,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
       } catch (error) {
         toast((error as Error).message, 'error');
       }
-    }, api).element,
+    }, api, async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true }))).element,
     script: scriptPanel.element,
     deliver: deliverPanel(session),
   };

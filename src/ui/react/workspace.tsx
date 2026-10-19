@@ -192,7 +192,7 @@ function PageBar({ page, onPage }: { page: PageId; onPage: (page: PageId) => voi
   return (
     <nav className="page-bar" role="tablist" aria-label={t('pages')}>
       {PAGE_ORDER.map((id) => (
-        <button key={id} id={`page-${id}`} role="tab" aria-selected={id === page} className="page-tab" onClick={() => onPage(id)}>
+        <button key={id} id={`page-${id}`} role="tab" aria-selected={id === page} className="page-tab" title={t(PAGES[id].label)} onClick={() => onPage(id)}>
           <Icon name={PAGES[id].icon} size={18} />
           <span>{t(PAGES[id].label)}</span>
         </button>

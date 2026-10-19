@@ -234,7 +234,6 @@ export const ru: Strings = {
   newProjectWarning: 'Начать пустой проект? Текущий будет заменён. Если он нужен, сначала сохраните его в файл.',
   openProject: 'Открыть',
   saveProject: 'Сохранить',
-  savedAt: 'Сохранено в {time}',
   projectOpened: 'Открыт {name}',
   projectSaved: 'Проект сохранён',
   mediaOffline: 'Нет доступа к файлам ({count}): {names}',

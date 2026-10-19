@@ -32,6 +32,7 @@ export class MediaPanel extends Panel {
     private openSource: (assetId: string) => void,
     private insertTimeline: (timelineId: string) => void,
     private api: MontageApi,
+    private onImport: () => void,
   ) {
     super('media', t('mediaTitle'));
     this.binSelect = h('select', { id: 'media-bin', 'aria-label': t('mediaBin'), onChange: () => {
@@ -44,6 +45,7 @@ export class MediaPanel extends Panel {
     } });
     this.controls = h('div', { class: 'media-controls' },
       h('div', { class: 'row' },
+        iconButton('import', t('import'), { id: 'import', class: 'accent', onClick: () => this.onImport() }),
         this.binSelect,
         iconButton('folderPlus', t('binNew'), { id: 'bin-new', onClick: () => this.attempt(() => this.newBin(false)) }),
         iconButton('filter', t('binSmart'), { id: 'bin-smart', onClick: () => this.attempt(() => this.newBin(true)) }),

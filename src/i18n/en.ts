@@ -232,7 +232,6 @@ export const en = {
   newProjectWarning: 'Start an empty project? The current one is replaced. Save it to a file first if you need it.',
   openProject: 'Open',
   saveProject: 'Save',
-  savedAt: 'Saved {time}',
   projectOpened: 'Opened {name}',
   projectSaved: 'Project saved',
   mediaOffline: '{count} media file(s) offline: {names}',
