@@ -142,6 +142,31 @@ montage.interchange.offline();   // [{ id, name }] media the import could not fi
 
 Media already in the project are matched by file name. A new timeline is created for every import; nested timelines in OTIO and FCPXML (compound clips) become nested timelines here.
 
+### Subtitles
+
+Each timeline has its own subtitle tracks. A track is shown over the viewer, or burned into the picture (preview, render and render queue alike) when `burnIn` is on. SRT and WebVTT import and export; formatting tags in imported files are dropped. Overlapping subtitles of one track are stacked into one block.
+
+```js
+const id = montage.subtitles.import(srtText, { name: 'English', language: 'en' });   // SRT or WebVTT; { into: id } replaces the cues of a track
+montage.subtitles.tracks();      // [{ id, name, language, burnIn, visible, style, count }]
+montage.subtitles.add({ name: 'Notes', burnIn: true, cues: [{ start: 1, end: 3, text: 'Hello' }] });
+montage.subtitles.update(id, { burnIn: true, visible: true, name: 'EN' });
+montage.subtitles.style(id, {
+  font: 'IBM Plex Sans', weight: 600, size: 0.055,      // size: share of the frame height
+  color: '#ffffff', outline: '#000000', outlineWidth: 0.12,  // outline width: share of the text size, null outline for none
+  background: '#000000b0',                              // box behind the text, null for none
+  position: 0.1, maxWidth: 0.8,                         // bottom of the text above the frame bottom; wrap width, share of the frame width
+});
+montage.subtitles.cues(id);      // [{ id, start, end, text }]
+const cue = montage.subtitles.addCue(id, { text: 'At the playhead' });   // start defaults to the playhead, end to start + 2 s
+montage.subtitles.updateCue(id, cue, { end: 4.5, text: 'Two\nlines' });
+montage.subtitles.removeCue(id, cue);
+montage.subtitles.shift(id, -0.5);                     // move every cue
+montage.subtitles.export(id, 'srt');                   // 'srt' | 'vtt'
+montage.subtitles.at(2.0);                             // cues on screen at a time
+montage.subtitles.remove(id);
+```
+
 ## Media pool: bins, search, metadata
 
 ```js

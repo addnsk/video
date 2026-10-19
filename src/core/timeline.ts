@@ -1,5 +1,6 @@
-import type { Item, Project, Track, TransitionInstance } from './model';
+import type { Item, Project, SubtitleCue, SubtitleTrack, Track, TransitionInstance } from './model';
 import { itemLength, sourceTimeAt } from './model';
+import { cuesAt, subtitleItem } from './subtitles';
 import { nestedProject } from './timeline-data';
 
 export interface Placement {
@@ -146,7 +147,22 @@ function flatCompositionAt(project: Project, time: number): CompositionFrame {
     for (const p of placeTrack(track))
       if (time >= p.start && time < p.end) layers.push({ track, base: layerAt(p, time), transition: null });
   }
+  for (const subtitles of project.subtitles ?? []) {
+    if (!subtitles.burnIn) continue;
+    const cues = cuesAt(subtitles, time);
+    if (cues.length) layers.push(subtitleLayer(subtitles, cues, time));
+  }
   return { time, layers };
+}
+
+const subtitleTracks = new WeakMap<SubtitleTrack, Track>();
+
+function subtitleLayer(subtitles: SubtitleTrack, cues: readonly SubtitleCue[], time: number): TrackFrame {
+  let track = subtitleTracks.get(subtitles);
+  if (!track) subtitleTracks.set(subtitles, (track = { id: `subtitle:${subtitles.id}`, kind: 'video', magnetic: false, muted: false, items: [] }));
+  const item = subtitleItem(subtitles, cues);
+  const placement: Placement = { item, track, index: 0, start: item.start, end: item.start + item.duration, fadeIn: 0, fadeOut: 0 };
+  return { track, base: { placement, local: time - item.start, sourceTime: time - item.start }, transition: null };
 }
 
 export function audibleAt(project: Project, t0: number, t1: number): Placement[] {

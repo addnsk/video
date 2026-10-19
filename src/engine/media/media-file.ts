@@ -1,13 +1,13 @@
 import {
   ALL_FORMATS,
   AudioSampleSink,
-  BlobSource,
   Input,
   VideoSampleSink,
   type InputAudioTrack,
   type InputVideoTrack,
 } from 'mediabunny';
 import { resources } from '../resources';
+import { sourceOf, type MediaInput } from './media-input';
 
 const SOURCE_CACHE_BYTES = 8 * 1024 * 1024;
 
@@ -21,10 +21,10 @@ export class MediaFile {
   lastUsed = 0;
 
   constructor(
-    readonly file: File,
+    readonly file: MediaInput,
     readonly timeOffset: number,
   ) {
-    this.input = new Input({ source: new BlobSource(file, { maxCacheSize: SOURCE_CACHE_BYTES }), formats: ALL_FORMATS });
+    this.input = new Input({ source: sourceOf(file, SOURCE_CACHE_BYTES), formats: ALL_FORMATS });
     this.videoTrack = this.input.getPrimaryVideoTrack();
     this.audioTrack = this.input
       .getPrimaryAudioTrack()

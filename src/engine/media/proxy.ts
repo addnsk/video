@@ -1,6 +1,5 @@
 import {
   ALL_FORMATS,
-  BlobSource,
   Conversion,
   Input,
   Mp4OutputFormat,
@@ -12,6 +11,7 @@ import {
 import type { AssetMeta } from '../../core/model';
 import { opfsFile } from '../storage';
 import { MediaFile } from './media-file';
+import { sourceOf, type MediaInput } from './media-input';
 
 const PROXY_DIR = 'proxies';
 
@@ -39,7 +39,7 @@ async function proxyOffset(file: File, asset: AssetMeta): Promise<number> {
 }
 
 export async function buildProxy(
-  original: File,
+  original: MediaInput,
   asset: AssetMeta,
   height: number,
   onProgress: (fraction: number) => void,
@@ -51,7 +51,7 @@ export async function buildProxy(
   if (!codec) throw new Error(`No encoder available to build a proxy for "${asset.name}"`);
   const target = opfsFile(PROXY_DIR, proxyName(asset, height));
   const sink = await target.open();
-  const input = new Input({ source: new BlobSource(original), formats: ALL_FORMATS });
+  const input = new Input({ source: sourceOf(original), formats: ALL_FORMATS });
   const output = new Output({
     format: new Mp4OutputFormat({ fastStart: false }),
     target: new StreamTarget(sink.writable, { chunked: true }),

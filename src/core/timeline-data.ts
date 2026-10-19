@@ -11,7 +11,7 @@ export const nestedTimelineOf = (project: Project, assetId: string): string | nu
 
 export function snapshot(project: Project): TimelineData {
   const { id, name } = activeTimeline(project);
-  return { id, name, tracks: project.tracks, ...(project.settings ? { settings: project.settings } : {}), ...(project.markers ? { markers: project.markers } : {}), ...(project.mix ? { mix: project.mix } : {}) };
+  return { id, name, tracks: project.tracks, ...(project.settings ? { settings: project.settings } : {}), ...(project.markers ? { markers: project.markers } : {}), ...(project.subtitles ? { subtitles: project.subtitles } : {}), ...(project.mix ? { mix: project.mix } : {}) };
 }
 
 export function timelineData(project: Project, id: string): TimelineData | null {
@@ -49,7 +49,7 @@ export function nestedProject(project: Project, item: MediaItem): Project | null
     ...data.mix,
     tracks: Object.fromEntries(Object.entries(data.mix.tracks).map(([k, v]) => [rename(k), v])),
   };
-  const nested: Project = { ...project, tracks, ...(mix ? { mix } : { mix: undefined }), markers: data.markers };
+  const nested: Project = { ...project, tracks, ...(mix ? { mix } : { mix: undefined }), markers: data.markers, subtitles: data.subtitles };
   byPrefix.set(key, nested);
   return nested;
 }

@@ -10,6 +10,7 @@ import { registerBuiltins } from '../effects/builtin';
 import { EffectRegistry } from '../effects/registry';
 import type { ExportSettings } from '../engine/export/exporter';
 import { exportExtension, exportMimeType } from '../engine/export/formats';
+import type { MediaInput, RemoteMedia } from '../engine/media/media-input';
 import type { EngineEvents, ExportTarget } from '../engine/protocol';
 import type { EngineClient } from './engine-client';
 import type { PickedFile } from './file-picker';
@@ -61,7 +62,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly source: SourceMonitor;
   readonly marks = new TimelineMarks();
   readonly queue = new RenderQueue(this);
-  readonly files = new Map<string, File>();
+  readonly files = new Map<string, MediaInput>();
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
   readonly log = new EventLog(200, localLogStore('montage.log'));
   readonly templates = new TemplateLibrary();
@@ -153,7 +154,7 @@ export class EditorSession extends Emitter<SessionEvents> {
     return meta;
   }
 
-  attachFile(meta: AssetMeta, file: File): void {
+  attachFile(meta: AssetMeta, file: MediaInput): void {
     this.files.set(meta.id, file);
     void this.engine.remote.attach(meta, file);
     this.emit('media', { missing: this.missing });
@@ -208,6 +209,21 @@ export class EditorSession extends Emitter<SessionEvents> {
       }
     }
     return added;
+  }
+
+  async importRemote(input: RemoteMedia, key: string, place = true): Promise<AssetMeta> {
+    const known = Object.values(this.store.project.assets).find((a) => a.remote === key);
+    if (known) {
+      this.attachFile(known, input);
+      return known;
+    }
+    const probed = await this.engine.remote.probe(createId('asset'), input);
+    const meta: AssetMeta = { ...probed, remote: key };
+    this.files.set(meta.id, input);
+    this.store.dispatch(addAsset(meta), { history: false });
+    if (place) this.store.dispatch(this.placement(meta));
+    this.emit('media', { missing: this.missing });
+    return meta;
   }
 
   private placement(meta: AssetMeta) {

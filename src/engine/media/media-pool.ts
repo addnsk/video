@@ -1,12 +1,13 @@
 import type { AssetMeta } from '../../core/model';
 import type { MemoryBudget } from '../device';
 import { MediaFile } from './media-file';
+import type { MediaInput } from './media-input';
 
 export type Quality = 'preview' | 'master';
 
 interface Entry {
   meta: AssetMeta;
-  original: File;
+  original: MediaInput;
   proxy: { file: File; offset: number } | null;
   open: Map<Quality, MediaFile>;
 }
@@ -16,10 +17,18 @@ export class MediaPool {
 
   constructor(private budget: MemoryBudget) {}
 
-  register(meta: AssetMeta, file: File): void {
+  register(meta: AssetMeta, file: MediaInput): void {
     const existing = this.entries.get(meta.id);
     if (existing) {
       existing.meta = meta;
+      if (existing.original !== file) {
+        existing.original = file;
+        for (const [quality, media] of existing.open) {
+          if (media.busy) continue;
+          media.dispose();
+          existing.open.delete(quality);
+        }
+      }
       return;
     }
     this.entries.set(meta.id, { meta, original: file, proxy: null, open: new Map() });
@@ -33,7 +42,7 @@ export class MediaPool {
     return this.entries.get(assetId)?.meta;
   }
 
-  original(assetId: string): File | undefined {
+  original(assetId: string): MediaInput | undefined {
     return this.entries.get(assetId)?.original;
   }
 

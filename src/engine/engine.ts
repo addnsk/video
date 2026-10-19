@@ -1,3 +1,4 @@
+import type { MediaInput } from './media/media-input';
 import { proresMemoryBytes, registerProresDecoder } from './media/prores-decoder';
 import { Emitter } from '../core/emitter';
 import type { AssetMeta, Project } from '../core/model';
@@ -202,13 +203,13 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
     this.redraw();
   }
 
-  async probe(assetId: string, file: File): Promise<AssetMeta> {
+  async probe(assetId: string, file: MediaInput): Promise<AssetMeta> {
     const meta = await probe(file, assetId);
     this.attach(meta, file);
     return meta;
   }
 
-  attach(meta: AssetMeta, file: File): void {
+  attach(meta: AssetMeta, file: MediaInput): void {
     this.pool.register(meta, file);
     void this.restoreProxy(meta);
   }

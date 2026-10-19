@@ -99,7 +99,7 @@ export class ProjectPersistence extends Emitter<PersistenceEvents> {
       const { session } = this;
       for (const def of document.effects) session.registry.register(def);
       for (const lut of document.luts) session.luts.add(lut.name, { size: lut.size, data: Float32Array.from(lut.data) }, lut.id);
-      const known = [...session.files.values()];
+      const known = [...session.files.values()].filter((f): f is File => f instanceof File);
       session.files.clear();
       session.store.reset(migrateProject(document.project));
       this.relink(known);

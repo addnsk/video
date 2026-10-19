@@ -64,6 +64,7 @@ import { createTimelinesApi } from './timelines-api';
 import { createMediaApi } from './media-api';
 import { createInterchangeApi } from './interchange-api';
 import { createQueueApi } from './queue-api';
+import { createSubtitlesApi } from './subtitles-api';
 import { createMulticamApi } from './multicam-api';
 import { createLoudnessApi, createMixerApi } from './mixer-api';
 import { pickQualifier } from '../host/qualifier-pick';
@@ -385,6 +386,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     multicam: createMulticamApi(session, (ref) => resolve(ref).item.id),
     queue: createQueueApi(session),
     interchange: createInterchangeApi(session),
+    subtitles: createSubtitlesApi(session),
     ...createLoudnessApi(session),
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),

@@ -51,6 +51,10 @@ export interface TextStyle {
   readonly color: string;
   readonly align: 'left' | 'center' | 'right';
   readonly background: string | null;
+  readonly outline?: string | null;
+  readonly outlineWidth?: number;
+  readonly maxWidth?: number;
+  readonly bottom?: number;
 }
 
 export interface ItemGraphLink {
@@ -146,6 +150,7 @@ export interface AssetMeta {
   readonly channels: number;
   readonly timeline?: string;
   readonly placeholder?: boolean;
+  readonly remote?: string;
 }
 
 export type ColorScience = 'display' | 'aces';
@@ -167,11 +172,41 @@ export interface Marker {
   readonly note: string;
 }
 
+export interface SubtitleCue {
+  readonly id: string;
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
+}
+
+export interface SubtitleStyle {
+  readonly font: string;
+  readonly weight: number;
+  readonly size: number;
+  readonly color: string;
+  readonly outline: string | null;
+  readonly outlineWidth: number;
+  readonly background: string | null;
+  readonly position: number;
+  readonly maxWidth: number;
+}
+
+export interface SubtitleTrack {
+  readonly id: string;
+  readonly name: string;
+  readonly language: string;
+  readonly burnIn: boolean;
+  readonly visible: boolean;
+  readonly style: SubtitleStyle;
+  readonly cues: readonly SubtitleCue[];
+}
+
 export interface TimelineData {
   readonly id: string;
   readonly name: string;
   readonly tracks: readonly Track[];
   readonly markers?: readonly Marker[];
+  readonly subtitles?: readonly SubtitleTrack[];
   readonly mix?: Mix;
   readonly settings?: ProjectSettings;
   readonly multicam?: { readonly angles: readonly { readonly name: string; readonly assetId: string }[] };
@@ -211,6 +246,7 @@ export interface Project {
   readonly stills?: readonly Still[];
   readonly mix?: Mix;
   readonly markers?: readonly Marker[];
+  readonly subtitles?: readonly SubtitleTrack[];
   readonly timeline?: { readonly id: string; readonly name: string };
   readonly timelines?: Readonly<Record<string, TimelineData>>;
   readonly bins?: readonly Bin[];

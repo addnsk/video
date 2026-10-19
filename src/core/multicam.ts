@@ -118,6 +118,6 @@ export function multiviewProject(project: Project, assetId: string): Project {
   });
   tracks.push({ id: 'labels', kind: 'video', magnetic: false, muted: false, items: labels });
   const audio = data.tracks.filter((t) => t.kind === 'audio' && t.id === angleAudioTrack(0));
-  const { mix: _mix, markers: _markers, ...rest } = project;
+  const { mix: _mix, markers: _markers, subtitles: _subtitles, ...rest } = project;
   return { ...rest, tracks: [...tracks, ...audio] };
 }

@@ -23,6 +23,7 @@ import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
 import { MixerPanel } from './panels/mixer-panel';
 import { MarkersPanel } from './panels/markers-panel';
+import { SubtitlesPanel, subtitleOverlay } from './panels/subtitles-panel';
 import { ScopesPanel } from './panels/scopes-panel';
 import { StillsPanel } from './panels/stills-panel';
 import { ItemPanel } from './panels/item-panel';
@@ -69,7 +70,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const info = h('div', { class: 'info' });
   const before = h('div', { class: 'badge', hidden: true }, t('before'));
   const empty = h('div', { class: 'empty' }, h('strong', {}, t('emptyTitle')), h('span', {}, t('emptyHint')));
-  const screen = h('div', { class: 'screen', id: 'timeline-screen' }, preview, info, before, empty, offlineBanner(session, persistence));
+  const screen = h('div', { class: 'screen', id: 'timeline-screen' }, preview, subtitleOverlay(session, preview), info, before, empty, offlineBanner(session, persistence));
   const sourceLabel = h('div', { class: 'info' });
   const sourceScreen = sourcePreview && h('div', { class: 'screen', id: 'source-screen', hidden: true }, sourcePreview, sourceLabel);
   const screens = h('div', { class: 'screens' }, sourceScreen, screen);
@@ -166,6 +167,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     new StillsPanel(session, selection).element,
     new MixerPanel(session).element,
     new MarkersPanel(session).element,
+    new SubtitlesPanel(session, api).element,
     new MediaPanel(session, timeline, (assetId) => session.source.open(assetId), (timelineId) => {
       try {
         const result = api.edit.insert({ asset: api.timelines.asset(timelineId), in: 0, at: transport.time });

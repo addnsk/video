@@ -64,13 +64,14 @@ export const switchTimeline = (id: string): Operation => (project) => {
   const target = project.timelines?.[id];
   if (!target) throw new Error(`Unknown timeline ${id}`);
   const { [id]: _taken, ...rest } = project.timelines ?? {};
-  const { markers: _markers, mix: _mix, ...base } = project;
+  const { markers: _markers, subtitles: _subtitles, mix: _mix, ...base } = project;
   const settings = target.settings && project.settings ? { ...target.settings, colorScience: project.settings.colorScience } : (target.settings ?? project.settings);
   return refreshNested({
     ...base,
     settings: settings ?? null,
     tracks: target.tracks,
     ...(target.markers ? { markers: target.markers } : {}),
+    ...(target.subtitles ? { subtitles: target.subtitles } : {}),
     ...(target.mix ? { mix: target.mix } : {}),
     timeline: { id: target.id, name: target.name },
     timelines: { ...rest, [active.id]: snapshot(project) },
@@ -95,7 +96,8 @@ export const duplicateTimeline = (id: string, newId = createId('timeline')): Ope
   const links = new Map<string, string>();
   const relinked = tracks.map((t) => ({ ...t, items: t.items.map((i) => (i.link ? { ...i, link: links.get(i.link) ?? links.set(i.link, createId('link')).get(i.link)! } : i)) }));
   const markers = data.markers?.map((m) => ({ ...m, id: createId('marker') }));
-  const copy: TimelineData = { id: newId, name: uniqueName(project, `${data.name} copy`), tracks: relinked, ...(markers ? { markers } : {}), ...(data.mix ? { mix: data.mix } : {}) };
+  const subtitles = data.subtitles?.map((track) => ({ ...track, id: createId('subtitles'), cues: track.cues.map((c) => ({ ...c, id: createId('cue') })) }));
+  const copy: TimelineData = { id: newId, name: uniqueName(project, `${data.name} copy`), tracks: relinked, ...(markers ? { markers } : {}), ...(subtitles ? { subtitles } : {}), ...(data.mix ? { mix: data.mix } : {}) };
   return { ...project, timeline: activeTimeline(project), timelines: { ...project.timelines, [newId]: copy } };
 };
 

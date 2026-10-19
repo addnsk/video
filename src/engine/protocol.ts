@@ -1,3 +1,4 @@
+import type { MediaInput } from './media/media-input';
 import type { LoudnessReading } from '../effects/audio/loudness';
 import type { MediaTrackOptions, TrackSample } from './tracking/track-media';
 import type { AssetMeta, Project } from '../core/model';
@@ -60,8 +61,8 @@ export interface EngineMethods {
   whenIdle(): Promise<void>;
   setEffects(defs: EffectDef[]): void;
   setLut(id: string, lut: Lut3D | null): void;
-  probe(assetId: string, file: File): Promise<AssetMeta>;
-  attach(meta: AssetMeta, file: File): void;
+  probe(assetId: string, file: MediaInput): Promise<AssetMeta>;
+  attach(meta: AssetMeta, file: MediaInput): void;
   renderStill(time: number, bypassFilters: boolean): Promise<boolean>;
   play(anchor: ClockAnchor, bypassFilters: boolean): void;
   stop(): void;

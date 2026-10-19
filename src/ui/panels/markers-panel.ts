@@ -19,23 +19,7 @@ export class MarkersPanel extends Panel {
     this.session.store.dispatch(updateMarker(id, patch), { coalesce: `marker:${id}` });
   }
 
-  private queued = false;
-
-  private schedule() {
-    if (this.queued) return;
-    this.queued = true;
-    const run = () => {
-      if (this.element.contains(document.activeElement) && document.activeElement !== document.body && (document.activeElement as HTMLElement).matches('input, select, textarea')) {
-        this.element.addEventListener('focusout', () => requestAnimationFrame(run), { once: true });
-        return;
-      }
-      this.queued = false;
-      this.render();
-    };
-    requestAnimationFrame(run);
-  }
-
-  private render() {
+  protected render() {
     const markers = this.session.store.project.markers ?? [];
     if (!markers.length) {
       this.body.replaceChildren(h('p', { class: 'hint' }, t('markersEmpty')));

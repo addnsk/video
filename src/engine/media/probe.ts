@@ -1,5 +1,6 @@
-import { ALL_FORMATS, BlobSource, Input, type MetadataTags } from 'mediabunny';
+import { ALL_FORMATS, Input, type MetadataTags } from 'mediabunny';
 import type { AssetMeta } from '../../core/model';
+import { sourceOf, type MediaInput } from './media-input';
 
 const CODEC_LABELS: Record<string, string> = {
   avc: 'H.264',
@@ -44,8 +45,8 @@ async function hdrColorSpace(video: Awaited<ReturnType<Input['getPrimaryVideoTra
   return {};
 }
 
-export async function probe(file: File, id: string): Promise<AssetMeta> {
-  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+export async function probe(file: MediaInput, id: string): Promise<AssetMeta> {
+  const input = new Input({ source: sourceOf(file), formats: ALL_FORMATS });
   try {
     const video = await input.getPrimaryVideoTrack();
     const audioTrack = await input.getPrimaryAudioTrack();

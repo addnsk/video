@@ -40,7 +40,7 @@ export class StillsPanel extends Panel {
     }
   }
 
-  private render(force = false) {
+  protected render(force = false) {
     const stills = this.session.stills.list;
     const key = `${stills.map((s) => s.id).join()}|${this.session.stills.compared}`;
     if (key === this.rendered && !force) return;

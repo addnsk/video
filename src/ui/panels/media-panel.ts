@@ -121,23 +121,7 @@ export class MediaPanel extends Panel {
     return out;
   }
 
-  private queued = false;
-
-  private schedule() {
-    if (this.queued) return;
-    this.queued = true;
-    const run = () => {
-      if (this.element.contains(document.activeElement) && document.activeElement !== document.body && (document.activeElement as HTMLElement).matches('input, select, textarea')) {
-        this.element.addEventListener('focusout', () => requestAnimationFrame(run), { once: true });
-        return;
-      }
-      this.queued = false;
-      this.render();
-    };
-    requestAnimationFrame(run);
-  }
-
-  private render() {
+  protected render() {
     const bins = binsOf(this.session.store.project);
     if (this.bin && !bins.some((b) => b.id === this.bin)) this.bin = ALL;
     this.binSelect.replaceChildren(...this.binOptions());
