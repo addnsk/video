@@ -2,7 +2,7 @@ import { CustomVideoDecoder, VideoSample, registerDecoder, type EncodedPacket, t
 import { Decoder, Frame, PIXEL_FORMATS, type PixelFormat } from 'turbores';
 import { resources } from '../resources';
 
-const QUEUE_LIMIT = 2;
+const QUEUE_LIMIT = 4;
 
 let runtimeBytes = 0;
 
@@ -37,7 +37,7 @@ export class ProresDecoder extends CustomVideoDecoder {
   async init(): Promise<void> {
     const decoder = await Decoder.create({
       proresFourCc: this.config.codec as Parameters<typeof Decoder.create>[0]['proresFourCc'],
-      useSharedMemory: Decoder.canUseSharedMemory(),
+      useSharedMemory: false,
       allowedOutputFormats: frameFormats(),
     });
     if (decoder instanceof Error) throw decoder;
@@ -45,20 +45,22 @@ export class ProresDecoder extends CustomVideoDecoder {
     resources.acquire('proresDecoder');
   }
 
-  private queued = 0;
+  private inflight: Promise<void>[] = [];
 
   async decode(packet: EncodedPacket): Promise<void> {
-    this.queued++;
-    const run = this.pending.then(() => this.decodeOne(packet)).finally(() => this.queued--);
+    const frame = new Frame();
+    const decoded = this.closed || !this.decoder ? Promise.resolve(null) : this.decoder.decode(packet.data, frame);
+    decoded.catch(() => undefined);
+    const run = this.pending.then(() => this.emit(packet, frame, decoded));
     this.pending = run.catch((error) => this.onError(error));
-    if (this.queued >= QUEUE_LIMIT) await this.pending;
+    this.inflight.push(this.pending);
+    if (this.inflight.length >= QUEUE_LIMIT) await this.inflight.shift();
   }
 
-  private async decodeOne(packet: EncodedPacket): Promise<void> {
-    if (this.closed || !this.decoder) return;
-    const frame = new Frame();
+  private async emit(packet: EncodedPacket, frame: Frame, decoded: Promise<Awaited<ReturnType<Decoder['decode']>> | null>): Promise<void> {
     try {
-      const result = await this.decoder.decode(packet.data, frame);
+      const result = await decoded;
+      if (!result || this.closed) return;
       if (result instanceof Error) throw result;
       runtimeBytes = Math.max(runtimeBytes, result.frameData.buffer.byteLength);
       const ratio = result.pixelAspectRatio;

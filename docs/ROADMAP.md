@@ -112,10 +112,10 @@ These are planned features, not defects of what exists:
 
 ## Phase 7. Deliver and interchange
 
-- Render queue with several outputs.
-- OTIO, FCPXML and EDL export and import to move projects to and from DaVinci Resolve.
-- Subtitles: SRT import and export, burn-in, styling.
-- Remote storage: S3-compatible buckets for media and projects.
+- Done: render queue with several outputs per timeline and presets (`host/render-queue.ts`, `montage.queue`).
+- Done: OTIO, FCPXML 1.10 and CMX3600 EDL export and import, checked against the OpenTimelineIO reference adapters; missing media become offline clips that connect by file name (`core/interchange`, `montage.interchange`).
+- Done: subtitle tracks per timeline with SRT/WebVTT import and export, styling, viewer overlay and burn-in (`core/subtitles.ts`, `montage.subtitles`).
+- Done: S3-compatible buckets for projects and media, signed in the browser (SigV4), media streamed by range requests (`host/remote`, `montage.remote`).
 
 ## Phase 8. AI track
 
