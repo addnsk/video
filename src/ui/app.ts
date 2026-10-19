@@ -1,5 +1,6 @@
 import { createMontageApi } from '../api/montage';
-import { splitAt } from '../core/operations';
+import { setPreset, setTransition, splitAt } from '../core/operations';
+import { animationPreset } from '../core/presets';
 import { findPlacement, projectDuration } from '../core/timeline';
 import type { TrackApply } from '../core/tracking';
 import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
@@ -35,6 +36,8 @@ import { StillsPanel } from './panels/stills-panel';
 import { ItemPanel } from './panels/item-panel';
 import { addTrack, insertText } from '../core/operations';
 import { ScriptPanel } from './panels/script-panel';
+import { LibraryPanel } from './panels/library-panel';
+import { EXAMPLES } from './script-examples';
 import { TransitionPanel } from './panels/transition-panel';
 import { Selection } from './selection';
 import { TimelineView } from './timeline-view';
@@ -175,6 +178,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     return settings ? settings.width / settings.height : 16 / 9;
   });
   const track = (itemId: string, apply: TrackApply) => void trackFromViewer(session, picker, itemId, apply);
+  const scriptPanel = new ScriptPanel(api);
   const panels: Record<string, HTMLElement> = {
     scopes: new ScopesPanel(session).element,
     item: new ItemPanel(session, selection, (itemId) => track(itemId, 'stabilize')).element,
@@ -192,7 +196,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
         toast((error as Error).message, 'error');
       }
     }, api).element,
-    script: new ScriptPanel(api).element,
+    script: scriptPanel.element,
     deliver: deliverPanel(session),
   };
 
@@ -206,6 +210,23 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     }
   };
   const nodeEditor = new NodeEditor(session, selection, track, (itemId, nodeId, add) => void pickColor(itemId, nodeId, add));
+  panels.library = new LibraryPanel(session, selection, {
+    addEffect: (type) => nodeEditor.addNode(type),
+    addTemplate: (name) => nodeEditor.addTemplate(name),
+    setTransition: (type) => {
+      const placement = selection.id ? findPlacement(store.project, selection.id) : null;
+      if (placement) store.dispatch(setTransition(placement.item.id, { type, duration: placement.item.transitionIn?.duration ?? 1, params: {} }));
+    },
+    addTitle,
+    setAnimation: (id) => {
+      const preset = animationPreset(id);
+      if (preset && selection.id) store.dispatch(setPreset(selection.id, preset.phase, id));
+    },
+    loadScript: (index) => {
+      workspace.reveal('script');
+      scriptPanel.load(EXAMPLES[index].code);
+    },
+  }).element;
   const maskOverlay = new MaskOverlay(session, screen);
   nodeEditor.on('select', (target) => maskOverlay.show(target));
   const viewing = h('button', { class: 'viewing', id: 'viewing-node', hidden: true, onClick: () => session.viewNode(null) });
@@ -234,7 +255,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   showView('timeline');
 
   enhanceSelects(document.body);
-  mountWorkspace(root, {
+  const workspace = mountWorkspace(root, {
     bar,
     viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), rate, timecode)),
     timeline: h('section', { class: 'timeline' }, transportBar, viewTabs, timelinePane, nodeEditor.element),

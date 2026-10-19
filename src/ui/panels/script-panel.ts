@@ -31,6 +31,11 @@ export class ScriptPanel extends Panel {
     this.body.append(examples, this.code, h('div', { class: 'row' }, this.run), this.output, h('p', { class: 'hint' }, t('scriptHint')));
   }
 
+  load(code: string): void {
+    this.code.value = code;
+    this.code.focus();
+  }
+
   private log = (...args: unknown[]) => {
     this.output.textContent += `${args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}\n`;
   };

@@ -177,7 +177,7 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
     this.draw();
   }
 
-  private addNode(type: string) {
+  addNode(type: string) {
     const item = this.item;
     if (!item) return;
     const id = createId('fx');
@@ -195,7 +195,7 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
     return output ? [output.position[0] - 60, output.position[1] + 90] : [0, 90];
   }
 
-  private addTemplate(name: string) {
+  addTemplate(name: string) {
     const item = this.item;
     const template = this.session.templates.get(name);
     if (!item || !template) return;

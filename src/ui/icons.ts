@@ -58,6 +58,13 @@ const PATHS = {
   multicam: '<rect x="2" y="3" width="9" height="7" rx="2"/><rect x="13" y="3" width="9" height="7" rx="2"/><rect x="2" y="14" width="9" height="7" rx="2"/><rect x="13" y="14" width="9" height="7" rx="2"/>',
   videoPlus: '<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="m15.5 10.5 6-3.5v10l-6-3.5M9 9.5v5M6.5 12h5"/>',
   audioPlus: '<path d="M10 5 5.5 9H3v6h2.5l4.5 4z"/><path d="M18 8v8M14 12h8"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  blur: '<circle cx="12" cy="12" r="9" opacity=".35"/><circle cx="12" cy="12" r="5.5" opacity=".7"/><circle cx="12" cy="12" r="2"/>',
+  mask: '<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="5"/>',
+  wand: '<path d="m15 4 1 2 2 1-2 1-1 2-1-2-2-1 2-1zM5 21 16 10l-2-2L3 19z"/>',
+  transition: '<rect x="2.5" y="6" width="9" height="12" rx="2"/><rect x="12.5" y="6" width="9" height="12" rx="2" opacity=".5"/><path d="M9 12h6M13 10l2 2-2 2"/>',
+  motion: '<path d="M4 18c4 0 5-12 9-12s4 6 7 6"/><circle cx="4" cy="18" r="1.6" fill="currentColor"/><circle cx="20" cy="12" r="1.6" fill="currentColor"/>',
+  code: '<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/>',
 } as const;

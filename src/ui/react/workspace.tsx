@@ -14,6 +14,10 @@ export interface WorkspaceParts {
   readonly onPage: (page: PageId) => void;
 }
 
+export interface WorkspaceHandle {
+  reveal(panel: string): void;
+}
+
 interface PageLayout {
   readonly label: keyof Strings;
   readonly icon: IconName;
@@ -22,10 +26,10 @@ interface PageLayout {
 }
 
 export const PAGES: Readonly<Record<PageId, PageLayout>> = {
-  edit: { icon: 'film', label: 'pageEdit', left: ['media', 'markers', 'subtitles'], right: ['item', 'transition', 'scopes', 'color', 'stills', 'mixer', 'script'] },
-  fusion: { icon: 'nodes', label: 'pageFusion', left: ['media'], right: ['item', 'scopes'] },
-  color: { icon: 'palette', label: 'pageColor', left: ['stills'], right: ['color', 'scopes', 'item'] },
-  fairlight: { icon: 'sliders', label: 'pageFairlight', left: ['media'], right: ['mixer', 'item'] },
+  edit: { icon: 'film', label: 'pageEdit', left: ['media', 'library', 'markers', 'subtitles'], right: ['item', 'transition', 'color', 'scopes', 'mixer', 'stills', 'script'] },
+  fusion: { icon: 'nodes', label: 'pageFusion', left: ['library', 'media'], right: ['item', 'scopes', 'script'] },
+  color: { icon: 'palette', label: 'pageColor', left: ['stills', 'library'], right: ['color', 'scopes', 'item'] },
+  fairlight: { icon: 'sliders', label: 'pageFairlight', left: ['mixer', 'media'], right: ['item', 'library'] },
   deliver: { icon: 'send', label: 'pageDeliver', left: ['deliver'], right: ['subtitles'] },
 };
 
@@ -61,7 +65,7 @@ function useMedia(query: string): boolean {
 }
 
 const PANEL_ICONS: Readonly<Record<string, IconName>> = {
-  media: 'film', markers: 'marker', subtitles: 'text', item: 'sliders', transition: 'layers', scopes: 'compare',
+  media: 'folder', library: 'wand', markers: 'marker', subtitles: 'text', item: 'sliders', transition: 'layers', scopes: 'compare',
   color: 'palette', stills: 'layers', mixer: 'audio', script: 'sparkle', deliver: 'send',
 };
 
@@ -156,12 +160,29 @@ function Split({ id, direction, initial, min, max, side, children }: SplitProps)
   );
 }
 
-function Column({ keys, panels }: { keys: readonly string[]; panels: WorkspaceParts['panels'] }) {
+function panelTitle(element: HTMLElement, key: string): string {
+  return element.querySelector(':scope > h2, :scope > summary')?.textContent ?? key;
+}
+
+function Column({ id, keys, panels, active, onActive }: { id: string; keys: readonly string[]; panels: WorkspaceParts['panels']; active: string; onActive: (key: string) => void }) {
+  const shown = keys.filter((k) => panels[k]);
+  const current = shown.includes(active) ? active : shown[0];
+  useLayoutEffect(() => {
+    const element = panels[current];
+    if (element instanceof HTMLDetailsElement) element.open = true;
+    window.dispatchEvent(new Event('resize'));
+  }, [current, panels]);
   return (
-    <aside className="inspector">
-      {keys.filter((k) => panels[k]).map((k) => (
-        <Slot key={k} element={panels[k]} className="panel-slot" />
-      ))}
+    <aside className="inspector column" data-column={id}>
+      <div className="column-tabs" role="tablist">
+        {shown.map((k) => (
+          <button key={k} type="button" role="tab" className="column-tab" data-panel={k} aria-selected={k === current} title={panelTitle(panels[k], k)} aria-label={panelTitle(panels[k], k)} onClick={() => onActive(k)}>
+            <Icon name={PANEL_ICONS[k] ?? 'more'} size={17} />
+            {k === current && <span>{panelTitle(panels[k], k)}</span>}
+          </button>
+        ))}
+      </div>
+      {current && <Slot key={current} element={panels[current]} className="column-body" />}
     </aside>
   );
 }
@@ -179,7 +200,7 @@ function PageBar({ page, onPage }: { page: PageId; onPage: (page: PageId) => voi
   );
 }
 
-function Desktop({ parts, page }: { parts: WorkspaceParts; page: PageId }) {
+function Desktop({ parts, page, active, onActive }: { parts: WorkspaceParts; page: PageId; active: Record<string, string>; onActive: (column: string, key: string) => void }) {
   const layout = PAGES[page];
   const center = (
     <Split id={`${page}.rows`} direction="column" initial={Math.round(innerHeight * 0.36)} min={120} max={Math.round(innerHeight * 0.75)} side="end">
@@ -190,19 +211,20 @@ function Desktop({ parts, page }: { parts: WorkspaceParts; page: PageId }) {
   const withRight = layout.right.length ? (
     <Split id={`${page}.right`} direction="row" initial={320} min={240} max={560} side="end">
       {center}
-      <Column keys={layout.right} panels={parts.panels} />
+      <Column id={`${page}.right`} keys={layout.right} panels={parts.panels} active={active[`${page}.right`] ?? ''} onActive={(k) => onActive(`${page}.right`, k)} />
     </Split>
   ) : center;
   return layout.left.length ? (
     <Split id={`${page}.left`} direction="row" initial={280} min={200} max={520} side="start">
-      <Column keys={layout.left} panels={parts.panels} />
+      <Column id={`${page}.left`} keys={layout.left} panels={parts.panels} active={active[`${page}.left`] ?? ''} onActive={(k) => onActive(`${page}.left`, k)} />
       {withRight}
     </Split>
   ) : withRight;
 }
 
-function Phone({ parts, page }: { parts: WorkspaceParts; page: PageId }) {
+function Phone({ parts, page, request }: { parts: WorkspaceParts; page: PageId; request: string | null }) {
   const [sheet, setSheet] = useState<string | null>(null);
+  useEffect(() => setSheet(request), [request]);
   const [full, setFull] = useState(false);
   const keys = [...PAGES[page].left, ...PAGES[page].right].filter((k) => parts.panels[k]);
   useEffect(() => setSheet(null), [page]);
@@ -214,12 +236,12 @@ function Phone({ parts, page }: { parts: WorkspaceParts; page: PageId }) {
         {keys.map((k) => (
           <button key={k} className="tool-chip" data-sheet={k} aria-pressed={sheet === k} onClick={() => setSheet(sheet === k ? null : k)}>
             <Icon name={PANEL_ICONS[k] ?? 'more'} />
-            <span>{parts.panels[k].querySelector('h2, summary')?.textContent ?? k}</span>
+            <span>{panelTitle(parts.panels[k], k)}</span>
           </button>
         ))}
       </div>
       {sheet && (
-        <div className={`sheet${full ? ' full' : ''}`} role="dialog" aria-label={parts.panels[sheet].querySelector('h2')?.textContent ?? sheet}>
+        <div className={`sheet${full ? ' full' : ''}`} role="dialog" aria-label={panelTitle(parts.panels[sheet], sheet)}>
           <div className="sheet-head">
             <button className="sheet-grip" aria-label={t('sheetResize')} onClick={() => setFull(!full)} />
             <button className="btn small" onClick={() => setSheet(null)} aria-label={t('close')}>×</button>
@@ -231,12 +253,28 @@ function Phone({ parts, page }: { parts: WorkspaceParts; page: PageId }) {
   );
 }
 
-function Workspace({ parts }: { parts: WorkspaceParts }) {
+function Workspace({ parts, handle }: { parts: WorkspaceParts; handle: { reveal?: (panel: string) => void } }) {
   const phone = useMedia(PHONE_QUERY);
   const [page, setPage] = useState<PageId>(() => stored('montage.page', 'edit'));
+  const [active, setActive] = useState<Record<string, string>>(() => stored('montage.columns', {}));
+  const [request, setRequest] = useState<string | null>(null);
   const choose = (next: PageId) => {
     setPage(next);
     remember('montage.page', next);
+  };
+  const activate = (column: string, key: string) => {
+    setActive((prev) => {
+      const next = { ...prev, [column]: key };
+      remember('montage.columns', next);
+      return next;
+    });
+  };
+  handle.reveal = (panel: string) => {
+    const target = PAGES[page].left.includes(panel) || PAGES[page].right.includes(panel) ? page : PAGE_ORDER.find((p) => PAGES[p].left.includes(panel) || PAGES[p].right.includes(panel));
+    if (!target) return;
+    if (target !== page) choose(target);
+    activate(`${target}.${PAGES[target].left.includes(panel) ? 'left' : 'right'}`, panel);
+    setRequest(panel);
   };
   useEffect(() => {
     parts.onPage(page);
@@ -246,14 +284,16 @@ function Workspace({ parts }: { parts: WorkspaceParts }) {
   return (
     <div className={`workspace ${phone ? 'phone' : 'desktop'}`} data-page={page}>
       <Slot element={parts.bar} className="bar-slot" />
-      <main className="workspace-body">{phone ? <Phone parts={parts} page={page} /> : <Desktop key={page} parts={parts} page={page} />}</main>
+      <main className="workspace-body">{phone ? <Phone parts={parts} page={page} request={request} /> : <Desktop key={page} parts={parts} page={page} active={active} onActive={activate} />}</main>
       <PageBar page={page} onPage={choose} />
       <Parking elements={all} />
     </div>
   );
 }
 
-export function mountWorkspace(root: HTMLElement, parts: WorkspaceParts): void {
+export function mountWorkspace(root: HTMLElement, parts: WorkspaceParts): WorkspaceHandle {
   root.classList.add('react-root');
-  createRoot(root).render(<Workspace parts={parts} />);
+  const handle: { reveal?: (panel: string) => void } = {};
+  createRoot(root).render(<Workspace parts={parts} handle={handle} />);
+  return { reveal: (panel) => handle.reveal?.(panel) };
 }
