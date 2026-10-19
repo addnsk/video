@@ -56,9 +56,11 @@ export default {
     checks.check(bar.every((v) => v < 5), `letterbox draws bars (${fmt(bar)})`);
 
     await single('noise', { speed: 4 });
-    const n1 = await editor.previewColorAt(1, { x: 0.5, y: 0.5, size: 0.01 });
-    const n2 = await editor.previewColorAt(2.3, { x: 0.5, y: 0.5, size: 0.01 });
-    checks.check(!near(n1, n2, 2), `noise animates over time (${fmt(n1)} → ${fmt(n2)})`);
+    const grid = Array.from({ length: 16 }, (_, i) => ({ x: ((i % 4) - 1.5) * 0.2, y: (Math.floor(i / 4) - 1.5) * 0.2 }));
+    const n1 = await editor.run((grid) => montage.sample(grid, 1), grid);
+    const n2 = await editor.run((grid) => montage.sample(grid, 2.3), grid);
+    const change = n1.reduce((sum, v, i) => sum + Math.abs(v[0] - n2[i][0]), 0) / n1.length;
+    checks.check(change > 0.05, `noise animates over time (mean change ${change.toFixed(3)} over 16 points)`);
 
     await single('vignette', { amount: 1, radius: 0.3, softness: 0.2 });
     const corner = await editor.previewColorAt(1, { x: 0.12, y: 0.95, size: 0.02 });
