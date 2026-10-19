@@ -9,9 +9,9 @@ export interface ByteSink {
 
 const EXPORT_DIR = 'exports';
 
-export async function storageSink(name: string): Promise<ByteSink> {
-  await clearDirectory(EXPORT_DIR);
-  return opfsFile(EXPORT_DIR, name).open();
+export async function storageSink(name: string, folder = EXPORT_DIR, clear = true): Promise<ByteSink> {
+  if (clear) await clearDirectory(folder);
+  return opfsFile(folder, name).open();
 }
 
 export async function fileHandleSink(handle: FileSystemFileHandle): Promise<ByteSink> {

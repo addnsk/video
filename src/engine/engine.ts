@@ -4,6 +4,7 @@ import type { AssetMeta, Project } from '../core/model';
 import { emptyProject } from '../core/model';
 import { transfer } from '../core/rpc';
 import { compositionAt, findPlacement, projectDuration } from '../core/timeline';
+import { switchTimeline } from '../core/timelines';
 import { SOURCE_ID, materialize } from '../core/graph';
 import { registerBuiltins } from '../effects/builtin';
 import type { Lut3D } from '../effects/cube';
@@ -242,10 +243,10 @@ export class Engine extends Emitter<EngineEvents> implements EngineMethods {
   }
 
   async exportVideo(id: string, settings: ExportSettings, target: ExportTarget): Promise<File | null> {
-    const sink = target.kind === 'handle' ? await fileHandleSink(target.handle) : await storageSink(target.name);
+    const sink = target.kind === 'handle' ? await fileHandleSink(target.handle) : await storageSink(target.name, target.folder, target.clear);
     try {
       await exportProject(
-        this.timeline,
+        settings.timeline ? switchTimeline(settings.timeline)(this.timeline) : this.timeline,
         settings,
         sink,
         { pool: this.pool, registry: this.registry, luts: { lut: (lid) => this.luts.get(lid) }, budget: this.budget, text: this.text },

@@ -45,6 +45,12 @@ export function openExportDialog(session: EditorSession): void {
   let busy = false;
   const cancel = h('button', { class: 'btn', onClick: () => (busy ? (signal.canceled = true) : modal.close()) }, t('cancel'));
   const run = h('button', { class: 'btn primary', id: 'export-run' }, t('exportRun'));
+  const chosen = () => ({ height: +resolution.value || null, quality: quality.value as 'high' | 'medium', prores: (format.value || null) as ProresProfile | null, dynamicRange: format.value ? (range.value as DynamicRange) : 'sdr' as DynamicRange });
+  const later = h('button', { class: 'btn', id: 'export-queue', onClick: () => {
+    session.queue.add({ settings: chosen() });
+    modal.close();
+    toast(t('queueAdded'));
+  } }, t('queueAddOne'));
   modal.body(
     h('label', { class: 'field' }, t('resolution'), resolution),
     h('label', { class: 'field' }, t('format'), format),
@@ -53,16 +59,17 @@ export function openExportDialog(session: EditorSession): void {
     proresHint,
     progress,
     status,
-    h('div', { class: 'row' }, cancel, run),
+    h('div', { class: 'row' }, cancel, later, run),
   );
   run.addEventListener('click', async () => {
     busy = true;
     run.disabled = true;
+    later.disabled = true;
     progress.hidden = false;
     const started = performance.now();
     try {
       const result = await session.exportVideo(
-        { height: +resolution.value || null, quality: quality.value as 'high' | 'medium', prores: (format.value || null) as ProresProfile | null, dynamicRange: format.value ? (range.value as DynamicRange) : 'sdr' },
+        chosen(),
         (fraction) => {
           progress.value = fraction;
           const elapsed = (performance.now() - started) / 1000;
@@ -75,6 +82,7 @@ export function openExportDialog(session: EditorSession): void {
     } catch (e) {
       busy = false;
       run.disabled = false;
+      later.disabled = false;
       if (signal.canceled || (e as Error).name === 'AbortError') {
         modal.close();
         toast(t('exportCanceled'));

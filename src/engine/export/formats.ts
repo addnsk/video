@@ -20,6 +20,7 @@ export interface ExportSettings {
   readonly prores?: ProresProfile | null;
   readonly dynamicRange?: DynamicRange;
   readonly range?: { readonly in: number; readonly out: number } | null;
+  readonly timeline?: string | null;
 }
 
 export interface FormatPlan {

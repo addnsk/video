@@ -18,9 +18,10 @@ export class FakeEngine implements EngineClient {
   readonly calls: Call[] = [];
   loudness = { momentary: -20, shortTerm: -20, integrated: -20, range: 3, peak: -3, truePeak: -3 };
   readonly remote: Remote<EngineMethods>;
+  readonly handlers: Partial<Record<keyof EngineMethods, (...args: never[]) => unknown>>;
 
   constructor(private durations: Record<string, number> = {}) {
-    const handlers: Partial<Record<keyof EngineMethods, (...args: never[]) => unknown>> = {
+    const handlers: Partial<Record<keyof EngineMethods, (...args: never[]) => unknown>> = (this.handlers = {
       probe: (id: string, file: File) => this.probe(id, file),
       renderStill: () => true,
       exportVideo: () => new File([new Uint8Array(4)], 'out.mp4'),
@@ -28,7 +29,7 @@ export class FakeEngine implements EngineClient {
       thumbnails: (_: string, times: number[]) => times.map(() => null),
       measureLoudness: () => this.loudness,
       stats: () => ({ budget: this.budget, resources: {}, frameCacheBytes: 0, floatTargets: true }),
-    };
+    });
     this.remote = new Proxy({} as Remote<EngineMethods>, {
       get: (_, method: keyof EngineMethods) => async (...args: unknown[]) => {
         this.calls.push({ method, args });

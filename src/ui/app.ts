@@ -18,6 +18,7 @@ import { t } from '../i18n';
 import { toast } from './components/toast';
 import { formatTimecode, h } from './dom';
 import { openExportDialog } from './export-dialog';
+import { openRenderQueue } from './render-queue-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
 import { MixerPanel } from './panels/mixer-panel';
@@ -60,6 +61,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     h('div', { class: 'brand' }, t('appName'), h('small', {}, t('tagline'))),
     projectMenu(session, persistence),
     h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, t('import')),
+    h('button', { class: 'btn', id: 'queue-open', onClick: () => openRenderQueue(session) }, t('queue')),
     exportButton,
     languageSelect(),
   );

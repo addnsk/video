@@ -586,8 +586,30 @@ const { file, name } = await montage.render({ height: 1080, quality: 'high', onP
 await montage.render({ prores: 'hq', dynamicRange: 'hlg' }); // dynamicRange: 'sdr' | 'hlg' | 'pq', Rec.2020 for HDR
 await montage.render({ prores: 'hq' });           // 'hq' | 'standard' | 'lt' | 'proxy': ProRes 422 in .mov with PCM audio
 await montage.render({ range: { in: 10, out: 12.5 } });    // only this part of the timeline, snapped to frames; effect tails are cut at the Out
+await montage.render({ timeline: id });          // any timeline, in its own frame size, without opening it
 const off = montage.onChange(() => log('changed'));
 
+```
+
+### Render queue
+
+Jobs render one after another, each with its own timeline and settings. Files stay in the browser's private storage until the next queue run that starts with no finished jobs; a single `render()` call never removes them. Export never scales above the timeline's frame size.
+
+```js
+montage.queue.presets();   // [{ id: 'master' | 'mezzanine' | 'web1080' | 'web720' | 'review', label, settings }]
+montage.queue.add({ timeline: id, preset: 'web720', name: 'Client cut' });  // all fields optional; settings override the preset
+montage.queue.add({ settings: { prores: 'lt', height: 720, range: { in: 0, out: 30 } } });
+montage.queue.outputs([main, teaser], ['master', 'web1080']);  // every timeline × every output
+const jobs = await montage.queue.start();  // [{ id, name, timeline, settings, status, progress, error, size }]
+montage.queue.list();
+montage.queue.file(jobs[0].id);   // File | null
+montage.queue.stop();             // cancels the running job, leaves the rest queued
+montage.queue.retry(id);          // a failed or canceled job
+montage.queue.remove(id);
+montage.queue.clearFinished();
+```
+
+```js
 montage.diagnostics.entries();   // [{ time, level, source, message, stack?, count }]
 montage.diagnostics.warn('note from a script');
 montage.diagnostics.clear();

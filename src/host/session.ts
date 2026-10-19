@@ -19,6 +19,7 @@ import type { PlatformReport } from './platform-report';
 import { LutLibrary } from './luts';
 import { TemplateLibrary } from './template-library';
 import { StillsController } from './stills';
+import { RenderQueue } from './render-queue';
 import { SourceMonitor, TimelineMarks } from './source-monitor';
 import { Transport } from './transport';
 
@@ -58,6 +59,7 @@ export class EditorSession extends Emitter<SessionEvents> {
   readonly transport: Transport;
   readonly source: SourceMonitor;
   readonly marks = new TimelineMarks();
+  readonly queue = new RenderQueue(this);
   readonly files = new Map<string, File>();
   readonly proxies = new Map<string, { state: ProxyState; fraction: number }>();
   readonly log = new EventLog(200, localLogStore('montage.log'));
@@ -195,13 +197,17 @@ export class EditorSession extends Emitter<SessionEvents> {
         if ((e as Error).name === 'AbortError') throw e;
       }
     }
+    const result = await this.renderTo(settings, target, onProgress, signal);
+    this.log.record('info', 'export', `Exported ${name}${settings.prores ? ` (ProRes ${settings.prores})` : ''}`);
+    return { file: result, name, savedToDisk: target.kind === 'handle' };
+  }
+
+  async renderTo(settings: ExportSettings, target: ExportTarget, onProgress: (fraction: number) => void, signal: { canceled: boolean }): Promise<File | null> {
     const id = createId('export');
     this.exportProgress.set(id, onProgress);
     const poll = setInterval(() => signal.canceled && void this.engine.remote.cancel(id), 200);
     try {
-      const file = await this.engine.remote.exportVideo(id, settings, target);
-      this.log.record('info', 'export', `Exported ${name}${settings.prores ? ` (ProRes ${settings.prores})` : ''}`);
-      return { file, name, savedToDisk: target.kind === 'handle' };
+      return await this.engine.remote.exportVideo(id, settings, target);
     } catch (e) {
       if (!signal.canceled) this.log.error('export', e);
       throw e;

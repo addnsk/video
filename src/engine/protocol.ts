@@ -18,7 +18,7 @@ export interface ClockAnchor {
   readonly rate: number;
 }
 
-export type ExportTarget = { kind: 'storage'; name: string } | { kind: 'handle'; handle: FileSystemFileHandle };
+export type ExportTarget = { kind: 'storage'; name: string; folder?: string; clear?: boolean } | { kind: 'handle'; handle: FileSystemFileHandle };
 
 export interface EngineStats {
   readonly budget: MemoryBudget;
