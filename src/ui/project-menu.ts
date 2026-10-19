@@ -4,7 +4,6 @@ import type { ProjectPersistence } from '../host/persistence/project-persistence
 import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
 import { Modal } from './components/modal';
-import { diagnosticsButton } from './diagnostics-dialog';
 import { toast } from './components/toast';
 import { icon } from './icons';
 import { h } from './dom';
@@ -60,7 +59,6 @@ export function projectMenu(session: EditorSession, persistence: ProjectPersiste
     h('button', { class: 'btn icon round', id: 'project-new', title: t('newProject'), 'aria-label': t('newProject'), onClick: confirmNew }, icon('file')),
     h('button', { class: 'btn icon round', id: 'project-open', title: t('openProject'), 'aria-label': t('openProject'), onClick: () => void open() }, icon('folder')),
     h('button', { class: 'btn icon round', id: 'project-save', title: t('saveProject'), 'aria-label': t('saveProject'), onClick: () => void save() }, icon('save')),
-    diagnosticsButton(session),
     status,
   );
 }

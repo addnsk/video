@@ -13,7 +13,7 @@ import { NodeEditor } from './node-editor';
 import { PointPicker } from './point-picker';
 import { trackFromViewer } from './track-action';
 import { pickQualifier } from '../host/qualifier-pick';
-import { languageSelect } from './components/language-select';
+import { settingsButton } from './settings-dialog';
 import { offlineBanner } from './components/offline-banner';
 import { projectMenu } from './project-menu';
 import { t } from '../i18n';
@@ -73,7 +73,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, icon('import'), h('span', { class: 'label' }, t('import'))),
     h('button', { class: 'btn icon round', id: 'queue-open', title: t('queue'), 'aria-label': t('queue'), onClick: () => openRenderQueue(session) }, icon('queue')),
     ...(remote ? [h('button', { class: 'btn icon round', id: 'cloud-open', title: t('cloud'), 'aria-label': t('cloud'), onClick: () => openCloudDialog(session, remote) }, icon('cloud'))] : []),
-    languageSelect(),
+    settingsButton(session),
     exportButton,
   );
 

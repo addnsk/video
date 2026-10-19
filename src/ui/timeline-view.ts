@@ -5,7 +5,7 @@ import { createMediaItem, moveItem, moveToTrack, placeItem, setTrackMuted, trimI
 import { placeTrack, projectDuration, type Placement } from '../core/timeline';
 import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
-import { formatTimecode } from './dom';
+
 import type { DropPoint, DropTarget } from './drop-target';
 import type { Selection } from './selection';
 import type { TrimTool } from './edit-controls';

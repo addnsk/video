@@ -35,7 +35,7 @@ export class ScopesPanel {
   private focus: ScopeMode | null = null;
   private last: ScopeData | null = null;
 
-  constructor(private session: EditorSession) {
+  constructor(session: EditorSession) {
     this.views = MODES.map(({ mode, label }) => {
       const canvas = h('canvas', { width: 512, height: mode === 'vector' ? 512 : 256, class: `scope scope-${mode}`, id: `scope-${mode}` });
       const card = h('button', {

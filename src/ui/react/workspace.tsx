@@ -201,26 +201,57 @@ function PageBar({ page, onPage }: { page: PageId; onPage: (page: PageId) => voi
   );
 }
 
+export type LayoutMode = 'wide' | 'classic';
+export const LAYOUT_KEY = 'montage.layout';
+export const LAYOUT_EVENT = 'montage-layout';
+
+function useLayoutMode(): LayoutMode {
+  const [mode, setMode] = useState<LayoutMode>(() => stored(LAYOUT_KEY, 'wide'));
+  useEffect(() => {
+    const update = () => setMode(stored(LAYOUT_KEY, 'wide'));
+    window.addEventListener(LAYOUT_EVENT, update);
+    return () => window.removeEventListener(LAYOUT_EVENT, update);
+  }, []);
+  return mode;
+}
+
 function Desktop({ parts, page, active, onActive }: { parts: WorkspaceParts; page: PageId; active: Record<string, string>; onActive: (column: string, key: string) => void }) {
   const layout = PAGES[page];
-  const center = (
-    <Split id={`${page}.rows`} direction="column" initial={Math.round(innerHeight * 0.36)} min={120} max={Math.round(innerHeight * 0.75)} side="end">
-      <Slot element={parts.viewer} className="viewer-slot" />
-      <Slot element={parts.timeline} className="timeline-slot" />
+  const mode = useLayoutMode();
+  const column = (side: 'left' | 'right') => (
+    <Column id={`${page}.${side}`} keys={layout[side]} panels={parts.panels} active={active[`${page}.${side}`] ?? ''} onActive={(k) => onActive(`${page}.${side}`, k)} />
+  );
+  const sides = (middle: ReactNode, tag: string) => {
+    const withRight = layout.right.length ? (
+      <Split id={`${page}.${tag}.right`} direction="row" initial={layout.rightWidth ?? 300} min={220} max={900} side="end">
+        {middle}
+        {column('right')}
+      </Split>
+    ) : middle;
+    return layout.left.length ? (
+      <Split id={`${page}.${tag}.left`} direction="row" initial={260} min={180} max={520} side="start">
+        {column('left')}
+        {withRight}
+      </Split>
+    ) : withRight;
+  };
+  const viewer = <Slot element={parts.viewer} className="viewer-slot" />;
+  const timeline = <Slot element={parts.timeline} className="timeline-slot" />;
+  if (mode === 'classic') {
+    return sides(
+      <Split id={`${page}.rows`} direction="column" initial={Math.round(innerHeight * 0.36)} min={120} max={Math.round(innerHeight * 0.75)} side="end">
+        {viewer}
+        {timeline}
+      </Split>,
+      'classic',
+    );
+  }
+  return (
+    <Split id={`${page}.wide.rows`} direction="column" initial={Math.round(innerHeight * 0.4)} min={140} max={Math.round(innerHeight * 0.75)} side="end">
+      {sides(viewer, 'wide')}
+      {timeline}
     </Split>
   );
-  const withRight = layout.right.length ? (
-    <Split id={`${page}.right`} direction="row" initial={layout.rightWidth ?? 340} min={240} max={900} side="end">
-      {center}
-      <Column id={`${page}.right`} keys={layout.right} panels={parts.panels} active={active[`${page}.right`] ?? ''} onActive={(k) => onActive(`${page}.right`, k)} />
-    </Split>
-  ) : center;
-  return layout.left.length ? (
-    <Split id={`${page}.left`} direction="row" initial={280} min={200} max={520} side="start">
-      <Column id={`${page}.left`} keys={layout.left} panels={parts.panels} active={active[`${page}.left`] ?? ''} onActive={(k) => onActive(`${page}.left`, k)} />
-      {withRight}
-    </Split>
-  ) : withRight;
 }
 
 function Phone({ parts, page, request }: { parts: WorkspaceParts; page: PageId; request: string | null }) {
@@ -284,9 +315,12 @@ function Workspace({ parts, handle }: { parts: WorkspaceParts; handle: { reveal?
   const all = [parts.viewer, parts.timeline, ...Object.values(parts.panels)];
   return (
     <div className={`workspace ${phone ? 'phone' : 'desktop'}`} data-page={page}>
-      <Slot element={parts.bar} className="bar-slot" />
+      <header className="topbar">
+        <Slot element={parts.bar} className="bar-slot" />
+        {!phone && <PageBar page={page} onPage={choose} />}
+      </header>
       <main className="workspace-body">{phone ? <Phone parts={parts} page={page} request={request} /> : <Desktop key={page} parts={parts} page={page} active={active} onActive={activate} />}</main>
-      <PageBar page={page} onPage={choose} />
+      {phone && <PageBar page={page} onPage={choose} />}
       <Parking elements={all} />
     </div>
   );
