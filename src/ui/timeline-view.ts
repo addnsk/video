@@ -14,8 +14,10 @@ import { rippleTrim, rollEdit, slideEdit, slipEdit, linkedIds } from '../core/ed
 const RULER = 32;
 const GUTTER = 52;
 const LANE_GAP = 8;
-const LANE_HEIGHT: Record<Track['kind'], number> = { video: 60, audio: 44 };
-const RADIUS = 10;
+const LANE_HEIGHT: Record<Track['kind'], number> = { video: 60, audio: 58 };
+const RADIUS = 8;
+const STRIP = 17;
+const WAVE_CURVE = 0.75;
 const UI_FONT = '"Inter", system-ui, sans-serif';
 const TRACK_ICONS = { video: new Path2D('M5 6h8a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 13 18H5a2.5 2.5 0 0 1-2.5-2.5v-7A2.5 2.5 0 0 1 5 6zM15.5 10.5l6-3.5v10l-6-3.5'), audio: new Path2D('M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13'), text: new Path2D('M5 6V4h14v2M12 4v16M9 20h6') };
 const MIN_PPS = 2;
@@ -510,7 +512,7 @@ export class TimelineView implements DropTarget {
     if (item.effects.some((e) => e.enabled)) {
       g.fillStyle = this.color('--accent');
       g.beginPath();
-      g.roundRect(x0 + 10, top + h - 5, Math.max(0, w - 18), 3, 1.5);
+      g.roundRect(x0 + 10, top + h - STRIP - 5, Math.max(0, w - 18), 3, 1.5);
       g.fill();
     }
     if (p.fadeIn > 0) this.paintTransition(g, lane, x0, this.x(p.start + p.fadeIn));
@@ -539,29 +541,7 @@ export class TimelineView implements DropTarget {
     g.font = `500 11.5px ${UI_FONT}`;
     const name = item.kind === 'media' ? (this.project.assets[item.source.assetId]?.name ?? '') : item.text.content.split('\n')[0];
     const label = item.link ? `⛓ ${name}` : name;
-    const pill = (text: string, x: number, y: number, tag?: string) => {
-      const tagWidth = tag ? g.measureText(tag).width + 12 : 0;
-      const width = g.measureText(text).width + 14 + tagWidth;
-      g.fillStyle = this.color('--label-backdrop');
-      g.beginPath();
-      g.roundRect(x, y, width, 18, 9);
-      g.fill();
-      if (tag) {
-        g.fillStyle = this.color('--panel-3');
-        g.beginPath();
-        g.roundRect(x + 2, y + 2, tagWidth - 2, 14, 7);
-        g.fill();
-        g.fillStyle = this.color('--muted');
-        g.fillText(tag, x + 7, y + 9.5);
-      }
-      g.fillStyle = this.color('--fg-strong');
-      g.fillText(text, x + 7 + tagWidth, y + 9.5);
-    };
-    pill(label, x0 + 6, top + 5, item.kind === 'text' ? t('addTitle').replace(/^\+\s*/, '') : undefined);
-    if (h > 44 && !audio) {
-      g.font = `500 10.5px ${UI_FONT}`;
-      pill(`${(p.end - p.start).toFixed(2)}s`, x0 + 6, top + h - 23);
-    }
+    this.paintStrip(g, x0, x1, top + h - STRIP, label, `${(p.end - p.start).toFixed(2)}s`, item.kind === 'text' ? t('titleTag') : undefined);
     g.restore();
   }
 
@@ -570,7 +550,7 @@ export class TimelineView implements DropTarget {
     const sample = strip?.frames.find((f) => f);
     if (!strip || !sample) return;
     const top = lane.top;
-    const h = lane.height;
+    const h = lane.height - STRIP;
     const tile = (sample.width / sample.height) * h;
     const from = Math.max(x0 + 1, GUTTER);
     const to = Math.min(x1 - 1, this.canvas.clientWidth);
@@ -592,28 +572,67 @@ export class TimelineView implements DropTarget {
     const peaks = this.session.peaks(item.source.assetId);
     if (!peaks?.length) return;
     const audio = lane.track.kind === 'audio';
-    const band = audio ? lane.height - 12 : 14;
-    const mid = audio ? lane.top + lane.height / 2 : lane.top + lane.height - 4 - band / 2;
-    g.fillStyle = this.color('--waveform');
-    const from = Math.max(x0, GUTTER);
-    const to = Math.min(x1, this.canvas.clientWidth);
-    const volume = item.volume;
-    for (let x = Math.floor(from); x < to; x++) {
-      const source = sourceTimeAt(item, (x - x0) / this.pps);
-      const span = Math.max(1, Math.round((PEAK_RATE * item.speed) / this.pps));
-      const index = Math.floor(source * PEAK_RATE);
+    const area = lane.height - STRIP;
+    const half = audio ? area / 2 - 3 : 7;
+    const mid = audio ? lane.top + area / 2 : lane.top + area - half - 3;
+    const from = Math.max(Math.floor(x0) + 2, GUTTER);
+    const to = Math.min(Math.ceil(x1) - 2, this.canvas.clientWidth);
+    if (to <= from) return;
+    const span = Math.max(1, Math.round((PEAK_RATE * item.speed) / this.pps));
+    const level = (x: number) => {
+      const index = Math.floor(sourceTimeAt(item, (x - x0) / this.pps) * PEAK_RATE);
       let peak = 0;
       for (let k = 0; k < span; k++) peak = Math.max(peak, peaks[index + k] ?? 0);
-      const amp = Math.min(1, Math.sqrt(peak * volume)) * (band / 2);
-      if (amp > 0.3 && x % 3 === 0) g.fillRect(x, mid - amp, 2, amp * 2);
+      return Math.min(1, Math.pow(peak * item.volume, WAVE_CURVE));
+    };
+    const values: number[] = [];
+    for (let x = from; x <= to; x++) values.push(level(x));
+    g.save();
+    g.beginPath();
+    g.moveTo(from, mid);
+    values.forEach((v, i) => g.lineTo(from + i, mid - Math.max(0.5, v * half)));
+    for (let i = values.length - 1; i >= 0; i--) g.lineTo(from + i, mid + Math.max(0.5, values[i] * half));
+    g.closePath();
+    g.fillStyle = this.color('--waveform');
+    g.fill();
+    g.restore();
+  }
+
+  private paintStrip(g: CanvasRenderingContext2D, x0: number, x1: number, y: number, name: string, length: string, tag?: string) {
+    const left = x0 + 1;
+    const width = Math.max(0, x1 - x0 - 2);
+    if (width < 4) return;
+    g.save();
+    g.beginPath();
+    g.roundRect(left, y, width, STRIP, [0, 0, RADIUS, RADIUS]);
+    g.clip();
+    g.fillStyle = this.color('--label-backdrop');
+    g.fillRect(left, y, width, STRIP);
+    g.font = `500 10.5px ${UI_FONT}`;
+    g.textBaseline = 'middle';
+    const lengthWidth = g.measureText(length).width;
+    const showLength = width > lengthWidth + 60;
+    g.fillStyle = this.color('--muted');
+    if (showLength) g.fillText(length, left + width - lengthWidth - 7, y + STRIP / 2 + 0.5);
+    g.beginPath();
+    g.rect(left, y, width - (showLength ? lengthWidth + 14 : 0), STRIP);
+    g.clip();
+    let x = left + 7;
+    if (tag) {
+      g.fillStyle = this.color('--accent');
+      g.fillText(tag, x, y + STRIP / 2 + 0.5);
+      x += g.measureText(tag).width + 6;
     }
+    g.fillStyle = this.color('--fg-strong');
+    g.fillText(name, x, y + STRIP / 2 + 0.5);
+    g.restore();
   }
 
   private paintKeyframes(g: CanvasRenderingContext2D, item: Item, lane: Lane, start: number) {
     const times = new Set<number>();
     for (const keys of Object.values(item.animations)) for (const k of keys) times.add(k.t);
     g.fillStyle = this.color('--keyframe');
-    const y = lane.top + lane.height - 10;
+    const y = lane.top + lane.height - STRIP - 9;
     for (const time of times) {
       const x = this.x(start + time);
       g.beginPath();

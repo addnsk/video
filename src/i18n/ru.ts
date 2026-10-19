@@ -38,6 +38,7 @@ export const ru: Strings = {
   settingsLayoutClassic: 'Таймлайн между панелями',
   settingsPanels: 'Размеры панелей',
   settingsResetPanels: 'Сбросить',
+  titleTag: 'Титр',
   undo: 'Отменить',
   redo: 'Повторить',
   jumpBack: 'Назад на 5 секунд',

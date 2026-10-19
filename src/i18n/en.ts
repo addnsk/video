@@ -36,6 +36,7 @@ export const en = {
   settingsLayoutClassic: 'Timeline between panels',
   settingsPanels: 'Panel sizes',
   settingsResetPanels: 'Reset',
+  titleTag: 'Title',
   undo: 'Undo',
   redo: 'Redo',
   jumpBack: 'Back 5 seconds',
