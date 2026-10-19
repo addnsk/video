@@ -372,3 +372,9 @@ details.menu .menu-list .btn { justify-content: flex-start; }
 .cue-row { display: grid; grid-template-columns: auto 64px 64px 1fr auto; gap: 4px; align-items: start; }
 .cue-row textarea { min-width: 0; resize: vertical; font: inherit; }
 .check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+
+.cloud-list { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 26vh; overflow: auto; }
+.cloud-list li { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: center; font-size: 13px; }
+.cloud-list li b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-list li small { grid-column: 1; color: var(--muted, #888); }
+.cloud-list li > .row, .cloud-list li > button { grid-column: 2; grid-row: 1 / span 2; }

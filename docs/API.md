@@ -167,6 +167,33 @@ montage.subtitles.at(2.0);                             // cues on screen at a ti
 montage.subtitles.remove(id);
 ```
 
+### Cloud storage (S3-compatible)
+
+Projects and media can live in any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, ...). Requests are signed in the browser with AWS Signature Version 4; media stream from the bucket with HTTP range requests through presigned URLs (valid for seven days, renewed whenever the project is opened or the bucket is connected), so nothing is downloaded in full. Files bigger than 16 MB upload in parts. Objects go under `<prefix>/projects/` and `<prefix>/media/`.
+
+The bucket's CORS settings must allow the editor's origin with the methods GET, PUT, POST, DELETE and HEAD, allow all request headers, and expose the `ETag` header (needed for multipart uploads).
+
+```js
+await montage.remote.connect({
+  endpoint: 'https://s3.eu-central-1.amazonaws.com', region: 'eu-central-1', bucket: 'my-edits',
+  accessKeyId: '...', secretAccessKey: '...', sessionToken: undefined,   // sessionToken for temporary credentials
+  prefix: 'show-1', pathStyle: true,                                     // pathStyle: bucket in the path (MinIO, most non-AWS services)
+  remember: false,                                                       // true keeps the keys in this browser's local storage
+});
+montage.remote.status();                        // { connected, config }  (never includes the secret)
+await montage.remote.upload();                  // uploads every local media file of the project; returns the object keys
+await montage.remote.upload([assetId], { onProgress: (name, fraction) => log(name, fraction) });
+await montage.remote.saveProject('Cut A');      // returns the object key
+await montage.remote.projects();                // [{ key, name, size, lastModified }]
+await montage.remote.openProject(key);          // media that were uploaded stream from the bucket
+await montage.remote.media();                   // [{ key, name, size, lastModified, inProject }]
+await montage.remote.importMedia([key]);        // adds bucket media to the project (and the timeline unless { place: false }); returns asset ids
+await montage.remote.deleteProject(key);
+montage.remote.disconnect();
+```
+
+A media file already on this computer is used instead of its bucket copy when both are present.
+
 ## Media pool: bins, search, metadata
 
 ```js

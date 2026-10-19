@@ -65,6 +65,8 @@ import { createMediaApi } from './media-api';
 import { createInterchangeApi } from './interchange-api';
 import { createQueueApi } from './queue-api';
 import { createSubtitlesApi } from './subtitles-api';
+import { createRemoteApi } from './remote-api';
+import type { RemoteStorage } from '../host/remote/remote-storage';
 import { createMulticamApi } from './multicam-api';
 import { createLoudnessApi, createMixerApi } from './mixer-api';
 import { pickQualifier } from '../host/qualifier-pick';
@@ -130,7 +132,7 @@ export interface FilterRegistration {
 
 const WHEELS = ['lift', 'gamma', 'gain'] as const;
 
-export function createMontageApi(session: EditorSession, onSelect: (id: string | null) => void = () => undefined) {
+export function createMontageApi(session: EditorSession, onSelect: (id: string | null) => void = () => undefined, services: { remote?: RemoteStorage } = {}) {
   const { store, registry, transport, luts } = session;
 
   const mainTrack = () => store.project.tracks.find((t) => t.id === session.videoTrackId)!;
@@ -387,6 +389,7 @@ export function createMontageApi(session: EditorSession, onSelect: (id: string |
     queue: createQueueApi(session),
     interchange: createInterchangeApi(session),
     subtitles: createSubtitlesApi(session),
+    remote: createRemoteApi(services.remote ?? null),
     ...createLoudnessApi(session),
     graph: {
       enable: (ref: ItemRef) => void apply(enableGraph(resolve(ref).item.id, registry)),

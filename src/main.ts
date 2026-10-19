@@ -8,6 +8,7 @@ import { captureGlobalErrors } from './host/error-capture';
 import { applyLocalePreference } from './host/locale-preference';
 import { startEngine } from './host/engine-client';
 import { ProjectPersistence } from './host/persistence/project-persistence';
+import { RemoteStorage } from './host/remote/remote-storage';
 import { EditorSession } from './host/session';
 import { mountApp } from './ui/app';
 import { h } from './ui/dom';
@@ -26,8 +27,10 @@ if (sourcePreview) {
 captureGlobalErrors(session.log);
 void session.platform();
 const persistence = new ProjectPersistence(session);
-const app = mountApp(root, preview, session, persistence, sourcePreview);
+const remote = new RemoteStorage(session, persistence);
+const app = mountApp(root, preview, session, persistence, sourcePreview, remote);
 if (await persistence.restore()) {
   app.fit();
   session.transport.seek(0);
 }
+void remote.restore();

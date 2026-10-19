@@ -39,3 +39,9 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 - CMX3600 EDL describes one video track, up to four audio channels, no titles and no nesting (that is the standard); a nested timeline becomes a clip named after it. Choose the video track with `videoTrack`; use OTIO or FCPXML for full timelines.
 - An EDL carries no frame rate, so it is read at the frame rate of the open project.
 - Media are referenced by file name and path; browsers never reveal real file paths, so exported paths are `file:///name`, and on import media are matched by file name. Unmatched media become offline clips that connect when files with the same names are imported.
+
+## Cloud storage
+
+- The bucket has to allow the editor's web address in its CORS settings and expose the `ETag` header: browsers block cross-origin requests otherwise, and there is no way around that from a web page.
+- Access keys are kept in the browser (session storage, or local storage when "remember" is on). A web page has no safer key store; use keys limited to one bucket, or temporary credentials with `sessionToken`.
+- Presigned media links last at most seven days (the AWS Signature V4 maximum); they are renewed whenever the bucket is connected or a project is opened.

@@ -4,6 +4,7 @@ import { findPlacement, projectDuration } from '../core/timeline';
 import type { TrackApply } from '../core/tracking';
 import { MEDIA_TYPES, pickFiles, type PickedFile } from '../host/file-picker';
 import type { ProjectPersistence } from '../host/persistence/project-persistence';
+import type { RemoteStorage } from '../host/remote/remote-storage';
 import type { EditorSession } from '../host/session';
 import { LevelMeter } from './components/level-meter';
 import { MaskOverlay } from './mask-overlay';
@@ -19,6 +20,7 @@ import { toast } from './components/toast';
 import { formatTimecode, h } from './dom';
 import { openExportDialog } from './export-dialog';
 import { openRenderQueue } from './render-queue-dialog';
+import { openCloudDialog } from './cloud-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
 import { MixerPanel } from './panels/mixer-panel';
@@ -39,10 +41,10 @@ export interface AppHandle {
   readonly fit: () => void;
 }
 
-export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session: EditorSession, persistence: ProjectPersistence, sourcePreview: HTMLCanvasElement | null = null): AppHandle {
+export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session: EditorSession, persistence: ProjectPersistence, sourcePreview: HTMLCanvasElement | null = null, remote: RemoteStorage | null = null): AppHandle {
   const { store, transport } = session;
   const selection = new Selection(store);
-  const api = createMontageApi(session, (id) => selection.set(id));
+  const api = createMontageApi(session, (id) => selection.set(id), remote ? { remote } : {});
   Object.assign(globalThis, { montage: api });
   const controls = new EditControls(session, selection, api);
   const active = () => controls.active;
@@ -63,6 +65,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     projectMenu(session, persistence),
     h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, t('import')),
     h('button', { class: 'btn', id: 'queue-open', onClick: () => openRenderQueue(session) }, t('queue')),
+    ...(remote ? [h('button', { class: 'btn', id: 'cloud-open', onClick: () => openCloudDialog(session, remote) }, t('cloud'))] : []),
     exportButton,
     languageSelect(),
   );
