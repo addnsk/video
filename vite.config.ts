@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
 const ISOLATION_HEADERS = {
@@ -20,7 +21,7 @@ const crossOriginIsolation = (): Plugin => ({
 
 export default defineConfig({
   base: './',
-  plugins: [crossOriginIsolation()],
+  plugins: [react(), crossOriginIsolation()],
   server: { headers: ISOLATION_HEADERS },
   preview: { headers: ISOLATION_HEADERS },
   build: { target: 'es2022', assetsInlineLimit: 0, chunkSizeWarningLimit: 1200 },
