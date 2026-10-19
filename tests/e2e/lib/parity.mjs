@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decodeFrame } from './prores-frame.mjs';
+import { decodeFrame, frameSize } from './prores-frame.mjs';
 
 const BLOCK = 2;
 const RING = BLOCK + 3;
@@ -23,7 +23,8 @@ export async function exportProres(editor, height, until = null) {
   return path;
 }
 
-export async function compareWithExport(editor, path, size, fps, probes) {
+export async function compareWithExport(editor, path, _previewSize, fps, probes) {
+  const size = frameSize(path);
   let worst = 0;
   const notes = [];
   for (const { time, points } of probes) {

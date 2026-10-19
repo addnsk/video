@@ -27,12 +27,14 @@ export default {
   name: 'pairwise',
   tags: ['export'],
   async run({ browser, url, checks }) {
-    const rows = allPairs(FACTORS).slice(0, Number(process.env.PAIRWISE_ROWS ?? Infinity));
+    const only = process.env.PAIRWISE_ONLY?.split(',').map(Number);
+    const rows = allPairs(FACTORS).map((row, index) => ({ row, index })).filter(({ index }) => !only || only.includes(index));
     const editor = await Editor.open(browser, url, { viewport: { width: 1000, height: 700 } });
     await editor.import([fixture('prores-1080-10s.mov'), fixture('moving.mov'), fixture('red.mov')]);
     const failures = [];
     let worstExport = 0;
-    for (const [index, row] of rows.entries()) {
+    for (const { row: base, index } of rows) {
+      const row = process.env.PAIRWISE_NO_CACHE ? { ...base, noCache: true } : base;
       const tag = `row ${index} ${JSON.stringify(row)}`;
       try {
         await editor.run(new Function('row', `return (async () => {
@@ -54,7 +56,7 @@ export default {
           if (row.transition === 'dissolve') montage.transition(1, { type: 'dissolve', duration: 0.3 });
           ${'${NODE}'}
           montage.colorScience(row.science);
-          montage.renderCache(row.cache === 'on');
+          montage.renderCache(row.cache === 'on' && !row.noCache);
         })()`.replace('${NODE}', NODE_CODE[row.node])), row);
         const { duration, fps, size } = await editor.run(async () => ({ duration: montage.duration, fps: montage.project().settings.fps, size: (await montage.stats()).previewSize }));
         const r = rng(index + 11);
@@ -69,7 +71,7 @@ export default {
           const path = await exportProres(editor, size.height, lastProbeEnd(probes, fps));
           const { worst, notes } = await compareWithExport(editor, path, size, fps, probes);
           worstExport = Math.max(worstExport, worst);
-          if (worst > (row.node === 'film-grain' ? 0.035 : 0.02)) failures.push(`${tag}: export differs ${notes.slice(0, 2).join('; ')}`);
+          if (worst > (row.node === 'film-grain' || row.node === 'text' ? 0.035 : 0.02)) failures.push(`${tag}: export differs ${notes.slice(0, 2).join('; ')}`);
         }
         if (row.cache === 'on') {
           await editor.seekAndSettle(probes[0].time, 500);

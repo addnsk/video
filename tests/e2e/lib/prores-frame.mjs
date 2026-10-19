@@ -3,12 +3,18 @@ import { execFileSync } from 'node:child_process';
 const KR = 0.2126;
 const KB = 0.0722;
 
+export function frameSize(path) {
+  const [width, height] = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', path]).toString().trim().split(',').map(Number);
+  return { width, height };
+}
+
 export function decodeFrame(path, frame, width, height) {
   const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', path, '-vf', `select=eq(n\\,${frame})`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'yuv422p10le', '-'], { maxBuffer: 512 * 1024 * 1024 });
   const chroma = width / 2;
   const yAt = (x, y) => raw.readUInt16LE((y * width + x) * 2);
   const cAt = (plane, x, y) => raw.readUInt16LE((width * height + plane * chroma * height + y * chroma + Math.min(chroma - 1, x)) * 2);
   return (x, y) => {
+    x = Math.min(width - 1, x);
     const Y = (yAt(x, y) - 64) / 876;
     const cx = x / 2;
     const lo = Math.floor(cx);

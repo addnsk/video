@@ -88,7 +88,7 @@ export async function readStill(media: MediaFile, time: number, keyPrefix: strin
   const release = media.retain();
   try {
     const sink = await media.video();
-    const sample = await sink?.getSample(time + media.timeOffset);
+    const sample = await sink?.getSample(time + media.timeOffset + EPSILON);
     return sample ? frameFromSample(sample, `${keyPrefix}:${sample.timestamp}`) : null;
   } finally {
     release();

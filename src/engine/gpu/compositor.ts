@@ -280,7 +280,7 @@ export class Compositor {
         release: (target) => this.targets.release(target),
         copy: (target) => this.copyTarget(target),
       },
-      this.nodeCacheFor(),
+      this.nodeCacheFor(item.id),
     );
   }
 
@@ -293,12 +293,12 @@ export class Compositor {
   }
   private nodeCacheGeneration = -1;
 
-  private nodeCacheFor() {
+  private nodeCacheFor(itemId: string) {
     if (this.nodeCacheGeneration !== this.ctx.generation) {
       this.nodeCache.clear();
       this.nodeCacheGeneration = this.ctx.generation;
     }
-    const prefix = `${this.width}x${this.height}:${this.pixelScale}:`;
+    const prefix = `${itemId}:${this.colorScience}:${this.width}x${this.height}:${this.pixelScale}:`;
     return {
       get: (key: string) => {
         const hit = this.nodeCache.get(prefix + key);

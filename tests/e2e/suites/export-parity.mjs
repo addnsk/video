@@ -3,19 +3,10 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Editor, fixture } from '../harness.mjs';
+import { compareWithExport, exportProres } from '../lib/parity.mjs';
 
 const POINTS = [{ x: -0.35, y: -0.3 }, { x: 0, y: 0 }, { x: 0.25, y: 0.2 }, { x: -0.2, y: 0.35 }];
 const TIMES = [0.5, 1.2, 3.04];
-
-function exportedPixels(path, time, width, height) {
-  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', path, '-sws_flags', 'accurate_rnd+full_chroma_int+full_chroma_inp', '-vf', `select=eq(n\\,${Math.floor(time * 25)}),scale=in_color_matrix=bt709:in_range=tv:out_range=pc`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb48le', '-'], { maxBuffer: 256 * 1024 * 1024 });
-  return POINTS.map(({ x, y }) => {
-    const px = Math.min(width - 1, Math.floor((x + 0.5) * width));
-    const py = Math.min(height - 1, Math.floor((y + 0.5) * height));
-    const i = (py * width + px) * 6;
-    return [0, 1, 2].map((c) => raw.readUInt16LE(i + c * 2) / 65535);
-  });
-}
 
 export default {
   name: 'export-parity',
@@ -46,29 +37,10 @@ export default {
       montage.graph.connect(1, vignette, 'output');
       montage.transition(1, { type: 'dissolve', duration: 0.5 });
     });
-    const preview = [];
-    for (const t of TIMES) preview.push(await editor.run(({ t, p }) => montage.sample(p, t), { t, p: POINTS }));
-    const settings = await editor.run(() => montage.project().settings);
-    const data = await editor.run(async () => {
-      const r = await montage.render({ prores: 'hq' });
-      const bytes = new Uint8Array(await r.file.arrayBuffer());
-      let binary = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      return btoa(binary);
-    });
-    const path = join(mkdtempSync(join(tmpdir(), 'montage-parity-')), 'parity.mov');
-    writeFileSync(path, Buffer.from(data, 'base64'));
-    const mismatches = [];
-    let worst = 0;
-    TIMES.forEach((t, k) => {
-      const exported = exportedPixels(path, t, settings.width, settings.height);
-      exported.forEach((rgb, i) => {
-        const diff = Math.max(...rgb.map((v, c) => Math.abs(v - Math.min(1, Math.max(0, preview[k][i][c])))));
-        worst = Math.max(worst, diff);
-        if (diff > 0.025) mismatches.push(`t=${t} p${i}: preview ${preview[k][i].slice(0, 3).map((v) => v.toFixed(3))} export ${rgb.map((v) => v.toFixed(3))}`);
-      });
-    });
-    checks.check(!mismatches.length, `exported ProRes matches the preview with ACES, masks, an animated text node, transforms and a dissolve (worst ${worst.toFixed(4)}${mismatches.length ? `; ${mismatches.slice(0, 4).join('; ')}` : ''})`);
+    const { size } = await editor.run(async () => ({ size: (await montage.stats()).previewSize }));
+    const probes = TIMES.map((time) => ({ time, points: POINTS }));
+    const { worst, notes } = await compareWithExport(editor, await exportProres(editor, size.height), size, 25, probes);
+    checks.check(worst <= 0.02, `exported ProRes matches the preview with ACES, masks, an animated text node, transforms and a dissolve (worst ${worst.toFixed(4)}${notes.length ? `; ${notes.slice(0, 4).join('; ')}` : ''})`);
     const exportFile = async () => {
       const b64 = await editor.run(async () => {
         const r = await montage.render({ prores: 'hq' });
