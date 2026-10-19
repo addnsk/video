@@ -81,7 +81,7 @@ function copyGradeOnto(item: Item, source: Item): Item {
 
 export const updateItem = (itemId: string, fn: (item: Item) => Item): Operation => (project) => mapItem(project, itemId, fn);
 
-const baseItem = (id: string, start: number) => ({
+export const baseItem = (id: string, start: number) => ({
   id,
   start: Math.max(0, start),
   effects: [] as EffectInstance[],

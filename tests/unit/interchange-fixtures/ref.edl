@@ -1,0 +1,19 @@
+TITLE: Timeline 1
+
+001  a        V     C        00:00:00:00 00:00:01:13 00:00:00:00 00:00:01:13
+* FROM CLIP NAME:  a.mov
+* FROM CLIP: file:///a.mov
+* OTIO TRUNCATED REEL NAME FROM: a.mov
+002  a        V     C        00:00:01:13 00:00:01:13 00:00:01:13 00:00:01:13
+002  b        V     D 012    00:00:02:00 00:00:04:00 00:00:01:13 00:00:03:13
+* FROM CLIP NAME:  a.mov
+* FROM CLIP: file:///a.mov
+* OTIO TRUNCATED REEL NAME FROM: a.mov
+* TO CLIP NAME:  b.mov
+* TO CLIP: file:///b.mov
+* OTIO TRUNCATED REEL NAME FROM: b.mov
+003  a        V     C        00:00:04:00 00:00:04:12 00:00:03:13 00:00:04:13
+M2   a.mov		50.0			00:00:04:00
+* FROM CLIP NAME:  a.mov
+* FROM CLIP: file:///a.mov
+* OTIO TRUNCATED REEL NAME FROM: a.mov

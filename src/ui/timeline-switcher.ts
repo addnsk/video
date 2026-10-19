@@ -1,4 +1,6 @@
 import type { MontageApi } from '../api/montage';
+import { INTERCHANGE_FORMATS } from '../core/interchange';
+import { INTERCHANGE_TYPES, pickFiles, saveBlob } from '../host/file-picker';
 import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
 import { toast } from './components/toast';
@@ -40,6 +42,13 @@ export class TimelineSwitcher {
         this.api.timelines.open(others[0].id);
         this.api.timelines.remove(active.id);
       }),
+      ...(['otio', 'fcpxml', 'edl'] as const).map((format) => button(`timeline-export-${format}`, t('timelineExportAs', { format: format.toUpperCase() }), () => {
+        const { extension, mime } = INTERCHANGE_FORMATS[format];
+        const text = this.api.interchange.export(format);
+        const name = `${this.api.timelines.active().name}.${extension}`;
+        void saveBlob(new Blob([text], { type: mime }), name, format.toUpperCase(), mime, `.${extension}`);
+      })),
+      button('timeline-import', t('timelineImport'), () => void this.importTimeline()),
       button('compound-clip', t('compoundClip'), () => {
         if (!this.selection.id) throw new Error(t('compoundNeedsSelection'));
         const name = prompt(t('compoundPrompt'), t('compoundDefault'));
@@ -55,6 +64,17 @@ export class TimelineSwitcher {
       if (project.timeline !== previous.timeline || project.timelines !== previous.timelines) this.render();
     });
     this.render();
+  }
+
+  private async importTimeline() {
+    const [picked] = await pickFiles({ ...INTERCHANGE_TYPES, multiple: false });
+    if (!picked) return;
+    try {
+      const result = this.api.interchange.import(await picked.file.text(), { fileName: picked.file.name });
+      toast(result.placeholders.length ? t('timelineImportedOffline', { count: result.placeholders.length }) : t('timelineImported'));
+    } catch (error) {
+      toast((error as Error).message, 'error');
+    }
   }
 
   private attempt(run: () => void) {

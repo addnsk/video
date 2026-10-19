@@ -32,3 +32,10 @@ Montage is built as a production-ready editor. This file lists only what cannot 
 - Very strong noise reduction on broadband hiss leaves faint "musical noise" (isolated tones where the noise briefly exceeds its estimate). Every spectral noise reducer trades this against how much noise it removes; lower `reduction` or raise `sensitivity` if it is audible.
 - True peak is measured with a 48-tap windowed-sinc 4× interpolator rather than the exact BS.1770-4 reference filter; readings agree with ffmpeg's `ebur128` true-peak meter to 0.1 dB in our tests. The standard allows implementation-defined interpolators.
 - The live loudness readout measures audio when it is handed to the browser's audio output, a fraction of a second before it is heard (the Web Audio scheduling lookahead), and covers only 1× playback because shuttle audio is resampled by the browser.
+
+## Timeline exchange (OTIO, FCPXML, EDL)
+
+- Effects, grades, node graphs, masks and keyframes stay in Montage: none of the three formats has a shared description of them that DaVinci Resolve or Final Cut would read. Cuts, gaps, dissolves, speed, nested timelines, titles (as text), markers, clip position, scale, rotation, opacity and volume are exchanged.
+- CMX3600 EDL describes one video track, up to four audio channels, no titles and no nesting (that is the standard); a nested timeline becomes a clip named after it. Choose the video track with `videoTrack`; use OTIO or FCPXML for full timelines.
+- An EDL carries no frame rate, so it is read at the frame rate of the open project.
+- Media are referenced by file name and path; browsers never reveal real file paths, so exported paths are `file:///name`, and on import media are matched by file name. Unmatched media become offline clips that connect when files with the same names are imported.

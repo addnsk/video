@@ -145,6 +145,7 @@ export interface AssetMeta {
   readonly sampleRate: number;
   readonly channels: number;
   readonly timeline?: string;
+  readonly placeholder?: boolean;
 }
 
 export type ColorScience = 'display' | 'aces';

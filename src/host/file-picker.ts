@@ -79,3 +79,9 @@ export const PROJECT_TYPES: Omit<PickOptions, 'multiple'> = {
   mime: 'application/json',
   extensions: ['.json'],
 };
+
+export const INTERCHANGE_TYPES: Omit<PickOptions, 'multiple'> = {
+  description: 'Timeline (OTIO, FCPXML, EDL)',
+  mime: 'application/octet-stream',
+  extensions: ['.otio', '.fcpxml', '.xml', '.edl'],
+};

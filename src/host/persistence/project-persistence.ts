@@ -133,6 +133,13 @@ export class ProjectPersistence extends Emitter<PersistenceEvents> {
     const pool = [...files];
     for (const assetId of this.session.missing) {
       const meta = this.session.store.project.assets[assetId];
+      if (meta.placeholder) {
+        const file = pool.find((f) => f.name.toLowerCase() === meta.name.toLowerCase());
+        if (!file) continue;
+        void this.session.resolvePlaceholder(meta, file).catch((e) => this.session.log.error('media', e));
+        attached++;
+        continue;
+      }
       const file = pool.find((f) => matches(meta, f)) ?? pool.find((f) => f.name === meta.name && f.size === meta.size);
       if (!file) continue;
       this.session.attachFile(meta, file);

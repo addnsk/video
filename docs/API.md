@@ -128,6 +128,20 @@ montage.markers.colors();                     // blue, cyan, green, yellow, red,
 
 Markers ride with ripple edits: insert moves markers after the edit point, extract moves later ones back and drops those inside the range.
 
+### Exchange with other editors (OTIO, FCPXML, EDL)
+
+Timelines move to and from DaVinci Resolve, Final Cut Pro and other editors as OpenTimelineIO (`.otio`), FCPXML 1.10 (`.fcpxml`) or CMX3600 EDL (`.edl`). Cuts, gaps, dissolves, speed, nested timelines, titles, markers, position, scale, rotation, opacity and volume are carried; see `docs/LIMITATIONS.md` for what the formats cannot hold. Video clips with sound are written as a picture clip and a matching audio clip, the way other editors expect.
+
+```js
+const otio = montage.interchange.export('otio');               // string; 'otio' | 'fcpxml' | 'edl'
+montage.interchange.export('edl', { timeline: id, videoTrack: 1 });  // EDL: one video track (0 = main)
+const { timeline, matched, placeholders } = montage.interchange.import(text, { fileName: 'cut.fcpxml' });
+// the format is detected from fileName or the content; pass { format } to force it, { open: false } to keep the current timeline open
+montage.interchange.offline();   // [{ id, name }] media the import could not find; importing files with these names connects them
+```
+
+Media already in the project are matched by file name. A new timeline is created for every import; nested timelines in OTIO and FCPXML (compound clips) become nested timelines here.
+
 ## Media pool: bins, search, metadata
 
 ```js

@@ -1,4 +1,5 @@
 import { Emitter } from '../core/emitter';
+import { importExchange, readInterchange, type ImportResult, type InterchangeFormat } from '../core/interchange';
 import { EventLog } from '../core/log';
 import { createId } from '../core/ids';
 import type { AssetMeta } from '../core/model';
@@ -143,6 +144,8 @@ export class EditorSession extends Emitter<SessionEvents> {
   }
 
   async importFile(file: File, handle?: FileSystemFileHandle): Promise<AssetMeta> {
+    const waiting = this.placeholderFor(file);
+    if (waiting) return this.resolvePlaceholder(waiting, file, handle);
     const meta = await this.engine.remote.probe(createId('asset'), file);
     this.files.set(meta.id, file);
     this.store.dispatch(addAsset(meta), { history: false });
@@ -157,6 +160,33 @@ export class EditorSession extends Emitter<SessionEvents> {
     void this.engine.remote.renderStill(this.transport.time, this.transport.bypass);
   }
 
+  placeholderFor(file: File): AssetMeta | null {
+    const name = file.name.toLowerCase();
+    return Object.values(this.store.project.assets).find((a) => a.placeholder && !this.files.has(a.id) && a.name.toLowerCase() === name) ?? null;
+  }
+
+  async resolvePlaceholder(placeholder: AssetMeta, file: File, handle?: FileSystemFileHandle): Promise<AssetMeta> {
+    const probed = await this.engine.remote.probe(placeholder.id, file);
+    const meta: AssetMeta = { ...probed, name: placeholder.name };
+    this.files.set(meta.id, file);
+    this.store.dispatch(addAsset(meta), { history: false });
+    this.emit('imported', { meta, file, handle });
+    this.emit('media', { missing: this.missing });
+    void this.engine.remote.renderStill(this.transport.time, this.transport.bypass);
+    return meta;
+  }
+
+  importTimeline(text: string, options: { fileName?: string; format?: InterchangeFormat; open?: boolean } = {}): ImportResult {
+    const settings = this.store.project.settings;
+    const exchange = readInterchange(text, { fileName: options.fileName, format: options.format, fps: settings?.fps ?? 25, width: settings?.width ?? 1920, height: settings?.height ?? 1080 });
+    const { operation, result } = importExchange(exchange, options.open ?? true);
+    this.store.dispatch(operation);
+    const done = result();
+    this.log.record('info', 'media', `Imported timeline ${exchange.main.name}: ${done.matched.length} media matched, ${done.placeholders.length} offline`);
+    this.emit('media', { missing: this.missing });
+    return done;
+  }
+
   get missing(): string[] {
     return Object.values(this.store.project.assets).filter((a) => !a.timeline && !this.files.has(a.id)).map((a) => a.id);
   }
@@ -165,6 +195,10 @@ export class EditorSession extends Emitter<SessionEvents> {
     const added: AssetMeta[] = [];
     for (const { file, handle } of picked) {
       try {
+        if (this.placeholderFor(file)) {
+          await this.importFile(file, handle);
+          continue;
+        }
         const meta = await this.importFile(file, handle);
         this.store.dispatch(this.placement(meta));
         added.push(meta);
