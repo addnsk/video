@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createRoot } from 'react-dom/client';
 import { t } from '../../i18n';
 import type { Strings } from '../../i18n/en';
+import { iconPath, type IconName } from '../icons';
 
 export type PageId = 'edit' | 'fusion' | 'color' | 'fairlight' | 'deliver';
 
@@ -15,16 +16,17 @@ export interface WorkspaceParts {
 
 interface PageLayout {
   readonly label: keyof Strings;
+  readonly icon: IconName;
   readonly left: readonly string[];
   readonly right: readonly string[];
 }
 
 export const PAGES: Readonly<Record<PageId, PageLayout>> = {
-  edit: { label: 'pageEdit', left: ['media', 'markers', 'subtitles'], right: ['item', 'transition', 'scopes', 'color', 'stills', 'mixer', 'script'] },
-  fusion: { label: 'pageFusion', left: ['media'], right: ['item', 'scopes'] },
-  color: { label: 'pageColor', left: ['stills'], right: ['color', 'scopes', 'item'] },
-  fairlight: { label: 'pageFairlight', left: ['media'], right: ['mixer', 'item'] },
-  deliver: { label: 'pageDeliver', left: ['deliver'], right: ['subtitles'] },
+  edit: { icon: 'film', label: 'pageEdit', left: ['media', 'markers', 'subtitles'], right: ['item', 'transition', 'scopes', 'color', 'stills', 'mixer', 'script'] },
+  fusion: { icon: 'nodes', label: 'pageFusion', left: ['media'], right: ['item', 'scopes'] },
+  color: { icon: 'palette', label: 'pageColor', left: ['stills'], right: ['color', 'scopes', 'item'] },
+  fairlight: { icon: 'sliders', label: 'pageFairlight', left: ['media'], right: ['mixer', 'item'] },
+  deliver: { icon: 'send', label: 'pageDeliver', left: ['deliver'], right: ['subtitles'] },
 };
 
 const PAGE_ORDER: readonly PageId[] = ['edit', 'fusion', 'color', 'fairlight', 'deliver'];
@@ -56,6 +58,15 @@ function useMedia(query: string): boolean {
     return () => list.removeEventListener('change', update);
   }, [query]);
   return match;
+}
+
+const PANEL_ICONS: Readonly<Record<string, IconName>> = {
+  media: 'film', markers: 'marker', subtitles: 'text', item: 'sliders', transition: 'layers', scopes: 'compare',
+  color: 'palette', stills: 'layers', mixer: 'audio', script: 'sparkle', deliver: 'send',
+};
+
+function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  return <svg className={`icon icon-${name}`} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: iconPath(name) }} />;
 }
 
 function Slot({ element, className }: { element: HTMLElement; className?: string }) {
@@ -160,7 +171,7 @@ function PageBar({ page, onPage }: { page: PageId; onPage: (page: PageId) => voi
     <nav className="page-bar" role="tablist" aria-label={t('pages')}>
       {PAGE_ORDER.map((id) => (
         <button key={id} id={`page-${id}`} role="tab" aria-selected={id === page} className="page-tab" onClick={() => onPage(id)}>
-          <span className={`page-icon page-icon-${id}`} aria-hidden="true" />
+          <Icon name={PAGES[id].icon} size={18} />
           <span>{t(PAGES[id].label)}</span>
         </button>
       ))}
@@ -202,7 +213,8 @@ function Phone({ parts, page }: { parts: WorkspaceParts; page: PageId }) {
       <div className="tool-strip" role="toolbar">
         {keys.map((k) => (
           <button key={k} className="tool-chip" data-sheet={k} aria-pressed={sheet === k} onClick={() => setSheet(sheet === k ? null : k)}>
-            {parts.panels[k].querySelector('h2')?.textContent ?? k}
+            <Icon name={PANEL_ICONS[k] ?? 'more'} />
+            <span>{parts.panels[k].querySelector('h2, summary')?.textContent ?? k}</span>
           </button>
         ))}
       </div>

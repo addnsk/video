@@ -6,6 +6,7 @@ import { t } from '../i18n';
 import { Modal } from './components/modal';
 import { diagnosticsButton } from './diagnostics-dialog';
 import { toast } from './components/toast';
+import { icon } from './icons';
 import { h } from './dom';
 
 export function projectMenu(session: EditorSession, persistence: ProjectPersistence): HTMLElement {
@@ -51,9 +52,9 @@ export function projectMenu(session: EditorSession, persistence: ProjectPersiste
   };
 
   return h('div', { class: 'menu' },
-    h('button', { class: 'btn', id: 'project-new', onClick: confirmNew }, t('newProject')),
-    h('button', { class: 'btn', id: 'project-open', onClick: () => void open() }, t('openProject')),
-    h('button', { class: 'btn', id: 'project-save', onClick: () => void save() }, t('saveProject')),
+    h('button', { class: 'btn icon round', id: 'project-new', title: t('newProject'), 'aria-label': t('newProject'), onClick: confirmNew }, icon('file')),
+    h('button', { class: 'btn icon round', id: 'project-open', title: t('openProject'), 'aria-label': t('openProject'), onClick: () => void open() }, icon('folder')),
+    h('button', { class: 'btn icon round', id: 'project-save', title: t('saveProject'), 'aria-label': t('saveProject'), onClick: () => void save() }, icon('save')),
     diagnosticsButton(session),
     status,
   );

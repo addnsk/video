@@ -8,6 +8,7 @@ import { t } from '../../i18n';
 import { dragSource } from '../components/drag-source';
 import { toast } from '../components/toast';
 import { formatDuration, h } from '../dom';
+import { icon } from '../icons';
 import type { DropTarget } from '../drop-target';
 import { Panel } from './panel';
 
@@ -18,6 +19,7 @@ export class MediaPanel extends Panel {
   private bin = ALL;
   private query = '';
   private open = new Set<string>();
+  private thumbs = new Map<string, () => void>();
   private controls: HTMLElement;
   private list = h('div', { class: 'media-list' });
   private binSelect: HTMLSelectElement;
@@ -54,7 +56,26 @@ export class MediaPanel extends Panel {
       if (project.assets !== previous.assets || project.timeline !== previous.timeline || project.timelines !== previous.timelines || project.bins !== previous.bins || project.media !== previous.media) this.schedule();
     });
     session.on('proxy', () => this.renderList());
+    session.on('thumbnails', (assetId) => this.thumbs.get(assetId)?.());
     this.render();
+  }
+
+  private thumbnail(asset: { id: string; hasVideo: boolean }): HTMLElement {
+    const canvas = h('canvas', { width: 256, height: 144 });
+    const frame = h('div', { class: `media-thumb${asset.hasVideo ? '' : ' audio'}` }, asset.hasVideo ? canvas : icon('audio', 28));
+    if (!asset.hasVideo) return frame;
+    const paint = () => {
+      const strip = this.session.thumbnails(asset.id);
+      const image = strip?.frames[Math.floor(strip.frames.length / 2)] ?? strip?.frames.find((f) => f);
+      if (!image) return;
+      const g = canvas.getContext('2d')!;
+      const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
+      g.drawImage(image, (canvas.width - image.width * scale) / 2, (canvas.height - image.height * scale) / 2, image.width * scale, image.height * scale);
+      frame.classList.add('ready');
+    };
+    this.thumbs.set(asset.id, paint);
+    paint();
+    return frame;
   }
 
   private attempt(run: () => void) {
@@ -194,6 +215,7 @@ export class MediaPanel extends Panel {
     const grip = h('span', { class: 'grip', role: 'button', 'aria-label': t('dragToTimeline'), title: t('dragToTimeline') }, '⠿');
     const badges = [meta.rating ? '★'.repeat(meta.rating) : '', meta.flagged ? '⚑' : '', meta.keywords?.join(', ') ?? ''].filter(Boolean).join('  ');
     const element = h('div', { class: 'media-item', 'data-asset': asset.id },
+      this.thumbnail(asset),
       h('b', { title: asset.name }, asset.name),
       grip,
       h('small', {}, details),

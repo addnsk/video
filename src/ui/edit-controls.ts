@@ -5,6 +5,7 @@ import type { Transport } from '../host/transport';
 import { t } from '../i18n';
 import { toast } from './components/toast';
 import { h } from './dom';
+import { icon, type IconName } from './icons';
 import type { Selection } from './selection';
 
 export type TrimTool = 'select' | 'ripple' | 'roll' | 'slip' | 'slide';
@@ -36,13 +37,14 @@ export class EditControls extends Emitter<{ tool: TrimTool }> {
     const { source } = session;
     this.timelineTab = h('button', { class: 'seg', id: 'viewer-timeline', onClick: () => source.show('timeline') }, t('viewerTimeline'));
     this.sourceTab = h('button', { class: 'seg', id: 'viewer-source', onClick: () => source.show('source') }, t('viewerSource'));
+    const button = (id: string, name: IconName, label: string, key: string, onClick: () => void) => h('button', { class: 'btn small icon', id, title: `${label} (${key})`, 'aria-label': label, onClick }, icon(name, 17));
     this.editButtons = [
-      h('button', { class: 'btn small', id: 'mark-in', title: 'I', onClick: () => this.mark('in') }, t('markIn')),
-      h('button', { class: 'btn small', id: 'mark-out', title: 'O', onClick: () => this.mark('out') }, t('markOut')),
-      h('button', { class: 'btn small', id: 'edit-insert', title: 'F9', onClick: () => this.edit('insert') }, t('editInsert')),
-      h('button', { class: 'btn small', id: 'edit-overwrite', title: 'F10', onClick: () => this.edit('overwrite') }, t('editOverwrite')),
-      h('button', { class: 'btn small', id: 'edit-append', title: 'Shift+F12', onClick: () => this.edit('append') }, t('editAppend')),
-      h('button', { class: 'btn small', id: 'add-marker', title: 'M', onClick: () => this.addMarker() }, t('addMarker')),
+      button('mark-in', 'markIn', t('markIn'), 'I', () => this.mark('in')),
+      button('mark-out', 'markOut', t('markOut'), 'O', () => this.mark('out')),
+      button('edit-insert', 'insert', t('editInsert'), 'F9', () => this.edit('insert')),
+      button('edit-overwrite', 'overwrite', t('editOverwrite'), 'F10', () => this.edit('overwrite')),
+      button('edit-append', 'append', t('editAppend'), 'Shift+F12', () => this.edit('append')),
+      button('add-marker', 'marker', t('addMarker'), 'M', () => this.addMarker()),
     ];
     this.viewerTabs = h('div', { class: 'segmented viewer-tabs', role: 'tablist' }, this.timelineTab, this.sourceTab);
     this.editBar = h('div', { class: 'edit-bar' }, ...this.editButtons);

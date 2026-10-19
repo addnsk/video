@@ -5,6 +5,7 @@ import type { EditorSession } from '../host/session';
 import { t } from '../i18n';
 import { Modal } from './components/modal';
 import { toast } from './components/toast';
+import { icon } from './icons';
 import { h } from './dom';
 
 async function context(session: EditorSession): Promise<Record<string, unknown>> {
@@ -80,7 +81,7 @@ export function openDiagnostics(session: EditorSession): void {
 
 export function diagnosticsButton(session: EditorSession): HTMLElement {
   const badge = h('span', { class: 'count', hidden: true });
-  const button = h('button', { class: 'btn', id: 'diagnostics', title: t('diagnosticsTitle'), onClick: () => openDiagnostics(session) }, t('diagnosticsButton'), badge);
+  const button = h('button', { class: 'btn icon round', id: 'diagnostics', title: t('diagnosticsTitle'), 'aria-label': t('diagnosticsButton'), onClick: () => openDiagnostics(session) }, icon('log'), badge);
   const sync = () => {
     const count = session.log.errorCount;
     badge.hidden = count === 0;

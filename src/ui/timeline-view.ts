@@ -11,10 +11,13 @@ import type { Selection } from './selection';
 import type { TrimTool } from './edit-controls';
 import { rippleTrim, rollEdit, slideEdit, slipEdit, linkedIds } from '../core/editing';
 
-const RULER = 26;
-const GUTTER = 44;
-const LANE_GAP = 4;
-const LANE_HEIGHT: Record<Track['kind'], number> = { video: 56, audio: 40 };
+const RULER = 32;
+const GUTTER = 52;
+const LANE_GAP = 8;
+const LANE_HEIGHT: Record<Track['kind'], number> = { video: 60, audio: 44 };
+const RADIUS = 10;
+const UI_FONT = '"Inter", system-ui, sans-serif';
+const TRACK_ICONS = { video: new Path2D('M5 6h8a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 13 18H5a2.5 2.5 0 0 1-2.5-2.5v-7A2.5 2.5 0 0 1 5 6zM15.5 10.5l6-3.5v10l-6-3.5'), audio: new Path2D('M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13'), text: new Path2D('M5 6V4h14v2M12 4v16M9 20h6') };
 const MIN_PPS = 2;
 const MAX_PPS = 800;
 const SNAP_PX = 8;
@@ -24,6 +27,12 @@ export const MARKER_PAINT: Record<string, string> = {
   blue: '#3b82f6', cyan: '#06b6d4', green: '#22c55e', yellow: '#eab308', red: '#ef4444', pink: '#ec4899', purple: '#a855f7', fuchsia: '#d946ef',
   rose: '#fb7185', lavender: '#c4b5fd', sky: '#7dd3fc', mint: '#6ee7b7', lemon: '#fde047', sand: '#d6c08f', cocoa: '#8b5e3c', cream: '#f5ecd7',
 };
+
+function rulerLabel(time: number, step: number, fps: number): string {
+  if (step < 1) return step < 0.2 ? `${Math.floor(time)}s ${Math.round((time % 1) * fps)}f` : `${+time.toFixed(1)}s`;
+  const total = Math.round(time);
+  return total < 60 ? `${total}s` : `${Math.floor(total / 60)}m${total % 60 ? ` ${String(total % 60).padStart(2, '0')}s` : ''}`;
+}
 
 type Drag =
   | { kind: 'scrub' }
@@ -369,7 +378,7 @@ export class TimelineView implements DropTarget {
     if (!this.project.tracks.some((tr) => tr.items.length)) {
       const main = lanes.find((l) => l.track.magnetic)!;
       g.fillStyle = this.color('--muted');
-      g.font = '13px "IBM Plex Sans", system-ui, sans-serif';
+      g.font = `13px ${UI_FONT}`;
       g.textBaseline = 'middle';
       g.fillText(t('timelineEmpty'), GUTTER + 12, main.top + main.height / 2);
     }
@@ -377,11 +386,12 @@ export class TimelineView implements DropTarget {
     const px = Math.round(this.x(this.transport.time)) + 0.5;
     if (px >= GUTTER) {
       g.fillStyle = this.color('--playhead');
-      g.fillRect(px - 0.5, 0, 2, height);
+      g.fillRect(px - 0.5, RULER / 2, 2, height - RULER / 2);
       g.beginPath();
-      g.moveTo(px - 6, 0);
-      g.lineTo(px + 7, 0);
-      g.lineTo(px + 0.5, 9);
+      g.moveTo(px + 0.5, RULER / 2 - 6);
+      g.lineTo(px + 6.5, RULER / 2);
+      g.lineTo(px + 0.5, RULER / 2 + 6);
+      g.lineTo(px - 5.5, RULER / 2);
       g.fill();
     }
   }
@@ -421,33 +431,49 @@ export class TimelineView implements DropTarget {
   }
 
   private paintRuler(g: CanvasRenderingContext2D, width: number) {
-    g.fillStyle = this.color('--panel');
-    g.fillRect(0, 0, width, RULER);
-    g.font = '11px "IBM Plex Mono", ui-monospace, monospace';
+    g.font = `12px ${UI_FONT}`;
     g.textBaseline = 'middle';
-    const step = STEPS.find((s) => s * this.pps >= 80) ?? 2400;
+    g.textAlign = 'center';
+    const step = STEPS.find((s) => s * this.pps >= 70) ?? 2400;
     const fps = this.project.settings?.fps ?? 25;
-    for (let time = Math.max(0, Math.floor(this.time(GUTTER) / step) * step); this.x(time) < width; time += step) {
-      const x = Math.round(this.x(time)) + 0.5;
-      g.fillStyle = this.color('--line');
-      g.fillRect(x, RULER - 8, 1, 8);
+    const y = RULER / 2;
+    for (let time = Math.max(0, Math.floor(this.time(GUTTER) / step) * step); this.x(time - step) < width; time += step) {
+      const x = this.x(time);
+      g.fillStyle = this.color('--faint');
+      for (let k = 1; k < 5; k++) {
+        const dot = x + (k * step * this.pps) / 5;
+        if (dot > GUTTER) g.fillRect(dot - 1, y - 1, 2, 2);
+      }
+      if (x < GUTTER - 20) continue;
       g.fillStyle = this.color('--muted');
-      g.fillText(formatTimecode(time, fps), x + 4, RULER / 2 - 1);
+      g.fillText(rulerLabel(time, step, fps), x, y);
     }
+    g.textAlign = 'start';
   }
 
   private paintHeader(g: CanvasRenderingContext2D, lane: Lane) {
-    g.fillStyle = this.color('--panel');
-    g.fillRect(0, lane.top, GUTTER - 2, lane.height);
-    g.font = '600 11px "IBM Plex Mono", ui-monospace, monospace';
+    g.fillStyle = this.color('--tl-bg');
+    g.fillRect(0, lane.top - LANE_GAP / 2, GUTTER, lane.height + LANE_GAP);
+    const color = this.color(lane.track.muted ? '--danger' : '--fg');
+    const mid = lane.top + lane.height / 2;
+    g.save();
+    g.translate(GUTTER / 2 - 11, mid - 19);
+    g.globalAlpha = lane.track.muted ? 0.7 : 0.85;
+    g.strokeStyle = color;
+    g.lineWidth = 1.6;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.stroke(TRACK_ICONS[lane.track.kind]);
+    g.restore();
+    g.font = `600 10px ${UI_FONT}`;
     g.textBaseline = 'middle';
+    g.textAlign = 'center';
     g.fillStyle = this.color(lane.track.muted ? '--danger' : '--muted');
-    g.fillText(lane.track.muted ? `${lane.label}×` : lane.label, 8, lane.top + lane.height / 2);
+    g.fillText(lane.track.muted ? `${lane.label} ×` : lane.label, GUTTER / 2, mid + 15);
+    g.textAlign = 'start';
   }
 
   private paintLane(g: CanvasRenderingContext2D, lane: Lane, width: number) {
-    g.fillStyle = this.color('--lane');
-    g.fillRect(GUTTER, lane.top, width - GUTTER, lane.height);
     g.globalAlpha = lane.track.muted ? 0.4 : 1;
     const moving = this.drag?.kind === 'move' && this.drag.moved ? this.drag.placement.item.id : null;
     for (const p of placeTrack(lane.track)) {
@@ -469,15 +495,23 @@ export class TimelineView implements DropTarget {
     const top = lane.top;
     const h = lane.height;
     const w = Math.max(0, x1 - x0 - 2);
-    g.fillStyle = this.color(item.kind === 'text' ? '--clip-text' : lane.track.kind === 'audio' ? '--clip-audio' : selected ? '--clip-selected' : '--clip');
+    const audio = lane.track.kind === 'audio';
+    g.fillStyle = this.color(item.kind === 'text' ? '--clip-text' : audio ? '--clip-audio' : selected ? '--clip-selected' : '--clip');
     g.beginPath();
-    g.roundRect(x0 + 1, top, w, h, 4);
+    g.roundRect(x0 + 1, top, w, h, RADIUS);
     g.fill();
+    g.strokeStyle = this.color('--clip-edge');
+    g.lineWidth = 1;
+    g.beginPath();
+    g.roundRect(x0 + 1.5, top + 0.5, Math.max(0, w - 1), h - 1, RADIUS);
+    g.stroke();
     if (item.kind === 'media' && lane.track.kind === 'video') this.paintThumbnails(g, item, lane, x0, x1);
     if (item.kind === 'media' && !item.videoOnly) this.paintWaveform(g, item, lane, x0, x1);
     if (item.effects.some((e) => e.enabled)) {
       g.fillStyle = this.color('--accent');
-      g.fillRect(x0 + 1, top + h - 4, w, 4);
+      g.beginPath();
+      g.roundRect(x0 + 10, top + h - 5, Math.max(0, w - 18), 3, 1.5);
+      g.fill();
     }
     if (p.fadeIn > 0) this.paintTransition(g, lane, x0, this.x(p.start + p.fadeIn));
     if (partner) {
@@ -485,15 +519,15 @@ export class TimelineView implements DropTarget {
       g.setLineDash([4, 3]);
       g.lineWidth = 1.5;
       g.beginPath();
-      g.roundRect(x0 + 2, top + 1, Math.max(0, x1 - x0 - 4), h - 2, 4);
+      g.roundRect(x0 + 2, top + 1, Math.max(0, x1 - x0 - 4), h - 2, RADIUS);
       g.stroke();
       g.setLineDash([]);
     }
     if (selected) {
       g.strokeStyle = this.color('--accent');
-      g.lineWidth = 2;
+      g.lineWidth = 2.5;
       g.beginPath();
-      g.roundRect(x0 + 2, top + 1, Math.max(0, x1 - x0 - 4), h - 2, 4);
+      g.roundRect(x0 + 2, top + 1.25, Math.max(0, x1 - x0 - 4), h - 2.5, RADIUS);
       g.stroke();
       this.paintKeyframes(g, item, lane, p.start);
     }
@@ -502,18 +536,31 @@ export class TimelineView implements DropTarget {
     g.rect(x0 + 6, top, Math.max(0, x1 - x0 - 12), h);
     g.clip();
     g.textBaseline = 'middle';
-    g.fillStyle = this.color('--fg');
-    g.font = '500 12px "IBM Plex Sans", system-ui, sans-serif';
-    const name = item.kind === 'media' ? (this.project.assets[item.source.assetId]?.name ?? '') : `T  ${item.text.content.split('\n')[0]}`;
+    g.font = `500 11.5px ${UI_FONT}`;
+    const name = item.kind === 'media' ? (this.project.assets[item.source.assetId]?.name ?? '') : item.text.content.split('\n')[0];
     const label = item.link ? `⛓ ${name}` : name;
-    g.fillText(label, x0 + 8, top + 13);
-    if (h > 44) {
-      const length = `${(p.end - p.start).toFixed(2)}s`;
-      g.font = '11px "IBM Plex Mono", ui-monospace, monospace';
+    const pill = (text: string, x: number, y: number, tag?: string) => {
+      const tagWidth = tag ? g.measureText(tag).width + 12 : 0;
+      const width = g.measureText(text).width + 14 + tagWidth;
       g.fillStyle = this.color('--label-backdrop');
-      g.fillRect(x0 + 5, top + 22, g.measureText(length).width + 6, 14);
-      g.fillStyle = this.color('--fg');
-      g.fillText(length, x0 + 8, top + 29);
+      g.beginPath();
+      g.roundRect(x, y, width, 18, 9);
+      g.fill();
+      if (tag) {
+        g.fillStyle = this.color('--panel-3');
+        g.beginPath();
+        g.roundRect(x + 2, y + 2, tagWidth - 2, 14, 7);
+        g.fill();
+        g.fillStyle = this.color('--muted');
+        g.fillText(tag, x + 7, y + 9.5);
+      }
+      g.fillStyle = this.color('--fg-strong');
+      g.fillText(text, x + 7 + tagWidth, y + 9.5);
+    };
+    pill(label, x0 + 6, top + 5, item.kind === 'text' ? t('addTitle').replace(/^\+\s*/, '') : undefined);
+    if (h > 44 && !audio) {
+      g.font = `500 10.5px ${UI_FONT}`;
+      pill(`${(p.end - p.start).toFixed(2)}s`, x0 + 6, top + h - 23);
     }
     g.restore();
   }
@@ -522,17 +569,16 @@ export class TimelineView implements DropTarget {
     const strip = this.session.thumbnails(item.source.assetId);
     const sample = strip?.frames.find((f) => f);
     if (!strip || !sample) return;
-    const top = lane.top + 18;
-    const h = lane.height - 18;
+    const top = lane.top;
+    const h = lane.height;
     const tile = (sample.width / sample.height) * h;
     const from = Math.max(x0 + 1, GUTTER);
     const to = Math.min(x1 - 1, this.canvas.clientWidth);
     if (to <= from || h <= 8) return;
     g.save();
     g.beginPath();
-    g.roundRect(x0 + 1, lane.top, Math.max(0, x1 - x0 - 2), lane.height, 4);
+    g.roundRect(x0 + 1, lane.top, Math.max(0, x1 - x0 - 2), lane.height, RADIUS);
     g.clip();
-    g.globalAlpha *= 0.85;
     for (let x = x0 + 1 + Math.max(0, Math.floor((from - x0 - 1) / tile)) * tile; x < to; x += tile) {
       const source = sourceTimeAt(item, (x - x0 + tile / 2) / this.pps);
       const index = Math.min(strip.frames.length - 1, Math.max(0, Math.floor((source - strip.start) / strip.interval)));
@@ -545,8 +591,9 @@ export class TimelineView implements DropTarget {
   private paintWaveform(g: CanvasRenderingContext2D, item: Extract<Item, { kind: 'media' }>, lane: Lane, x0: number, x1: number) {
     const peaks = this.session.peaks(item.source.assetId);
     if (!peaks?.length) return;
-    const band = lane.track.kind === 'audio' ? lane.height - 18 : 16;
-    const mid = lane.top + lane.height - 4 - band / 2;
+    const audio = lane.track.kind === 'audio';
+    const band = audio ? lane.height - 12 : 14;
+    const mid = audio ? lane.top + lane.height / 2 : lane.top + lane.height - 4 - band / 2;
     g.fillStyle = this.color('--waveform');
     const from = Math.max(x0, GUTTER);
     const to = Math.min(x1, this.canvas.clientWidth);
@@ -558,7 +605,7 @@ export class TimelineView implements DropTarget {
       let peak = 0;
       for (let k = 0; k < span; k++) peak = Math.max(peak, peaks[index + k] ?? 0);
       const amp = Math.min(1, Math.sqrt(peak * volume)) * (band / 2);
-      if (amp > 0.3) g.fillRect(x, mid - amp, 1, amp * 2);
+      if (amp > 0.3 && x % 3 === 0) g.fillRect(x, mid - amp, 2, amp * 2);
     }
   }
 
@@ -593,7 +640,7 @@ export class TimelineView implements DropTarget {
     const x1 = this.x(ghost.start + itemLength(ghost.item));
     g.globalAlpha = 0.5;
     g.beginPath();
-    g.roundRect(x0, lane.top, Math.max(2, x1 - x0), lane.height, 4);
+    g.roundRect(x0, lane.top, Math.max(2, x1 - x0), lane.height, RADIUS);
     g.fill();
     g.globalAlpha = 1;
   }

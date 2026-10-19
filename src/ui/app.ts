@@ -18,6 +18,7 @@ import { projectMenu } from './project-menu';
 import { t } from '../i18n';
 import { toast } from './components/toast';
 import { formatTimecode, h } from './dom';
+import { icon, type IconName } from './icons';
 import { openExportDialog } from './export-dialog';
 import { openRenderQueue } from './render-queue-dialog';
 import { deliverPanel } from './deliver-panel';
@@ -65,11 +66,11 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const bar = h('header', { class: 'bar' },
     h('div', { class: 'brand' }, t('appName'), h('small', {}, t('tagline'))),
     projectMenu(session, persistence),
-    h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, t('import')),
-    h('button', { class: 'btn', id: 'queue-open', onClick: () => openRenderQueue(session) }, t('queue')),
-    ...(remote ? [h('button', { class: 'btn', id: 'cloud-open', onClick: () => openCloudDialog(session, remote) }, t('cloud'))] : []),
-    exportButton,
+    h('button', { class: 'btn', id: 'import', onClick: async () => importFiles(await pickFiles({ ...MEDIA_TYPES, multiple: true })) }, icon('import'), h('span', { class: 'label' }, t('import'))),
+    h('button', { class: 'btn icon round', id: 'queue-open', title: t('queue'), 'aria-label': t('queue'), onClick: () => openRenderQueue(session) }, icon('queue')),
+    ...(remote ? [h('button', { class: 'btn icon round', id: 'cloud-open', title: t('cloud'), 'aria-label': t('cloud'), onClick: () => openCloudDialog(session, remote) }, icon('cloud'))] : []),
     languageSelect(),
+    exportButton,
   );
 
   const info = h('div', { class: 'info' });
@@ -99,7 +100,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     }).observe(sourceScreen);
   }
 
-  const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => active().toggle() }, '▶');
+  const play = h('button', { class: 'btn icon', id: 'play', 'aria-label': t('play'), onClick: () => active().toggle() }, icon('play', 20));
+  const tool = (id: string, name: IconName, label: string, onClick: () => void, title = label) => h('button', { class: 'btn icon', id, title, 'aria-label': label, onClick }, icon(name));
+  const jump = (delta: number) => active().seek(Math.max(0, active().time + delta));
   const timecode = h('div', { class: 'tc', id: 'tc' });
   const rate = h('span', { class: 'rate', id: 'rate', hidden: true });
   const meter = new LevelMeter(transport, t('audioLevels'));
@@ -115,21 +118,28 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     store.dispatch(splitAt(transport.time, covers ? placement.track.id : session.videoTrackId));
   };
   const remove = () => controls.deleteSelection(false);
-  const compare = h('button', { class: 'btn', id: 'bypass', 'aria-pressed': 'false', onClick: () => toggleBypass() }, t('compare'));
-  const editButtons = [
-    h('button', { class: 'btn', id: 'split', title: 'S', onClick: split }, t('split')),
-    h('button', { class: 'btn', id: 'delete', title: 'Delete', onClick: remove }, t('delete')),
-    compare,
-  ];
+  const compare = tool('bypass', 'compare', t('compare'), () => toggleBypass());
+  compare.setAttribute('aria-pressed', 'false');
+  const editButtons = [tool('split', 'scissors', t('split'), split, `${t('split')} (S)`), tool('delete', 'trash', t('delete'), remove, `${t('delete')} (Delete)`), compare];
   const transportBar = h('div', { class: 'transport' },
-    controls.viewerTabs,
-    play,
-    timecode,
-    rate,
-    meter.element,
-    liveLoudness,
-    h('div', { class: 'spacer' }),
-    ...editButtons,
+    h('div', { class: 'transport-side' },
+      tool('undo', 'undo', t('undo'), () => store.undo(), `${t('undo')} (Ctrl+Z)`),
+      tool('redo', 'redo', t('redo'), () => store.redo(), `${t('redo')} (Ctrl+Shift+Z)`),
+      editButtons[0],
+    ),
+    h('div', { class: 'transport-center' },
+      tool('jump-back', 'back', t('jumpBack'), () => jump(-5)),
+      tool('go-start', 'start', t('goStart'), () => active().seek(0), `${t('goStart')} (Home)`),
+      play,
+      tool('go-end', 'end', t('goEnd'), () => active().seek(projectDuration(session.source.viewer === 'source' ? session.source.store.project : store.project)), `${t('goEnd')} (End)`),
+      tool('jump-forward', 'forward', t('jumpForward'), () => jump(5)),
+    ),
+    h('div', { class: 'transport-side end' },
+      meter.element,
+      liveLoudness,
+      editButtons[1],
+      compare,
+    ),
   );
 
   const timelineCanvas = h('canvas', { id: 'timeline' });
@@ -154,9 +164,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     controls.editBar,
     controls.toolBar,
     h('div', { class: 'spacer' }),
-    h('button', { class: 'btn small icon', 'aria-label': t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, '−'),
-    h('button', { class: 'btn small icon', 'aria-label': t('zoomFit'), onClick: () => timeline.fit() }, '⤢'),
-    h('button', { class: 'btn small icon', 'aria-label': t('zoomIn'), onClick: () => timeline.zoom(1.5) }, '+'),
+    h('button', { class: 'btn small icon', 'aria-label': t('zoomOut'), title: t('zoomOut'), onClick: () => timeline.zoom(1 / 1.5) }, icon('minus', 16)),
+    h('button', { class: 'btn small icon', 'aria-label': t('zoomFit'), title: t('zoomFit'), onClick: () => timeline.fit() }, icon('fit', 16)),
+    h('button', { class: 'btn small icon', 'aria-label': t('zoomIn'), title: t('zoomIn'), onClick: () => timeline.zoom(1.5) }, icon('plus', 16)),
   );
 
   const picker = new PointPicker(screen, () => {
@@ -224,8 +234,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
 
   mountWorkspace(root, {
     bar,
-    viewer: h('section', { class: 'viewer' }, screens, transportBar),
-    timeline: h('section', { class: 'timeline' }, viewTabs, timelinePane, nodeEditor.element),
+    viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), rate, timecode)),
+    timeline: h('section', { class: 'timeline' }, transportBar, viewTabs, timelinePane, nodeEditor.element),
     panels,
     onPage: (page) => showView(page === 'fusion' || page === 'color' ? 'nodes' : 'timeline'),
   });
@@ -245,7 +255,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   session.source.transport.on('time', renderTime);
   session.source.on('change', renderTime);
   const onState = ({ playing, rate: speed }: { playing: boolean; rate: number }) => {
-    play.textContent = playing ? '❚❚' : '▶';
+    play.replaceChildren(icon(playing ? 'pause' : 'play', 20));
     play.setAttribute('aria-label', playing ? t('pause') : t('play'));
     rate.hidden = !playing || speed === 1;
     clearInterval(loudnessTimer);
