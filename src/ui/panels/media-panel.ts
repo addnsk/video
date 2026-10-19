@@ -8,6 +8,7 @@ import { t } from '../../i18n';
 import { dragSource } from '../components/drag-source';
 import { toast } from '../components/toast';
 import { formatDuration, h } from '../dom';
+import { iconButton } from '../icons';
 import { icon } from '../icons';
 import type { DropTarget } from '../drop-target';
 import { Panel } from './panel';
@@ -44,10 +45,10 @@ export class MediaPanel extends Panel {
     this.controls = h('div', { class: 'media-controls' },
       h('div', { class: 'row' },
         this.binSelect,
-        h('button', { class: 'btn small', id: 'bin-new', onClick: () => this.attempt(() => this.newBin(false)) }, t('binNew')),
-        h('button', { class: 'btn small', id: 'bin-smart', onClick: () => this.attempt(() => this.newBin(true)) }, t('binSmart')),
-        h('button', { class: 'btn small', id: 'bin-remove', onClick: () => this.attempt(() => this.removeBin()) }, t('binRemove')),
-        h('button', { class: 'btn small', id: 'multicam-new', onClick: () => void this.newMulticam() }, t('multicamNew')),
+        iconButton('folderPlus', t('binNew'), { id: 'bin-new', onClick: () => this.attempt(() => this.newBin(false)) }),
+        iconButton('filter', t('binSmart'), { id: 'bin-smart', onClick: () => this.attempt(() => this.newBin(true)) }),
+        iconButton('folderMinus', t('binRemove'), { id: 'bin-remove', onClick: () => this.attempt(() => this.removeBin()) }),
+        iconButton('multicam', t('multicamNew'), { id: 'multicam-new', onClick: () => void this.newMulticam() }),
       ),
       this.search,
     );
@@ -178,8 +179,8 @@ export class MediaPanel extends Panel {
             h('div', { class: 'media-item', 'data-timeline': x.id },
               h('b', {}, x.name),
               h('div', { class: 'row' },
-                h('button', { class: 'btn', 'data-insert-timeline': x.id, onClick: () => this.insertTimeline(x.id) }, t('timelineInsert')),
-                timelineData(project, x.id)?.multicam && h('button', { class: 'btn', 'data-multiview': x.id, onClick: () => this.attempt(() => this.openSource(this.api.timelines.asset(x.id))) }, t('multicamView')),
+                iconButton('plus', t('timelineInsert'), { 'data-insert-timeline': x.id, onClick: () => this.insertTimeline(x.id) }),
+                timelineData(project, x.id)?.multicam && iconButton('eye', t('multicamView'), { 'data-multiview': x.id, onClick: () => this.attempt(() => this.openSource(this.api.timelines.asset(x.id))) }),
               ),
             ),
           ),
@@ -199,18 +200,17 @@ export class MediaPanel extends Panel {
     const audioTrack = project.tracks.find((tr) => tr.kind === 'audio');
     const expanded = this.open.has(asset.id);
     const actions = h('div', { class: 'row' },
-      h('button', { class: 'btn', 'data-open-source': asset.id, onClick: () => this.openSource(asset.id) }, t('openInViewer')),
-      asset.hasVideo && h('button', { class: 'btn', onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: this.session.videoTrackId })) }, t('addToTimeline')),
-      asset.hasAudio && audioTrack && h('button', {
-        class: 'btn',
+      iconButton('eye', t('openInViewer'), { 'data-open-source': asset.id, onClick: () => this.openSource(asset.id) }),
+      asset.hasVideo && iconButton('plus', t('addToTimeline'), { onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: this.session.videoTrackId })) }),
+      asset.hasAudio && audioTrack && iconButton('audio', t('addAudio'), {
         onClick: () => this.session.store.dispatch(insertItem(asset.id, { trackId: audioTrack.id, start: this.session.transport.time })),
-      }, t('addAudio')),
-      asset.hasVideo && !this.session.proxies.has(asset.id) && h('button', { class: 'btn', onClick: () => this.session.requestProxy(asset.id) }, t('makeProxy')),
-      h('button', { class: 'btn', 'data-info': asset.id, 'aria-expanded': String(expanded), onClick: () => {
+      }),
+      asset.hasVideo && !this.session.proxies.has(asset.id) && iconButton('bolt', t('makeProxy'), { onClick: () => this.session.requestProxy(asset.id) }),
+      iconButton('info', t('mediaInfo'), { 'data-info': asset.id, 'aria-expanded': String(expanded), onClick: () => {
         if (expanded) this.open.delete(asset.id);
         else this.open.add(asset.id);
         this.renderList();
-      } }, t('mediaInfo')),
+      } }),
     );
     const grip = h('span', { class: 'grip', role: 'button', 'aria-label': t('dragToTimeline'), title: t('dragToTimeline') }, '⠿');
     const badges = [meta.rating ? '★'.repeat(meta.rating) : '', meta.flagged ? '⚑' : '', meta.keywords?.join(', ') ?? ''].filter(Boolean).join('  ');
@@ -257,7 +257,7 @@ export class MediaPanel extends Panel {
         ...[0, 1, 2, 3, 4, 5].map((n) => h('option', { value: String(n), selected: (meta.rating ?? 0) === n }, n ? '★'.repeat(n) : '—')),
       )),
       field('flagged', h('input', { type: 'checkbox', checked: !!meta.flagged, 'data-field': 'flagged', onChange: (e: Event) => set({ flagged: (e.target as HTMLInputElement).checked }) })),
-      h('button', { class: 'btn small danger', 'data-remove-asset': asset.id, onClick: () => this.attempt(() => this.api.media.remove(asset.id)) }, t('mediaRemove')),
+      iconButton('trash', t('mediaRemove'), { class: 'danger', 'data-remove-asset': asset.id, onClick: () => this.attempt(() => this.api.media.remove(asset.id)) }),
     );
   }
 }

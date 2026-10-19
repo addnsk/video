@@ -9,6 +9,7 @@ import { t } from '../../i18n';
 import { KeyedSlider, type KeyState } from '../components/keyed-slider';
 import { Slider } from '../components/slider';
 import { h } from '../dom';
+import { iconButton } from '../icons';
 import type { Selection } from '../selection';
 import { AudioEffectsSection } from './audio-effects-section';
 import { Panel } from './panel';
@@ -46,7 +47,7 @@ export class ItemPanel extends Panel {
   private content: HTMLTextAreaElement;
   private font: HTMLSelectElement;
   private weight: HTMLSelectElement;
-  private size: HTMLInputElement;
+  private size: Slider;
   private color: HTMLInputElement;
   private align: HTMLSelectElement;
   private background: HTMLInputElement;
@@ -64,7 +65,7 @@ export class ItemPanel extends Panel {
     onStabilize: (itemId: string) => void = () => undefined,
   ) {
     super('item', t('itemTitle'));
-    this.stabilize = h('button', { class: 'btn small', id: 'item-stabilize', onClick: () => this.placement && onStabilize(this.placement.item.id) }, t('stabilize'));
+    this.stabilize = iconButton('target', t('stabilize'), { id: 'item-stabilize', onClick: () => this.placement && onStabilize(this.placement.item.id) });
     const properties = h('div', { class: 'group' });
     for (const def of PROPERTIES) {
       const slider = new KeyedSlider({
@@ -108,8 +109,7 @@ export class ItemPanel extends Panel {
     this.font.addEventListener('change', () => style({ font: this.font.value }));
     this.weight = h('select', { id: 'text-weight' }, h('option', { value: '400' }, t('weightRegular')), h('option', { value: '700' }, t('weightBold')));
     this.weight.addEventListener('change', () => style({ weight: +this.weight.value }));
-    this.size = h('input', { type: 'range', id: 'text-size', min: 0.02, max: 0.3, step: 0.005 });
-    this.size.addEventListener('input', () => style({ size: +this.size.value }));
+    this.size = new Slider({ id: 'text-size', label: t('textSize'), min: 0.02, max: 0.3, step: 0.005, value: 0.08, neutral: 0.08, format: (v) => `${Math.round(v * 100)}%`, onInput: (size) => style({ size }) });
     this.color = h('input', { type: 'color', id: 'text-color' });
     this.color.addEventListener('input', () => style({ color: this.color.value }));
     this.align = h('select', { id: 'text-align' }, ...(['left', 'center', 'right'] as const).map((a) => h('option', { value: a }, t(`align_${a}`))));
@@ -122,7 +122,7 @@ export class ItemPanel extends Panel {
     this.textBox = h('div', { class: 'group' },
       this.content,
       h('div', { class: 'row' }, this.font, this.weight),
-      h('label', { class: 'slider' }, h('span', {}, t('textSize')), this.size, h('output')),
+      this.size.element,
       h('div', { class: 'row' },
         h('label', { class: 'check' }, this.color, h('span', {}, t('textColor'))),
         this.align),
@@ -224,8 +224,7 @@ export class ItemPanel extends Panel {
     if (document.activeElement !== this.content) this.content.value = style.content;
     this.font.value = style.font;
     this.weight.value = String(style.weight >= 600 ? 700 : 400);
-    this.size.value = String(style.size);
-    (this.size.nextElementSibling as HTMLOutputElement).textContent = `${Math.round(style.size * 100)}%`;
+    this.size.set(style.size);
     this.color.value = style.color.slice(0, 7);
     this.align.value = style.align;
     this.background.checked = !!style.background;

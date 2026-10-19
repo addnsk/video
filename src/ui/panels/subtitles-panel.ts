@@ -3,8 +3,10 @@ import type { SubtitleTrack } from '../../core/model';
 import { pickFiles, saveBlob } from '../../host/file-picker';
 import type { EditorSession } from '../../host/session';
 import { t } from '../../i18n';
+import { Slider } from '../components/slider';
 import { toast } from '../components/toast';
 import { formatTimecode, h } from '../dom';
+import { iconButton } from '../icons';
 import { Panel } from './panel';
 
 const SUBTITLE_TYPES = { description: 'Subtitles', mime: 'text/plain', extensions: ['.srt', '.vtt'] };
@@ -55,11 +57,11 @@ export class SubtitlesPanel extends Panel {
         this.selected = (e.target as HTMLSelectElement).value;
         this.render();
       } }, ...tracks.map((x) => h('option', { value: x.id, selected: x === track }, x.name))),
-      h('button', { class: 'btn small', id: 'subtitle-new', onClick: () => this.attempt(() => {
+      iconButton('plus', t('subtitlesNew'), { id: 'subtitle-new', onClick: () => this.attempt(() => {
         this.selected = this.api.subtitles.add();
         this.render();
-      }) }, t('subtitlesNew')),
-      h('button', { class: 'btn small', id: 'subtitle-import', onClick: () => this.attempt(() => this.importFile()) }, t('subtitlesImport')),
+      }) }),
+      iconButton('upload', t('subtitlesImport'), { id: 'subtitle-import', onClick: () => this.attempt(() => this.importFile()) }),
     );
     if (!track) {
       this.body.replaceChildren(head, h('p', { class: 'hint' }, t('subtitlesEmpty')));
@@ -81,13 +83,13 @@ export class SubtitlesPanel extends Panel {
     );
     const styleRow = h('div', { class: 'subtitle-style' },
       h('label', { class: 'field' }, t('subtitlesName'), h('input', { type: 'text', id: 'subtitle-name', value: track.name, onChange: (e: Event) => this.attempt(() => this.api.subtitles.update(track.id, { name: (e.target as HTMLInputElement).value })) })),
-      h('label', { class: 'field' }, t('subtitlesSize'), h('input', { type: 'range', id: 'subtitle-size', min: 0.02, max: 0.15, step: 0.005, value: track.style.size, onChange: (e: Event) => style({ size: +(e.target as HTMLInputElement).value }) })),
-      h('label', { class: 'field' }, t('subtitlesPosition'), h('input', { type: 'range', id: 'subtitle-position', min: 0, max: 0.9, step: 0.01, value: track.style.position, onChange: (e: Event) => style({ position: +(e.target as HTMLInputElement).value }) })),
+      new Slider({ id: 'subtitle-size', label: t('subtitlesSize'), min: 0.02, max: 0.15, step: 0.005, value: track.style.size, neutral: 0.05, format: (v) => `${Math.round(v * 1000) / 10}%`, onInput: (size) => style({ size }) }).element,
+      new Slider({ id: 'subtitle-position', label: t('subtitlesPosition'), min: 0, max: 0.9, step: 0.01, value: track.style.position, neutral: 0.08, format: (v) => `${Math.round(v * 100)}%`, onInput: (position) => style({ position }) }).element,
       h('label', { class: 'field' }, t('subtitlesColor'), h('input', { type: 'color', id: 'subtitle-color', value: track.style.color.slice(0, 7), onChange: (e: Event) => style({ color: (e.target as HTMLInputElement).value }) })),
       h('label', { class: 'field' }, t('subtitlesOutline'), h('input', { type: 'color', id: 'subtitle-outline', value: (track.style.outline ?? '#000000').slice(0, 7), onChange: (e: Event) => style({ outline: (e.target as HTMLInputElement).value }) })),
       check('subtitle-box', t('subtitlesBox'), !!track.style.background, (v) => style({ background: v ? '#000000b0' : null })),
     );
-    const add = h('button', { class: 'btn small', id: 'subtitle-add', onClick: () => this.attempt(() => this.api.subtitles.addCue(track.id, { text: t('subtitlesNewCue') })) }, t('subtitlesAdd'));
+    const add = iconButton('plus', t('subtitlesAdd'), { id: 'subtitle-add', onClick: () => this.attempt(() => this.api.subtitles.addCue(track.id, { text: t('subtitlesNewCue') })) });
     const rows = track.cues.map((cue) => {
       const time = (key: 'start' | 'end', value: number) =>
         h('input', { type: 'number', step: 0.01, min: 0, value: +value.toFixed(3), 'data-field': key, 'aria-label': t(key === 'start' ? 'subtitlesStart' : 'subtitlesEnd'), onChange: (e: Event) => this.attempt(() => this.api.subtitles.updateCue(track.id, cue.id, { [key]: +(e.target as HTMLInputElement).value })) });

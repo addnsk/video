@@ -3,6 +3,7 @@ import { t } from '../../i18n';
 import { Slider } from '../components/slider';
 import { toast } from '../components/toast';
 import { h } from '../dom';
+import { iconButton } from '../icons';
 import type { Selection } from '../selection';
 import { Panel } from './panel';
 
@@ -16,7 +17,7 @@ export class StillsPanel extends Panel {
     private selection: Selection,
   ) {
     super('stills', t('stillsTitle'));
-    const grab = h('button', { class: 'btn', id: 'still-grab', onClick: () => this.grab() }, t('stillGrab'));
+    const grab = iconButton('camera', t('stillGrab'), { id: 'still-grab', onClick: () => this.grab() });
     this.wipe = new Slider({
       id: 'still-wipe',
       label: t('stillWipe'),
@@ -63,8 +64,8 @@ export class StillsPanel extends Panel {
           h('img', { src: still.image, alt: still.name, title: t('stillCompare'), onClick: compare }),
           h('figcaption', {}, still.name),
           h('div', { class: 'row' },
-            h('button', { class: 'btn small', dataset: { action: 'apply' }, onClick: apply }, t('stillApply')),
-            h('button', { class: 'btn small', dataset: { action: 'remove' }, onClick: () => this.session.stills.remove(still.id) }, t('delete')),
+            iconButton('copy', t('stillApply'), { dataset: { action: 'apply' }, onClick: apply }),
+            iconButton('trash', t('delete'), { dataset: { action: 'remove' }, onClick: () => this.session.stills.remove(still.id) }),
           ),
         );
       }),

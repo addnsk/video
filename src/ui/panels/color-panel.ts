@@ -14,6 +14,7 @@ import { Slider } from '../components/slider';
 import { toast } from '../components/toast';
 import { ColorWheel, type WheelValue } from '../components/wheel';
 import { h } from '../dom';
+import { iconButton } from '../icons';
 import type { Selection } from '../selection';
 import { Panel } from './panel';
 
@@ -51,7 +52,7 @@ export class ColorPanel extends Panel {
       h('option', { value: 'aces' }, t('colorScienceAces')));
 
     this.version = h('select', { id: 'grade-version', onChange: () => this.loadVersion(this.version.value) });
-    const saveVersion = h('button', { class: 'btn small', id: 'grade-version-save', onClick: () => this.saveVersion() }, t('versionSave'));
+    const saveVersion = iconButton('bookmarkPlus', t('versionSave'), { id: 'grade-version-save', onClick: () => this.saveVersion() });
 
     const wheelRow = h('div', { class: 'wheels' });
     for (const [name, label] of WHEELS) {
@@ -102,10 +103,10 @@ export class ColorPanel extends Panel {
       format: (v) => `${Math.round(v * 100)}%`,
       onInput: (v) => this.setLut({ strength: v }),
     });
-    const loadButton = h('button', { class: 'btn', onClick: () => lutFile.click() }, t('lutLoad'));
-    const removeButton = h('button', { class: 'btn', onClick: () => this.dispatchLut(null) }, t('lutRemove'));
-    const resetButton = h('button', { class: 'btn', onClick: () => this.reset() }, t('reset'));
-    const allButton = h('button', { class: 'btn', onClick: () => this.applyToAll() }, t('applyToAll'));
+    const loadButton = iconButton('upload', t('lutLoad'), { onClick: () => lutFile.click() });
+    const removeButton = iconButton('close', t('lutRemove'), { onClick: () => this.dispatchLut(null) });
+    const resetButton = iconButton('reset', t('reset'), { onClick: () => this.reset() });
+    const allButton = iconButton('copy', t('applyToAll'), { onClick: () => this.applyToAll() });
 
     this.controls = [this.input, this.inputClip, loadButton, removeButton, resetButton, allButton];
     this.body.append(

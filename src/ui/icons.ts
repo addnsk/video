@@ -38,6 +38,26 @@ const PATHS = {
   save: '<path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8M7 21v-7h10v7"/>',
   file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
   log: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  folderPlus: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/>',
+  filter: '<path d="M3 5h18l-7 8v6l-4 2v-8z"/>',
+  folderMinus: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9.5 13.5h5"/>',
+  grid: '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
+  bookmarkPlus: '<path d="M6 3h12v18l-6-4-6 4z"/><path d="M12 7v6M9 10h6"/>',
+  camera: '<path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L16 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+  copy: '<rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  upload: '<path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
+  pipette: '<path d="m2 22 1-1h3l9-9M3 21v-3l9-9"/><path d="m15 6 3-3 3 3-3 3M12 9l3 3"/>',
+  multicam: '<rect x="2" y="3" width="9" height="7" rx="2"/><rect x="13" y="3" width="9" height="7" rx="2"/><rect x="2" y="14" width="9" height="7" rx="2"/><rect x="13" y="14" width="9" height="7" rx="2"/>',
+  videoPlus: '<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="m15.5 10.5 6-3.5v10l-6-3.5M9 9.5v5M6.5 12h5"/>',
+  audioPlus: '<path d="M10 5 5.5 9H3v6h2.5l4.5 4z"/><path d="M18 8v8M14 12h8"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/>',
 } as const;
@@ -52,4 +72,20 @@ export function icon(name: IconName, size = 18): SVGSVGElement {
 
 export function iconPath(name: IconName): string {
   return PATHS[name];
+}
+
+export function iconButton(name: IconName, label: string, props: Record<string, unknown> = {}): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `btn icon ${(props.class as string | undefined) ?? ''}`.trim();
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'class' || value === undefined || value === null || value === false) continue;
+    if (key === 'dataset') Object.assign(button.dataset, value);
+    else if (key.startsWith('on') && typeof value === 'function') button.addEventListener(key.slice(2).toLowerCase(), value as EventListener);
+    else button.setAttribute(key, value === true ? '' : String(value));
+  }
+  button.append(icon(name, 17));
+  return button;
 }

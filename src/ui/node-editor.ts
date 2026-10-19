@@ -24,6 +24,7 @@ import { t } from '../i18n';
 import { ParamControls } from './components/param-controls';
 import { toast } from './components/toast';
 import { h } from './dom';
+import { iconButton } from './icons';
 import { PORT_RADIUS, fitView, hitTest, layoutNode, type NodeBox, type Viewport } from './node-layout';
 import type { Selection } from './selection';
 
@@ -67,9 +68,9 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
     });
     const tools = h('div', { class: 'timeline-tools node-tools' },
       this.addSelect,
-      h('button', { class: 'btn small', id: 'node-fit', onClick: () => this.fit() }, t('nodesFit')),
-      h('button', { class: 'btn small', id: 'node-save-template', onClick: () => this.saveTemplate() }, t('nodesSaveTemplate')),
-      h('button', { class: 'btn small', id: 'node-delete', onClick: () => this.deleteSelected() }, t('delete')),
+      iconButton('grid', t('nodesFit'), { id: 'node-fit', onClick: () => this.fit() }),
+      iconButton('bookmarkPlus', t('nodesSaveTemplate'), { id: 'node-save-template', onClick: () => this.saveTemplate() }),
+      iconButton('trash', t('delete'), { id: 'node-delete', onClick: () => this.deleteSelected() }),
     );
     this.element = h('div', { class: 'node-editor', hidden: true }, tools, h('div', { class: 'node-body' }, this.canvas, this.inspector), this.hint);
     this.canvas.addEventListener('pointerdown', (e) => this.down(e));
@@ -343,8 +344,8 @@ export class NodeEditor extends Emitter<{ select: { itemId: string; nodeId: stri
         : []),
       ...((QUALIFIER_TYPES as readonly string[]).includes(node.type)
         ? [
-            h('button', { class: 'btn small', id: 'qualifier-pick', onClick: () => this.onPickColor(item!.id, node.id, false) }, t('qualifierPick')),
-            ...(node.type === 'qualifier-3d' ? [h('button', { class: 'btn small', id: 'qualifier-add', onClick: () => this.onPickColor(item!.id, node.id, true) }, t('qualifierAdd'))] : []),
+            iconButton('pipette', t('qualifierPick'), { id: 'qualifier-pick', onClick: () => this.onPickColor(item!.id, node.id, false) }),
+            ...(node.type === 'qualifier-3d' ? [iconButton('plus', t('qualifierAdd'), { id: 'qualifier-add', onClick: () => this.onPickColor(item!.id, node.id, true) })] : []),
           ]
         : []),
     );

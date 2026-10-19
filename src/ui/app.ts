@@ -18,7 +18,8 @@ import { projectMenu } from './project-menu';
 import { t } from '../i18n';
 import { toast } from './components/toast';
 import { formatTimecode, h } from './dom';
-import { icon, type IconName } from './icons';
+import { enhanceSelects } from './components/picker';
+import { icon, iconButton, type IconName } from './icons';
 import { openExportDialog } from './export-dialog';
 import { openRenderQueue } from './render-queue-dialog';
 import { deliverPanel } from './deliver-panel';
@@ -156,9 +157,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   const switcher = new TimelineSwitcher(session, selection, api);
   const timelineActions = h('div', { class: 'tab-actions' },
     switcher.element,
-    h('button', { class: 'btn small', id: 'add-title', onClick: addTitle }, t('addTitle')),
-    h('button', { class: 'btn small', id: 'add-video-track', onClick: () => store.dispatch(addTrack('video')) }, t('addVideoTrack')),
-    h('button', { class: 'btn small', id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }, t('addAudioTrack')),
+    iconButton('text', t('addTitle'), { id: 'add-title', onClick: addTitle }),
+    iconButton('videoPlus', t('addVideoTrack'), { id: 'add-video-track', onClick: () => store.dispatch(addTrack('video')) }),
+    iconButton('audioPlus', t('addAudioTrack'), { id: 'add-audio-track', onClick: () => store.dispatch(addTrack('audio')) }),
   );
   const timelineTools = h('div', { class: 'timeline-tools' },
     controls.editBar,
@@ -232,6 +233,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
   showView('timeline');
 
+  enhanceSelects(document.body);
   mountWorkspace(root, {
     bar,
     viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), rate, timecode)),
