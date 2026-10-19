@@ -31,39 +31,65 @@ const VECTOR_TARGETS: [string, number, number, number][] = [
 
 export class ScopesPanel {
   readonly element: HTMLDetailsElement;
-  private canvas = h('canvas', { width: 512, height: 256, class: 'scope' });
-  private mode: ScopeMode = 'waveform';
+  private views: { mode: ScopeMode; canvas: HTMLCanvasElement; card: HTMLElement }[];
+  private focus: ScopeMode | null = null;
   private last: ScopeData | null = null;
 
   constructor(private session: EditorSession) {
-    const select = h('select', { id: 'scope-mode', 'aria-label': t('scopesTitle') }, ...MODES.map((m) => h('option', { value: m.mode }, t(m.label))));
-    select.addEventListener('change', () => {
-      this.mode = select.value as ScopeMode;
-      this.draw();
+    this.views = MODES.map(({ mode, label }) => {
+      const canvas = h('canvas', { width: 512, height: mode === 'vector' ? 512 : 256, class: `scope scope-${mode}`, id: `scope-${mode}` });
+      const card = h('button', {
+        type: 'button',
+        class: 'scope-card',
+        dataset: { scope: mode },
+        title: t(label),
+        onClick: () => {
+          this.focus = this.focus === mode ? null : mode;
+          this.layout();
+        },
+      }, canvas, h('span', { class: 'scope-label' }, t(label)));
+      return { mode, canvas, card };
     });
-    this.element = h('details', { class: 'panel scopes', id: 'scopes' }, h('summary', {}, h('h2', {}, t('scopesTitle'))), select, this.canvas);
+    const grid = h('div', { class: 'scope-grid' }, ...this.views.map((v) => v.card));
+    this.element = h('details', { class: 'panel scopes', id: 'scopes' }, h('summary', {}, h('h2', {}, t('scopesTitle'))), grid);
     this.element.addEventListener('toggle', () => void session.engine.remote.setScopes(this.element.open));
     session.engine.events.on('scopes', (data) => {
       this.last = data;
       if (this.element.open) this.draw();
     });
+    this.layout();
+  }
+
+  get mode(): ScopeMode | null {
+    return this.focus;
+  }
+
+  private layout() {
+    for (const view of this.views) {
+      view.card.hidden = !!this.focus && view.mode !== this.focus;
+      view.card.setAttribute('aria-pressed', String(view.mode === this.focus));
+    }
+    this.element.classList.toggle('focused', !!this.focus);
+    this.draw();
   }
 
   private draw() {
     const data = this.last;
-    const g = this.canvas.getContext('2d')!;
-    const { width, height } = this.canvas;
-    g.fillStyle = '#0b0c0e';
-    g.fillRect(0, 0, width, height);
-    if (!data) return;
-    if (this.mode === 'vector') this.vector(g, data);
-    else if (this.mode === 'histogram') this.histogram(g, data);
-    else this.waveform(g, data, this.mode === 'parade');
-    this.graticule(g);
+    for (const { mode, canvas, card } of this.views) {
+      if (card.hidden) continue;
+      const g = canvas.getContext('2d')!;
+      g.fillStyle = '#08090b';
+      g.fillRect(0, 0, canvas.width, canvas.height);
+      if (!data) continue;
+      if (mode === 'vector') this.vector(g, canvas, data);
+      else if (mode === 'histogram') this.histogram(g, canvas, data);
+      else this.waveform(g, canvas, data, mode === 'parade');
+      if (mode !== 'vector') this.graticule(g, canvas, mode !== 'histogram');
+    }
   }
 
-  private waveform(g: CanvasRenderingContext2D, data: ScopeData, parade: boolean) {
-    const { width, height } = this.canvas;
+  private waveform(g: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: ScopeData, parade: boolean) {
+    const { width, height } = canvas;
     const image = g.createImageData(width, height);
     const channels = parade ? [0, 1, 2] : [3];
     const gain = (256 * 6) / Math.max(1, data.samples / data.columns);
@@ -91,8 +117,8 @@ export class ScopesPanel {
     g.putImageData(image, 0, 0);
   }
 
-  private histogram(g: CanvasRenderingContext2D, data: ScopeData) {
-    const { width, height } = this.canvas;
+  private histogram(g: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: ScopeData) {
+    const { width, height } = canvas;
     let peak = 1;
     for (let i = 0; i < 256; i++) for (let c = 0; c < 3; c++) peak = Math.max(peak, data.histogram[i * 4 + c]);
     g.globalCompositeOperation = 'lighter';
@@ -108,8 +134,8 @@ export class ScopesPanel {
     g.globalCompositeOperation = 'source-over';
   }
 
-  private vector(g: CanvasRenderingContext2D, data: ScopeData) {
-    const { width, height } = this.canvas;
+  private vector(g: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: ScopeData) {
+    const { width, height } = canvas;
     const size = height;
     const ox = (width - size) / 2;
     const image = g.createImageData(VECTOR_SIZE, VECTOR_SIZE);
@@ -129,7 +155,7 @@ export class ScopesPanel {
     g.beginPath();
     g.arc(ox + size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
     g.stroke();
-    g.font = '11px "IBM Plex Mono", monospace';
+    g.font = '20px "Inter", system-ui, sans-serif';
     g.fillStyle = 'rgb(255 255 255 / 0.6)';
     for (const [label, r, gg, b] of VECTOR_TARGETS) {
       const y = 0.2126 * r + 0.7152 * gg + 0.0722 * b;
@@ -142,19 +168,18 @@ export class ScopesPanel {
     }
   }
 
-  private graticule(g: CanvasRenderingContext2D) {
-    if (this.mode === 'vector') return;
-    const { width, height } = this.canvas;
+  private graticule(g: CanvasRenderingContext2D, canvas: HTMLCanvasElement, labels: boolean) {
+    const { width, height } = canvas;
     g.strokeStyle = 'rgb(255 255 255 / 0.12)';
     g.fillStyle = 'rgb(255 255 255 / 0.4)';
-    g.font = '10px "IBM Plex Mono", monospace';
+    g.font = '16px "Inter", system-ui, sans-serif';
     for (const level of [0, 25, 50, 75, 100]) {
       const y = Math.round(height - 1 - (level / 100) * (height - 1)) + 0.5;
       g.beginPath();
       g.moveTo(0, y);
       g.lineTo(width, y);
       g.stroke();
-      if (this.mode !== 'histogram') g.fillText(String(level), 4, Math.max(10, y - 2));
+      if (labels) g.fillText(String(level), 4, Math.max(10, y - 2));
     }
   }
 }

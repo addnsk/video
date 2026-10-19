@@ -139,8 +139,6 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
       tool('jump-forward', 'forward', t('jumpForward'), () => jump(5)),
     ),
     h('div', { class: 'transport-side end' },
-      meter.element,
-      liveLoudness,
       editButtons[1],
       compare,
     ),
@@ -257,7 +255,7 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   enhanceSelects(document.body);
   const workspace = mountWorkspace(root, {
     bar,
-    viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), rate, timecode)),
+    viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), liveLoudness, meter.element, rate, timecode)),
     timeline: h('section', { class: 'timeline' }, transportBar, viewTabs, timelinePane, nodeEditor.element),
     panels,
     onPage: (page) => showView(page === 'fusion' || page === 'color' ? 'nodes' : 'timeline'),

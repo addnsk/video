@@ -21,8 +21,8 @@ export class LevelMeter {
   private running = false;
   private style = getComputedStyle(document.documentElement);
 
-  constructor(private source: LevelSource, label: string) {
-    this.element = h('canvas', { class: 'meter', id: 'meter', role: 'img', 'aria-label': label, width: 120, height: 18 });
+  constructor(private source: LevelSource, label: string, private vertical = false) {
+    this.element = h('canvas', { class: vertical ? 'meter vertical' : 'meter', id: vertical ? undefined : 'meter', role: 'img', 'aria-label': label, width: vertical ? 18 : 120, height: vertical ? 120 : 18 });
     this.paint();
   }
 
@@ -65,12 +65,14 @@ export class LevelMeter {
   private paint() {
     const canvas = this.element;
     const ratio = devicePixelRatio || 1;
-    const width = canvas.clientWidth || 120;
-    const height = canvas.clientHeight || 18;
-    if (canvas.width !== Math.round(width * ratio)) [canvas.width, canvas.height] = [Math.round(width * ratio), Math.round(height * ratio)];
+    const outerWidth = canvas.clientWidth || (this.vertical ? 18 : 120);
+    const outerHeight = canvas.clientHeight || (this.vertical ? 120 : 18);
+    if (canvas.width !== Math.round(outerWidth * ratio) || canvas.height !== Math.round(outerHeight * ratio)) [canvas.width, canvas.height] = [Math.round(outerWidth * ratio), Math.round(outerHeight * ratio)];
     const g = canvas.getContext('2d')!;
     g.setTransform(ratio, 0, 0, ratio, 0, 0);
-    g.clearRect(0, 0, width, height);
+    g.clearRect(0, 0, outerWidth, outerHeight);
+    if (this.vertical) g.setTransform(0, -ratio, ratio, 0, 0, outerHeight * ratio);
+    const [width, height] = this.vertical ? [outerHeight, outerWidth] : [outerWidth, outerHeight];
     const bar = (height - 3) / 2;
     const x = (db: number) => ((db - FLOOR_DB) / -FLOOR_DB) * width;
     const gradient = g.createLinearGradient(0, 0, width, 0);

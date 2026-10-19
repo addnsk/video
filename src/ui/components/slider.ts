@@ -9,6 +9,8 @@ export interface SliderOptions {
   value: number;
   neutral: number;
   format?: (value: number) => string;
+  vertical?: boolean;
+  fillFromMin?: boolean;
   onInput: (value: number) => void;
 }
 
@@ -28,7 +30,8 @@ export class Slider {
     this.output = h('span', { class: 'scrub-value' });
     this.editor = h('input', { class: 'scrub-editor', type: 'text', inputmode: 'decimal', hidden: true, 'aria-label': options.label });
     this.element = h('div', {
-      class: 'scrub',
+      class: options.vertical ? 'scrub vertical' : 'scrub',
+      'aria-orientation': options.vertical ? 'vertical' : 'horizontal',
       id: options.id,
       role: 'slider',
       tabindex: 0,
@@ -60,9 +63,10 @@ export class Slider {
     this.element.setAttribute('aria-valuetext', this.format(value));
     const span = max - min || 1;
     const at = (Math.min(max, Math.max(min, value)) - min) / span;
-    const base = neutral > min && neutral < max ? (neutral - min) / span : 0;
-    this.fill.style.left = `${Math.min(at, base) * 100}%`;
-    this.fill.style.width = `${Math.abs(at - base) * 100}%`;
+    const base = !this.options.fillFromMin && neutral > min && neutral < max ? (neutral - min) / span : 0;
+    const [start, size] = this.options.vertical ? ['bottom', 'height'] as const : ['left', 'width'] as const;
+    this.fill.style[start] = `${Math.min(at, base) * 100}%`;
+    this.fill.style[size] = `${Math.abs(at - base) * 100}%`;
   }
 
   set disabled(value: boolean) {
@@ -85,13 +89,14 @@ export class Slider {
     if (this.isDisabled || !this.editor.hidden || e.button !== 0) return;
     e.preventDefault();
     this.element.focus();
-    const startX = e.clientX;
+    const vertical = !!this.options.vertical;
+    const startX = vertical ? -e.clientY : e.clientX;
     const start = this.current;
-    const width = this.element.clientWidth || 1;
+    const width = (vertical ? this.element.clientHeight : this.element.clientWidth) || 1;
     let dragging = false;
     this.element.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
+      const dx = (vertical ? -ev.clientY : ev.clientX) - startX;
       if (!dragging && Math.abs(dx) < DRAG_THRESHOLD) return;
       dragging = true;
       this.element.classList.add('dragging');

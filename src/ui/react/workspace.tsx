@@ -23,13 +23,14 @@ interface PageLayout {
   readonly icon: IconName;
   readonly left: readonly string[];
   readonly right: readonly string[];
+  readonly rightWidth?: number;
 }
 
 export const PAGES: Readonly<Record<PageId, PageLayout>> = {
   edit: { icon: 'film', label: 'pageEdit', left: ['media', 'library', 'markers', 'subtitles'], right: ['item', 'transition', 'color', 'scopes', 'mixer', 'stills', 'script'] },
   fusion: { icon: 'nodes', label: 'pageFusion', left: ['library', 'media'], right: ['item', 'scopes', 'script'] },
   color: { icon: 'palette', label: 'pageColor', left: ['stills', 'library'], right: ['color', 'scopes', 'item'] },
-  fairlight: { icon: 'sliders', label: 'pageFairlight', left: ['mixer', 'media'], right: ['item', 'library'] },
+  fairlight: { icon: 'sliders', label: 'pageFairlight', left: ['media', 'library'], right: ['mixer', 'item'], rightWidth: 560 },
   deliver: { icon: 'send', label: 'pageDeliver', left: ['deliver'], right: ['subtitles'] },
 };
 
@@ -209,7 +210,7 @@ function Desktop({ parts, page, active, onActive }: { parts: WorkspaceParts; pag
     </Split>
   );
   const withRight = layout.right.length ? (
-    <Split id={`${page}.right`} direction="row" initial={320} min={240} max={560} side="end">
+    <Split id={`${page}.right`} direction="row" initial={layout.rightWidth ?? 340} min={240} max={900} side="end">
       {center}
       <Column id={`${page}.right`} keys={layout.right} panels={parts.panels} active={active[`${page}.right`] ?? ''} onActive={(k) => onActive(`${page}.right`, k)} />
     </Split>

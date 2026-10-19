@@ -8,6 +8,8 @@ import { t } from '../../i18n';
 import { Slider } from '../components/slider';
 import { toast } from '../components/toast';
 import { h } from '../dom';
+import { iconButton } from '../icons';
+import { LevelMeter } from '../components/level-meter';
 import { AudioEffectsSection } from './audio-effects-section';
 
 interface StripView {
@@ -32,20 +34,22 @@ export class MixerPanel {
   private effects: AudioEffectsSection;
   private effectsTitle = h('h3', {});
   private reading = h('p', { class: 'hint', id: 'loudness-reading' });
+  private meter: LevelMeter;
 
   constructor(private session: EditorSession) {
     const { store } = session;
+    this.meter = new LevelMeter(session.transport, t('audioLevels'), true);
+    session.transport.on('state', ({ playing }) => (playing ? this.meter.start() : this.meter.stop()));
     this.effects = new AudioEffectsSection(store, 'strip', '');
     this.effects.element.querySelector('h3')!.replaceWith(this.effectsTitle);
-    const addBusButton = h('button', { class: 'btn small', id: 'mixer-add-bus', onClick: () => store.dispatch(addBus(t('mixerBusName', { n: mixOf(store.project).buses.length + 1 }), createId('bus'))) }, t('mixerAddBus'));
+    const addBusButton = iconButton('plus', t('mixerAddBus'), { class: 'add-bus', id: 'mixer-add-bus', onClick: () => store.dispatch(addBus(t('mixerBusName', { n: mixOf(store.project).buses.length + 1 }), createId('bus'))) });
     const target = h('select', { id: 'loudness-target', 'aria-label': t('loudnessTarget') },
       ...Object.entries(LOUDNESS_TARGETS).map(([id, v]) => h('option', { value: id }, `${id} (${v.integrated} LUFS)`)));
     const measure = h('button', { class: 'btn small', id: 'loudness-measure', onClick: () => void this.measure() }, t('loudnessMeasure'));
     const normalize = h('button', { class: 'btn small', id: 'loudness-normalize', onClick: () => void this.normalize(target.value as LoudnessTarget) }, t('loudnessNormalize'));
     this.element = h('details', { class: 'panel mixer', id: 'mixer' },
       h('summary', {}, h('h2', {}, t('mixerTitle'))),
-      this.strips,
-      addBusButton,
+      h('div', { class: 'mixer-console' }, this.strips, addBusButton),
       this.effects.element,
       h('div', { class: 'group loudness' }, h('h3', {}, t('loudnessTitle')), h('div', { class: 'row' }, target, measure, normalize), this.reading),
     );
@@ -129,6 +133,8 @@ export class MixerPanel {
       onInput: (v) => store.dispatch(setStrip(id, { trim: v }), { coalesce: `mixer:${id}:trim` }),
     });
     const volume = new Slider({
+      vertical: true,
+      fillFromMin: true,
       id: `mixer-${id}-volume`, label: t('mixerVolume'), min: MIN_DB, max: MAX_DB, step: 0.5, value: strip.volume, neutral: 0,
       format: (v) => (v <= MIN_DB ? '−∞' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`),
       onInput: (v) => store.dispatch(setStrip(id, { volume: v }), { coalesce: `mixer:${id}:volume` }),
@@ -171,14 +177,17 @@ export class MixerPanel {
           return { bus: b.id, level, pre };
         })
       : [];
-    const edit = h('button', { class: 'btn small', id: `mixer-${id}-edit`, onClick: () => { this.editing = id; this.sync(); } }, t('mixerEdit'));
-    const remove = kind === 'bus' ? h('button', { class: 'btn small', id: `mixer-${id}-remove`, onClick: () => store.dispatch(removeBus(id)) }, t('mixerRemoveBus')) : null;
+    const edit = iconButton('wand', t('mixerEdit'), { id: `mixer-${id}-edit`, onClick: () => { this.editing = id; this.sync(); } });
+    const remove = kind === 'bus' ? iconButton('trash', t('mixerRemoveBus'), { id: `mixer-${id}-remove`, onClick: () => store.dispatch(removeBus(id)) }) : null;
+    const meter = kind === 'master' ? this.meter.element : null;
     const element = h('div', { class: `mixer-strip ${kind}`, id: `mixer-${id}` },
-      h('div', { class: 'row' }, h('strong', {}, name), h('label', {}, mute, t('mixerMute')), output, edit, remove),
+      h('div', { class: 'strip-head' }, h('strong', { title: name }, name), remove),
+      output ?? h('span', { class: 'strip-out' }, t('mixerMaster')),
       trim.element,
-      volume.element,
       pan.element,
-      ...sends.map((x) => h('div', { class: 'send' }, x.level.element, h('label', {}, x.pre, t('mixerPreFader')))),
+      ...sends.map((x) => h('div', { class: 'send' }, x.level.element, h('label', { class: 'toggle' }, x.pre, t('mixerPreFader')))),
+      h('div', { class: 'strip-fader' }, volume.element, meter),
+      h('div', { class: 'strip-buttons' }, h('label', { class: 'mute-toggle', title: t('mixerMute') }, mute, h('span', {}, 'M')), edit),
     );
     return { id, element, trim, volume, pan, mute, output, sends };
   }
