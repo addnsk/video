@@ -20,6 +20,8 @@ import { toast } from './components/toast';
 import { formatTimecode, h } from './dom';
 import { openExportDialog } from './export-dialog';
 import { openRenderQueue } from './render-queue-dialog';
+import { deliverPanel } from './deliver-panel';
+import { mountWorkspace } from './react/workspace';
 import { openCloudDialog } from './cloud-dialog';
 import { ColorPanel } from './panels/color-panel';
 import { MediaPanel } from './panels/media-panel';
@@ -162,16 +164,16 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
     return settings ? settings.width / settings.height : 16 / 9;
   });
   const track = (itemId: string, apply: TrackApply) => void trackFromViewer(session, picker, itemId, apply);
-  const inspector = h('aside', { class: 'inspector' },
-    new ScopesPanel(session).element,
-    new ItemPanel(session, selection, (itemId) => track(itemId, 'stabilize')).element,
-    new TransitionPanel(session, selection).element,
-    new ColorPanel(session, selection).element,
-    new StillsPanel(session, selection).element,
-    new MixerPanel(session).element,
-    new MarkersPanel(session).element,
-    new SubtitlesPanel(session, api).element,
-    new MediaPanel(session, timeline, (assetId) => session.source.open(assetId), (timelineId) => {
+  const panels: Record<string, HTMLElement> = {
+    scopes: new ScopesPanel(session).element,
+    item: new ItemPanel(session, selection, (itemId) => track(itemId, 'stabilize')).element,
+    transition: new TransitionPanel(session, selection).element,
+    color: new ColorPanel(session, selection).element,
+    stills: new StillsPanel(session, selection).element,
+    mixer: new MixerPanel(session).element,
+    markers: new MarkersPanel(session).element,
+    subtitles: new SubtitlesPanel(session, api).element,
+    media: new MediaPanel(session, timeline, (assetId) => session.source.open(assetId), (timelineId) => {
       try {
         const result = api.edit.insert({ asset: api.timelines.asset(timelineId), in: 0, at: transport.time });
         selection.set(result.video);
@@ -179,8 +181,9 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
         toast((error as Error).message, 'error');
       }
     }, api).element,
-    new ScriptPanel(api).element,
-  );
+    script: new ScriptPanel(api).element,
+    deliver: deliverPanel(session),
+  };
 
   const pickColor = async (itemId: string, nodeId: string, add: boolean) => {
     const point = await picker.pick(t('qualifierPickHint'));
@@ -219,7 +222,13 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
   showView('timeline');
 
-  root.replaceChildren(bar, h('section', { class: 'viewer' }, screens, transportBar), h('section', { class: 'timeline' }, viewTabs, timelinePane, nodeEditor.element), inspector);
+  mountWorkspace(root, {
+    bar,
+    viewer: h('section', { class: 'viewer' }, screens, transportBar),
+    timeline: h('section', { class: 'timeline' }, viewTabs, timelinePane, nodeEditor.element),
+    panels,
+    onPage: (page) => showView(page === 'fusion' || page === 'color' ? 'nodes' : 'timeline'),
+  });
 
   function toggleBypass() {
     transport.bypass = !transport.bypass;
