@@ -4,6 +4,7 @@ import { h } from '../dom';
 const SIZE = 256;
 const HIT = 0.05;
 const MAX_POINTS = 16;
+const TAB_COUNT = 4;
 const HISTOGRAM_COLORS = ['rgb(240 113 103 / 0.22)', 'rgb(127 214 168 / 0.22)', 'rgb(143 200 242 / 0.22)'];
 
 export interface CurveChannel {
@@ -23,6 +24,7 @@ export class CurveEditor {
   private dragging: number | null = null;
   private disabledState = false;
   private histogram: ArrayLike<number> | null = null;
+  private more: HTMLSelectElement;
 
   constructor(
     private channels: readonly CurveChannel[],
@@ -30,10 +32,14 @@ export class CurveEditor {
   ) {
     this.active = channels[0];
     this.canvas = h('canvas', { width: SIZE * 2, height: SIZE * 2, class: 'curve', 'aria-label': 'Curve editor' });
-    this.tabs = channels.map((c) =>
+    this.tabs = channels.slice(0, TAB_COUNT).map((c) =>
       h('button', { class: 'tab', 'aria-pressed': String(c === this.active), onClick: () => this.select(c) }, c.label),
     );
-    this.element = h('div', { class: 'curves' }, h('div', { class: 'tabs' }, ...this.tabs), this.canvas);
+    this.more = h('select', { class: 'curve-more', 'aria-label': 'Curve', onChange: () => {
+      const channel = this.channels.find((c) => c.name === this.more.value);
+      if (channel) this.select(channel);
+    } }, ...channels.slice(TAB_COUNT).map((c) => h('option', { value: c.name }, c.label)));
+    this.element = h('div', { class: 'curves' }, h('div', { class: 'curve-bar' }, h('div', { class: 'tabs' }, ...this.tabs), channels.length > TAB_COUNT ? this.more : null), this.canvas);
     this.canvas.addEventListener('pointerdown', (e) => this.down(e));
     this.canvas.addEventListener('pointermove', (e) => this.move(e));
     this.canvas.addEventListener('pointerup', () => (this.dragging = null));
@@ -67,6 +73,8 @@ export class CurveEditor {
   private select(channel: CurveChannel) {
     this.active = channel;
     this.tabs.forEach((t, i) => t.setAttribute('aria-pressed', String(this.channels[i] === channel)));
+    this.more.closest('.picker')?.classList.toggle('active', this.channels.indexOf(channel) >= TAB_COUNT);
+    if (this.channels.indexOf(channel) >= TAB_COUNT) this.more.value = channel.name;
     this.paint();
   }
 

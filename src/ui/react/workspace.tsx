@@ -30,7 +30,7 @@ interface PageLayout {
 }
 
 export const PAGES: Readonly<Record<PageId, PageLayout>> = {
-  edit: { icon: 'film', label: 'pageEdit', left: ['media', 'library', 'markers', 'subtitles'], right: ['item', 'transition', 'color', 'scopes', 'mixer', 'stills', 'script'] },
+  edit: { icon: 'film', label: 'pageEdit', left: ['media', 'library', 'markers', 'subtitles'], right: ['item', 'transition', 'script'] },
   fusion: { icon: 'nodes', label: 'pageFusion', left: ['library', 'media'], right: ['item', 'scopes', 'script'] },
   color: { icon: 'palette', label: 'pageColor', left: ['stills', 'library'], right: ['color', 'scopes', 'item'], deck: { controls: ['color', 'item'], side: ['scopes'] } },
   fairlight: { icon: 'sliders', label: 'pageFairlight', left: ['media', 'library'], right: ['mixer', 'item'], rightWidth: 560 },
@@ -246,10 +246,10 @@ function Desktop({ parts, page, active, onActive }: { parts: WorkspaceParts; pag
       <Column id={`${page}.${tag}`} keys={keys} panels={parts.panels} active={active[`${page}.${tag}`] ?? ''} onActive={(k) => onActive(`${page}.${tag}`, k)} />
     );
     return (
-      <Split id={`${page}.deck.rows`} direction="column" initial={Math.round(innerHeight * 0.55)} min={300} max={Math.round(innerHeight * 0.78)} side="end">
-        <Split id={`${page}.deck.left`} direction="row" initial={220} min={160} max={480} side="start">
+      <Split id={`${page}.deck.rows`} direction="column" initial={Math.round(innerHeight * 0.4)} min={260} max={Math.round(innerHeight * 0.7)} side="end">
+        <Split id={`${page}.deck.left`} direction="row" initial={170} min={140} max={480} side="start">
           {columnOf('left', layout.left)}
-          <Split id={`${page}.deck.nodes`} direction="row" initial={Math.round(innerWidth * 0.3)} min={260} max={Math.round(innerWidth * 0.6)} side="end">
+          <Split id={`${page}.deck.nodes`} direction="row" initial={Math.round(innerWidth * 0.22)} min={260} max={Math.round(innerWidth * 0.6)} side="end">
             {viewer}
             <Slot element={parts.nodes} className="nodes-slot" />
           </Split>

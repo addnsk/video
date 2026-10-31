@@ -25,7 +25,7 @@ export const itemEffects = (itemId: string): EffectsBinding => ({
 });
 
 export class AudioEffectsSection {
-  readonly element: HTMLDivElement;
+  readonly element: HTMLDetailsElement;
   private rows: Row[];
   private binding: EffectsBinding | null = null;
 
@@ -35,7 +35,7 @@ export class AudioEffectsSection {
     title: string = t('audioEffects'),
   ) {
     this.rows = AUDIO_EFFECTS.map((def) => this.row(def));
-    this.element = h('div', { class: 'group audio-effects' }, h('h3', {}, title), ...this.rows.map((r) => r.element));
+    this.element = h('details', { class: 'section audio-effects' }, h('summary', {}, title), ...this.rows.map((r) => r.element));
   }
 
   private row(def: AudioEffectDef): Row {

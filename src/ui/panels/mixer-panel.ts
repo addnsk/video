@@ -32,7 +32,7 @@ export class MixerPanel {
   private structure = '';
   private editing = MASTER;
   private effects: AudioEffectsSection;
-  private effectsTitle = h('h3', {});
+  private effectsTitle = h('summary', {});
   private reading = h('p', { class: 'hint', id: 'loudness-reading' });
   private meter: LevelMeter;
 
@@ -41,7 +41,7 @@ export class MixerPanel {
     this.meter = new LevelMeter(session.transport, t('audioLevels'), true);
     session.transport.on('state', ({ playing }) => (playing ? this.meter.start() : this.meter.stop()));
     this.effects = new AudioEffectsSection(store, 'strip', '');
-    this.effects.element.querySelector('h3')!.replaceWith(this.effectsTitle);
+    this.effects.element.querySelector('summary')!.replaceWith(this.effectsTitle);
     const addBusButton = iconButton('plus', t('mixerAddBus'), { class: 'add-bus', id: 'mixer-add-bus', onClick: () => store.dispatch(addBus(t('mixerBusName', { n: mixOf(store.project).buses.length + 1 }), createId('bus'))) });
     const target = h('select', { id: 'loudness-target', 'aria-label': t('loudnessTarget') },
       ...Object.entries(LOUDNESS_TARGETS).map(([id, v]) => h('option', { value: id }, `${id} (${v.integrated} LUFS)`)));
@@ -51,7 +51,7 @@ export class MixerPanel {
       h('summary', {}, h('h2', {}, t('mixerTitle'))),
       h('div', { class: 'mixer-console' }, this.strips, addBusButton),
       this.effects.element,
-      h('div', { class: 'group loudness' }, h('h3', {}, t('loudnessTitle')), h('div', { class: 'row' }, target, measure, normalize), this.reading),
+      h('details', { class: 'section loudness' }, h('summary', {}, t('loudnessTitle')), h('div', { class: 'row' }, target, measure, normalize), this.reading),
     );
     store.on('change', () => this.sync());
     this.sync();

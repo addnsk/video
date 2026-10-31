@@ -703,3 +703,40 @@ details.section[open] { display: flex; flex-direction: column; gap: var(--gap); 
 [data-column$=".side"] #scopes > .scope-grid { height: calc(100% - 46px); flex: none; }
 [data-column$=".side"] #scopes::details-content { height: 100%; display: flex; flex-direction: column; gap: 8px; }
 [data-column$=".side"] #scopes > .scope-grid { height: auto; flex: 1; min-height: 0; }
+.column-tab span { display: none; }
+.column-tab[aria-selected="true"] { padding-right: 9px; }
+.column-tabs { flex-wrap: wrap; overflow: visible; }
+.column-body { overflow-x: hidden; }
+.media-controls .row { flex-wrap: wrap; }
+.library-chips { flex-wrap: wrap; overflow: visible; }
+.curve-bar { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.curve-bar .tabs { flex: none; }
+.curve-bar .picker { flex: 1; min-width: 0; }
+.curve-bar .picker-button { height: 28px; font-size: 11px; color: var(--muted); }
+.curve-bar .picker.active .picker-button { color: var(--fg-strong); box-shadow: inset 0 0 0 1px var(--accent); }
+.audio-effects > summary .count, details.section > summary { font-size: 12.5px; }
+.media-list { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.media-item { padding: 6px; border-radius: 12px; }
+.media-item b { font-size: 11.5px; }
+.media-item .row { gap: 0; }
+.media-item .row .btn.icon { width: 26px; height: 26px; }
+.media-item .row .btn.icon .icon { width: 15px; height: 15px; }
+.media-thumb { margin-bottom: 4px; border-radius: 7px; }
+.strip-fader, .scrub.vertical, .meter.vertical { min-height: 110px; }
+.mixer-strip { gap: 5px; padding: 8px 7px; }
+.clip-strip { gap: 4px; padding: 6px 8px 5px; }
+.clip-tile { width: 92px; gap: 2px; }
+.clip-tile canvas { width: 84px; height: 47px; }
+.clip-tile-head { font-size: 9px; gap: 4px; }
+.clip-tile-head .track, .clip-tile-foot { display: none; }
+.mini-timeline { height: 14px; }
+.deck #color > .group { padding: 6px 10px; align-content: start; }
+.deck .primaries, .deck .palettes { gap: 5px; }
+.deck .wheels { flex: none; align-items: start; gap: 6px; }
+.deck .wheel { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.deck .wheel canvas { width: min(100%, 118px); height: auto; aspect-ratio: 1; object-fit: fill; }
+.deck .wheel .scrub { height: 22px; }
+.deck .palette-body .curve { height: auto; flex: 1; min-height: 120px; }
+.grade-params { gap: 3px; }
+.grade-params .scrub { height: 24px; }
+.palette-head { min-height: 26px; }
