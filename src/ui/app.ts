@@ -37,6 +37,7 @@ import { ItemPanel } from './panels/item-panel';
 import { addTrack, insertText } from '../core/operations';
 import { ScriptPanel } from './panels/script-panel';
 import { LibraryPanel } from './panels/library-panel';
+import { ClipStrip } from './clip-strip';
 import { EXAMPLES } from './script-examples';
 import { TransitionPanel } from './panels/transition-panel';
 import { Selection } from './selection';
@@ -252,10 +253,13 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   showView('timeline');
 
   const timelineSection = h('section', { class: 'timeline' }, toolbar, timelinePane, nodeEditor.element);
+  const viewerChips = h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), liveLoudness, meter.element, rate, timecode);
+  const clipStrip = new ClipStrip(session, selection);
   enhanceSelects(document.body);
   const workspace = mountWorkspace(root, {
     bar,
-    viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), liveLoudness, meter.element, rate, timecode)),
+    viewer: h('section', { class: 'viewer' }, screens, viewerChips),
+    strip: clipStrip.element,
     timeline: timelineSection,
     nodes: nodeEditor.element,
     panels,
@@ -263,6 +267,8 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
       docked = page === 'color' && !nodeEditor.element.closest('.timeline');
       if (!docked && !nodeEditor.element.closest('.timeline')) timelineSection.append(nodeEditor.element);
       viewTabs.hidden = docked;
+      if (docked) viewerChips.insertBefore(playback, viewerChips.children[1]);
+      else if (playback.parentElement !== toolbar) toolbar.insertBefore(playback, toolbar.children[1]);
       showView(page === 'fusion' ? 'nodes' : 'timeline');
     },
   });

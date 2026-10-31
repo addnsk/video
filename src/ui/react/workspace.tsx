@@ -11,6 +11,7 @@ export interface WorkspaceParts {
   readonly viewer: HTMLElement;
   readonly timeline: HTMLElement;
   readonly nodes: HTMLElement;
+  readonly strip: HTMLElement;
   readonly panels: Readonly<Record<string, HTMLElement>>;
   readonly onPage: (page: PageId) => void;
 }
@@ -245,7 +246,7 @@ function Desktop({ parts, page, active, onActive }: { parts: WorkspaceParts; pag
       <Column id={`${page}.${tag}`} keys={keys} panels={parts.panels} active={active[`${page}.${tag}`] ?? ''} onActive={(k) => onActive(`${page}.${tag}`, k)} />
     );
     return (
-      <Split id={`${page}.deck.rows`} direction="column" initial={Math.round(innerHeight * 0.6)} min={260} max={Math.round(innerHeight * 0.78)} side="end">
+      <Split id={`${page}.deck.rows`} direction="column" initial={Math.round(innerHeight * 0.55)} min={300} max={Math.round(innerHeight * 0.78)} side="end">
         <Split id={`${page}.deck.left`} direction="row" initial={220} min={160} max={480} side="start">
           {columnOf('left', layout.left)}
           <Split id={`${page}.deck.nodes`} direction="row" initial={Math.round(innerWidth * 0.3)} min={260} max={Math.round(innerWidth * 0.6)} side="end">
@@ -253,13 +254,13 @@ function Desktop({ parts, page, active, onActive }: { parts: WorkspaceParts; pag
             <Slot element={parts.nodes} className="nodes-slot" />
           </Split>
         </Split>
-        <Split id={`${page}.deck.strip`} direction="column" initial={180} min={100} max={400} side="start">
-          {timeline}
-          <Split id={`${page}.deck.side`} direction="row" initial={Math.round(innerWidth * 0.3)} min={260} max={Math.round(innerWidth * 0.5)} side="end">
+        <div className="deck-bottom">
+          <Slot element={parts.strip} className="strip-slot" />
+          <Split id={`${page}.deck.side`} direction="row" initial={Math.round(innerWidth * 0.28)} min={260} max={Math.round(innerWidth * 0.5)} side="end">
             <div className="deck">{columnOf('deck', deck.controls)}</div>
             {columnOf('side', deck.side)}
           </Split>
-        </Split>
+        </div>
       </Split>
     );
   }
@@ -338,7 +339,7 @@ function Workspace({ parts, handle }: { parts: WorkspaceParts; handle: { reveal?
     parts.onPage(page);
     window.dispatchEvent(new Event('resize'));
   }, [page, phone, parts]);
-  const all = [parts.viewer, parts.timeline, ...Object.values(parts.panels)];
+  const all = [parts.viewer, parts.timeline, parts.strip, ...Object.values(parts.panels)];
   return (
     <div className={`workspace ${phone ? 'phone' : 'desktop'}`} data-page={page}>
       <header className="topbar">

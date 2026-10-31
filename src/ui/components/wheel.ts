@@ -17,6 +17,7 @@ export class ColorWheel {
   private canvas: HTMLCanvasElement;
   private master: Slider;
   private value: WheelValue = [0, 0, 0];
+  private readout = h('div', { class: 'wheel-rgb' });
 
   constructor(
     id: string,
@@ -34,7 +35,7 @@ export class ColorWheel {
       neutral: 0,
       onInput: (m) => this.commit([this.value[0], this.value[1], m]),
     });
-    this.element = h('div', { class: 'wheel' }, this.canvas, this.master.element);
+    this.element = h('div', { class: 'wheel' }, h('span', { class: 'wheel-label' }, label), this.canvas, this.readout, this.master.element);
     this.canvas.addEventListener('pointerdown', (e) => {
       this.canvas.setPointerCapture(e.pointerId);
       this.pointer(e);
@@ -47,6 +48,9 @@ export class ColorWheel {
   set(value: WheelValue): void {
     this.value = value;
     this.master.set(value[2]);
+    const [x, y, m] = value;
+    const rgb = [x, -0.5 * x - 0.8660254 * y, -0.5 * x + 0.8660254 * y];
+    this.readout.replaceChildren(...rgb.map((v, i) => h('span', { class: `c${i}` }, (v + m).toFixed(2))));
     this.paint();
   }
 

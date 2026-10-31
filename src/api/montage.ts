@@ -115,6 +115,7 @@ export type GradePatch = Partial<{
   lift: WheelValue | readonly number[];
   gamma: WheelValue | readonly number[];
   gain: WheelValue | readonly number[];
+  offset: WheelValue | readonly number[];
 }>;
 
 export interface TransitionOptions {
@@ -130,7 +131,7 @@ export interface FilterRegistration {
   params?: ParamSpec[];
 }
 
-const WHEELS = ['lift', 'gamma', 'gain'] as const;
+const WHEELS = ['lift', 'gamma', 'gain', 'offset'] as const;
 
 export function createMontageApi(session: EditorSession, onSelect: (id: string | null) => void = () => undefined, services: { remote?: RemoteStorage } = {}) {
   const { store, registry, transport, luts } = session;

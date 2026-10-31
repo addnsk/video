@@ -3,6 +3,7 @@ import { VECTOR_SIZE } from '../../engine/scopes';
 import type { EditorSession } from '../../host/session';
 import { t } from '../../i18n';
 import { h } from '../dom';
+import { icon } from '../icons';
 
 type ScopeMode = 'waveform' | 'parade' | 'vector' | 'histogram';
 
@@ -32,7 +33,8 @@ const VECTOR_TARGETS: [string, number, number, number][] = [
 export class ScopesPanel {
   readonly element: HTMLDetailsElement;
   private views: { mode: ScopeMode; canvas: HTMLCanvasElement; card: HTMLElement }[];
-  private focus: ScopeMode | null = null;
+  private focus: ScopeMode | null = 'parade';
+  private switcher = h('div', { class: 'segmented scope-switch', role: 'radiogroup', 'aria-label': t('scopesTitle') });
   private last: ScopeData | null = null;
 
   constructor(session: EditorSession) {
@@ -43,20 +45,22 @@ export class ScopesPanel {
         class: 'scope-card',
         dataset: { scope: mode },
         title: t(label),
-        onClick: () => {
-          this.focus = this.focus === mode ? null : mode;
-          this.layout();
-        },
+        onClick: () => this.choose(this.focus === mode ? null : mode),
       }, canvas, h('span', { class: 'scope-label' }, t(label)));
       return { mode, canvas, card };
     });
     const grid = h('div', { class: 'scope-grid' }, ...this.views.map((v) => v.card));
-    this.element = h('details', { class: 'panel scopes', id: 'scopes' }, h('summary', {}, h('h2', {}, t('scopesTitle'))), grid);
+    this.switcher.append(
+      ...MODES.map(({ mode, label }) => h('button', { type: 'button', class: 'seg', role: 'radio', dataset: { mode }, onClick: () => this.choose(mode) }, t(label))),
+      h('button', { type: 'button', class: 'seg icon', role: 'radio', dataset: { mode: 'all' }, title: t('scopesAll'), 'aria-label': t('scopesAll'), onClick: () => this.choose(null) }, icon('grid', 15)),
+    );
+    this.element = h('details', { class: 'panel scopes', id: 'scopes' }, h('summary', {}, h('h2', {}, t('scopesTitle'))), this.switcher, grid);
     this.element.addEventListener('toggle', () => void session.engine.remote.setScopes(this.element.open));
     session.engine.events.on('scopes', (data) => {
       this.last = data;
       if (this.element.open) this.draw();
     });
+    new ResizeObserver(() => this.draw()).observe(grid);
     this.layout();
   }
 
@@ -64,7 +68,13 @@ export class ScopesPanel {
     return this.focus;
   }
 
+  private choose(mode: ScopeMode | null) {
+    this.focus = mode;
+    this.layout();
+  }
+
   private layout() {
+    for (const b of this.switcher.children) b.setAttribute('aria-checked', String((b as HTMLElement).dataset.mode === (this.focus ?? 'all')));
     for (const view of this.views) {
       view.card.hidden = !!this.focus && view.mode !== this.focus;
       view.card.setAttribute('aria-pressed', String(view.mode === this.focus));
@@ -77,6 +87,10 @@ export class ScopesPanel {
     const data = this.last;
     for (const { mode, canvas, card } of this.views) {
       if (card.hidden) continue;
+      const dpr = Math.min(2, devicePixelRatio || 1);
+      const width = Math.round((canvas.clientWidth || 256) * dpr);
+      const height = Math.round((canvas.clientHeight || 128) * dpr);
+      if (canvas.width !== width || canvas.height !== height) [canvas.width, canvas.height] = [width, height];
       const g = canvas.getContext('2d')!;
       g.fillStyle = '#08090b';
       g.fillRect(0, 0, canvas.width, canvas.height);
@@ -155,7 +169,7 @@ export class ScopesPanel {
     g.beginPath();
     g.arc(ox + size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
     g.stroke();
-    g.font = '20px "Inter", system-ui, sans-serif';
+    g.font = `${Math.round(11 * (canvas.width / Math.max(1, canvas.clientWidth)))}px "Inter", system-ui, sans-serif`;
     g.fillStyle = 'rgb(255 255 255 / 0.6)';
     for (const [label, r, gg, b] of VECTOR_TARGETS) {
       const y = 0.2126 * r + 0.7152 * gg + 0.0722 * b;
@@ -172,7 +186,7 @@ export class ScopesPanel {
     const { width, height } = canvas;
     g.strokeStyle = 'rgb(255 255 255 / 0.12)';
     g.fillStyle = 'rgb(255 255 255 / 0.4)';
-    g.font = '16px "Inter", system-ui, sans-serif';
+    g.font = `${Math.round(10 * (canvas.width / Math.max(1, canvas.clientWidth)))}px "Inter", system-ui, sans-serif`;
     for (const level of [0, 25, 50, 75, 100]) {
       const y = Math.round(height - 1 - (level / 100) * (height - 1)) + 0.5;
       g.beginPath();

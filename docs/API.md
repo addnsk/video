@@ -297,7 +297,7 @@ await montage.lut('all', 'https://example.com/look.cube', 0.8);
 | `contrast` | 0.5…2 | 1 |
 | `pivot` | 0…1 | 0.435 |
 | `saturation` | 0…2 | 1 |
-| `lift`, `gamma`, `gain` | `{ x, y, master }` or `[x, y, master]`; `x`/`y` hue offset −0.25…0.25, `master` −0.5…0.5 | 0 |
+| `lift`, `gamma`, `gain`, `offset` | `{ x, y, master }` or `[x, y, master]`; `x`/`y` hue offset −0.25…0.25, `master` −0.5…0.5 | 0 |
 
 ## Custom effects
 

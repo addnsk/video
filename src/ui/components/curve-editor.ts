@@ -4,6 +4,7 @@ import { h } from '../dom';
 const SIZE = 256;
 const HIT = 0.05;
 const MAX_POINTS = 16;
+const HISTOGRAM_COLORS = ['rgb(240 113 103 / 0.22)', 'rgb(127 214 168 / 0.22)', 'rgb(143 200 242 / 0.22)'];
 
 export interface CurveChannel {
   readonly name: string;
@@ -21,6 +22,7 @@ export class CurveEditor {
   private values = new Map<string, CurvePoints>();
   private dragging: number | null = null;
   private disabledState = false;
+  private histogram: ArrayLike<number> | null = null;
 
   constructor(
     private channels: readonly CurveChannel[],
@@ -47,6 +49,11 @@ export class CurveEditor {
   set disabled(value: boolean) {
     this.disabledState = value;
     this.element.classList.toggle('disabled', value);
+  }
+
+  setHistogram(data: ArrayLike<number> | null): void {
+    this.histogram = data;
+    this.paint();
   }
 
   resetActive(): void {
@@ -121,11 +128,30 @@ export class CurveEditor {
     this.onInput(this.active.name, points);
   }
 
+  private paintHistogram(g: CanvasRenderingContext2D, s: number) {
+    const data = this.histogram;
+    if (!data) return;
+    let peak = 1;
+    for (let i = 0; i < 256; i++) for (let c = 0; c < 3; c++) peak = Math.max(peak, data[i * 4 + c]);
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    HISTOGRAM_COLORS.forEach((color, c) => {
+      g.fillStyle = color;
+      g.beginPath();
+      g.moveTo(0, s);
+      for (let i = 0; i < 256; i++) g.lineTo((i / 255) * s, s - Math.sqrt(data[i * 4 + c] / peak) * s * 0.9);
+      g.lineTo(s, s);
+      g.fill();
+    });
+    g.restore();
+  }
+
   private paint() {
     const g = this.canvas.getContext('2d')!;
     const s = this.canvas.width;
     const style = getComputedStyle(this.canvas);
     g.clearRect(0, 0, s, s);
+    this.paintHistogram(g, s);
     g.strokeStyle = style.getPropertyValue('--line');
     g.lineWidth = 1;
     for (let k = 1; k < 4; k++) {

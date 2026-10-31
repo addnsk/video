@@ -31,6 +31,7 @@ export const GRADE: FilterDef = {
     wheel('lift', 'Lift'),
     wheel('gamma', 'Gamma'),
     wheel('gain', 'Gain'),
+    wheel('offset', 'Offset'),
   ],
   glsl: `
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
@@ -68,7 +69,7 @@ vec4 effect(vec4 color, vec2 uv) {
   vec3 l = wheelOffset(lift) * 0.25 + lift.z * 0.5;
   vec3 g = max(vec3(0.05), 1.0 + wheelOffset(gamma) * 0.6 + gamma.z);
   vec3 k = max(vec3(0.0), 1.0 + wheelOffset(gain) * 0.6 + gain.z);
-  c = k * (c + l * (1.0 - c));
+  c = k * (c + l * (1.0 - c)) + wheelOffset(offset) * 0.25 + offset.z;
   c = sign(c) * pow(abs(c), 1.0 / g);
   c = (c - pivot) * contrast + pivot;
   c = mix(vec3(dot(c, LUMA)), c, saturation);

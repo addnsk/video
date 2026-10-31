@@ -646,15 +646,60 @@ details.section[open] { display: flex; flex-direction: column; gap: var(--gap); 
 .nodes-slot > .node-editor { flex: 1; }
 .nodes-slot .node-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
 .nodes-slot .node-inspector { border-left: 0; border-top: 1px solid var(--edge); max-height: 40%; }
+.deck-bottom { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--island); min-width: 0; min-height: 0; }
+.strip-slot { display: flex; min-width: 0; border-radius: var(--card); overflow: hidden; background: var(--panel); }
+.clip-strip { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 6px; }
+.clip-strip-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+.clip-tile { flex: none; display: flex; flex-direction: column; gap: 3px; width: 116px; padding: 2px; border: 2px solid transparent; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; text-align: left; }
+.clip-tile canvas { width: 108px; height: 61px; border-radius: 6px; background: var(--well); }
+.clip-tile-head { display: flex; gap: 6px; align-items: center; font: 500 10px var(--font-mono); white-space: nowrap; }
+.clip-tile-head b { padding: 0 4px; border-radius: 4px; background: var(--panel-3); color: var(--fg-strong); }
+.clip-tile-head .track { margin-left: auto; }
+.clip-tile-foot { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clip-tile:hover { background: var(--panel-2); }
+.clip-tile.current { color: var(--fg); }
+.clip-tile[aria-selected="true"] { border-color: var(--accent); }
+.mini-timeline { width: 100%; height: 22px; display: block; border-radius: 6px; background: var(--well); cursor: pointer; touch-action: none; }
+
 .deck { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); min-width: 0; min-height: 0; }
-.deck .column-body > #color > .group {
-  display: grid; gap: 10px 18px; align-items: start;
-  grid-template-columns: minmax(300px, 1.3fr) minmax(220px, 1fr) minmax(260px, 1.2fr);
-}
-.deck #color > .group > .hint, .deck #color > .group > .row.tools { grid-column: 1 / -1; }
-.deck #color > .group > .wheels { grid-column: 1; grid-row: span 3; }
-.deck #color > .group > .group { grid-column: 2; grid-row: span 3; }
-.deck #color > .group > details.section { grid-column: 3; border-top: 0; padding-top: 0; }
-.deck #color > .group > details.section + details.section { border-top: 1px solid var(--edge); padding-top: 4px; }
-.deck .wheel canvas { max-width: 130px; }
-.deck .curve { aspect-ratio: 1.9; }
+.deck .column-tabs, [data-column$=".side"] .column-tabs { display: none; }
+.deck .column-body, [data-column$=".side"] .column-body { overflow: hidden; }
+.deck #color, .deck #color > .group { height: 100%; }
+.deck #color > .group { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 0 16px; padding: 10px 12px; }
+.deck #color > .group > .hint { grid-column: 1 / -1; }
+.primaries, .palettes { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
+.deck .primaries, .deck .palettes { grid-row: 2; }
+.palette-head { display: flex; align-items: center; gap: 4px; min-height: 30px; }
+.palette-head strong { font-size: 12px; margin-right: 8px; white-space: nowrap; }
+.palette-head .version { min-width: 0; max-width: 160px; }
+.grade-params { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.grade-params .scrub { height: 26px; padding: 0 8px; }
+.grade-params .scrub-label, .grade-params .scrub-value { font-size: 10.5px; }
+.deck .wheels { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.deck .wheel { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; justify-items: center; gap: 3px; }
+.deck .wheel canvas { height: 100%; width: auto; max-width: 100%; aspect-ratio: 1; min-height: 0; }
+.wheel-label { font-size: 11px; color: var(--fg); }
+.wheel-rgb { display: flex; gap: 6px; font: 10px var(--font-mono); }
+.wheel-rgb .c0 { color: #f07167; } .wheel-rgb .c1 { color: #7fd6a8; } .wheel-rgb .c2 { color: #8fc8f2; }
+.palette-tabs { display: flex; gap: 2px; min-height: 30px; }
+.palette-tab { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 11.5px; cursor: pointer; }
+.palette-tab:hover { color: var(--fg-strong); }
+.palette-tab[aria-selected="true"] { background: var(--panel-2); color: var(--fg-strong); }
+.palette-tab[aria-selected="true"] .icon { color: var(--accent); }
+.palette-body { display: flex; flex-direction: column; gap: 6px; min-height: 0; flex: 1; }
+.palette-body[hidden] { display: none; }
+.deck .palette-body .curves { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.deck .palette-body .curve { flex: 1; min-height: 0; width: 100%; aspect-ratio: auto; height: 100%; }
+[data-column$=".side"] #scopes { height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; }
+[data-column$=".side"] #scopes > .scope-grid { flex: 1; min-height: 0; }
+.scope-switch { align-self: flex-start; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+.scopes:not(.focused) .scope-grid { grid-template-columns: 1fr 1fr; }
+.scopes.focused .scope-card { height: 100%; }
+.scopes.focused .scope-card .scope { height: 100%; aspect-ratio: auto; }
+.deck .wheel canvas { width: 100%; height: 100%; max-width: none; aspect-ratio: auto; object-fit: contain; }
+.scopes.focused .scope-grid { grid-template-rows: minmax(0, 1fr); }
+[data-column$=".side"] .scopes.focused .scope-card .scope { width: 100%; height: 100%; object-fit: fill; }
+.deck .curves .tabs .tab { padding: 0 7px; font-size: 10.5px; }
+[data-column$=".side"] #scopes > .scope-grid { height: calc(100% - 46px); flex: none; }
+[data-column$=".side"] #scopes::details-content { height: 100%; display: flex; flex-direction: column; gap: 8px; }
+[data-column$=".side"] #scopes > .scope-grid { height: auto; flex: 1; min-height: 0; }

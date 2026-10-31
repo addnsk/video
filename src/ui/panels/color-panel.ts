@@ -14,16 +14,19 @@ import { Slider } from '../components/slider';
 import { toast } from '../components/toast';
 import { ColorWheel, type WheelValue } from '../components/wheel';
 import { h } from '../dom';
-import { iconButton } from '../icons';
+import { icon, iconButton, type IconName } from '../icons';
 import type { Selection } from '../selection';
 import { Panel } from './panel';
 
-const SLIDER_PARAMS = ['exposure', 'temperature', 'tint', 'contrast', 'saturation'];
+const SLIDER_PARAMS = ['temperature', 'tint', 'exposure', 'contrast', 'pivot', 'saturation'];
 const WHEELS = [
   ['lift', 'shadows'],
   ['gamma', 'midtones'],
   ['gain', 'highlights'],
+  ['offset', 'offsetWheel'],
 ] as const;
+
+type Palette = 'curves' | 'lut' | 'management';
 
 export class ColorPanel extends Panel {
   private hint = h('p', { class: 'hint' }, t('colorHint'));
@@ -61,7 +64,7 @@ export class ColorPanel extends Panel {
       wheelRow.append(wheel.element);
     }
 
-    const sliderBox = h('div', { class: 'group' });
+    const sliderBox = h('div', { class: 'grade-params' });
     for (const name of SLIDER_PARAMS) {
       const spec = grade.params.find((p) => p.name === name) as ScalarParamSpec;
       const slider = new Slider({
@@ -109,20 +112,37 @@ export class ColorPanel extends Panel {
     const allButton = iconButton('copy', t('applyToAll'), { onClick: () => this.applyToAll() });
 
     this.controls = [this.input, this.inputClip, loadButton, removeButton, resetButton, allButton];
-    this.body.append(
-      this.hint,
-      h('div', { class: 'row tools' }, h('span', { class: 'version', title: t('versionTitle') }, this.version), saveVersion, h('div', { class: 'spacer' }), resetButton, allButton),
-      wheelRow,
-      sliderBox,
-      h('details', { class: 'section', open: true }, h('summary', {}, t('curvesTitle')), this.curves.element),
-      h('details', { class: 'section' }, h('summary', {}, t('lutTitle')),
+    const bodies: Record<Palette, HTMLElement> = {
+      curves: h('div', { class: 'palette-body' }, this.curves.element),
+      lut: h('div', { class: 'palette-body' },
         h('div', { class: 'row tools' }, this.lutName, h('div', { class: 'spacer' }), loadButton, removeButton, lutFile),
         this.lutStrength.element),
-      h('details', { class: 'section' }, h('summary', {}, t('colorManagement')),
+      management: h('div', { class: 'palette-body' },
         h('label', { class: 'field' }, t('colorScience'), this.science),
         h('label', { class: 'field' }, t('colorInputSpace'), this.input),
         h('label', { class: 'check' }, this.inputClip, t('colorInputClipOnly'))),
+    };
+    const paletteTabs: { id: Palette; icon: IconName; label: string }[] = [
+      { id: 'curves', icon: 'motion', label: t('curvesTitle') },
+      { id: 'lut', icon: 'layers', label: t('lutTitle') },
+      { id: 'management', icon: 'palette', label: t('colorManagement') },
+    ];
+    const tabRow = h('div', { class: 'palette-tabs', role: 'tablist' });
+    const choose = (palette: Palette) => {
+      for (const [id, body] of Object.entries(bodies)) body.hidden = id !== palette;
+      for (const tab of tabRow.children) tab.setAttribute('aria-selected', String((tab as HTMLElement).dataset.palette === palette));
+    };
+    tabRow.append(...paletteTabs.map(({ id, icon: name, label }) => h('button', { type: 'button', class: 'palette-tab', role: 'tab', id: `palette-${id}`, dataset: { palette: id }, title: label, 'aria-label': label, onClick: () => choose(id) }, icon(name, 16), h('span', {}, label))));
+    choose('curves');
+    this.body.append(
+      this.hint,
+      h('section', { class: 'primaries' },
+        h('div', { class: 'palette-head' }, h('strong', {}, t('primariesTitle')), h('span', { class: 'version', title: t('versionTitle') }, this.version), saveVersion, h('div', { class: 'spacer' }), resetButton, allButton),
+        sliderBox,
+        wheelRow),
+      h('section', { class: 'palettes' }, tabRow, ...Object.values(bodies)),
     );
+    session.engine.events.on('scopes', (data) => this.curves.setHistogram(data.histogram));
     session.store.on('change', () => this.sync());
     selection.on('change', () => this.sync());
     this.sync();
