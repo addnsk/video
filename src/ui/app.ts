@@ -230,9 +230,10 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   });
   const timelinePane = h('div', { class: 'timeline-pane' }, timelineCanvas);
   const viewTabs = h('div', { class: 'view-tabs', role: 'tablist' });
+  let docked = false;
   const showView = (view: 'timeline' | 'nodes') => {
     timelinePane.hidden = view !== 'timeline';
-    nodeEditor.show(view === 'nodes');
+    nodeEditor.show(docked || view === 'nodes');
     maskOverlay.show(nodeEditor.selected);
     timelineLeft.hidden = view !== 'timeline';
     timelineRight.hidden = view !== 'timeline';
@@ -250,13 +251,20 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
   showView('timeline');
 
+  const timelineSection = h('section', { class: 'timeline' }, toolbar, timelinePane, nodeEditor.element);
   enhanceSelects(document.body);
   const workspace = mountWorkspace(root, {
     bar,
     viewer: h('section', { class: 'viewer' }, screens, h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), liveLoudness, meter.element, rate, timecode)),
-    timeline: h('section', { class: 'timeline' }, toolbar, timelinePane, nodeEditor.element),
+    timeline: timelineSection,
+    nodes: nodeEditor.element,
     panels,
-    onPage: (page) => showView(page === 'fusion' || page === 'color' ? 'nodes' : 'timeline'),
+    onPage: (page) => {
+      docked = page === 'color' && !nodeEditor.element.closest('.timeline');
+      if (!docked && !nodeEditor.element.closest('.timeline')) timelineSection.append(nodeEditor.element);
+      viewTabs.hidden = docked;
+      showView(page === 'fusion' ? 'nodes' : 'timeline');
+    },
   });
 
   function toggleBypass() {

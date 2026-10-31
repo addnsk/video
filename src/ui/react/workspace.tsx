@@ -10,6 +10,7 @@ export interface WorkspaceParts {
   readonly bar: HTMLElement;
   readonly viewer: HTMLElement;
   readonly timeline: HTMLElement;
+  readonly nodes: HTMLElement;
   readonly panels: Readonly<Record<string, HTMLElement>>;
   readonly onPage: (page: PageId) => void;
 }
@@ -24,12 +25,13 @@ interface PageLayout {
   readonly left: readonly string[];
   readonly right: readonly string[];
   readonly rightWidth?: number;
+  readonly deck?: { readonly controls: readonly string[]; readonly side: readonly string[] };
 }
 
 export const PAGES: Readonly<Record<PageId, PageLayout>> = {
   edit: { icon: 'film', label: 'pageEdit', left: ['media', 'library', 'markers', 'subtitles'], right: ['item', 'transition', 'color', 'scopes', 'mixer', 'stills', 'script'] },
   fusion: { icon: 'nodes', label: 'pageFusion', left: ['library', 'media'], right: ['item', 'scopes', 'script'] },
-  color: { icon: 'palette', label: 'pageColor', left: ['stills', 'library'], right: ['color', 'scopes', 'item'] },
+  color: { icon: 'palette', label: 'pageColor', left: ['stills', 'library'], right: ['color', 'scopes', 'item'], deck: { controls: ['color', 'item'], side: ['scopes'] } },
   fairlight: { icon: 'sliders', label: 'pageFairlight', left: ['media', 'library'], right: ['mixer', 'item'], rightWidth: 560 },
   deliver: { icon: 'send', label: 'pageDeliver', left: ['deliver'], right: ['subtitles'] },
 };
@@ -237,6 +239,30 @@ function Desktop({ parts, page, active, onActive }: { parts: WorkspaceParts; pag
   };
   const viewer = <Slot element={parts.viewer} className="viewer-slot" />;
   const timeline = <Slot element={parts.timeline} className="timeline-slot" />;
+  if (layout.deck) {
+    const deck = layout.deck;
+    const columnOf = (tag: string, keys: readonly string[]) => (
+      <Column id={`${page}.${tag}`} keys={keys} panels={parts.panels} active={active[`${page}.${tag}`] ?? ''} onActive={(k) => onActive(`${page}.${tag}`, k)} />
+    );
+    return (
+      <Split id={`${page}.deck.rows`} direction="column" initial={Math.round(innerHeight * 0.6)} min={260} max={Math.round(innerHeight * 0.78)} side="end">
+        <Split id={`${page}.deck.left`} direction="row" initial={220} min={160} max={480} side="start">
+          {columnOf('left', layout.left)}
+          <Split id={`${page}.deck.nodes`} direction="row" initial={Math.round(innerWidth * 0.3)} min={260} max={Math.round(innerWidth * 0.6)} side="end">
+            {viewer}
+            <Slot element={parts.nodes} className="nodes-slot" />
+          </Split>
+        </Split>
+        <Split id={`${page}.deck.strip`} direction="column" initial={180} min={100} max={400} side="start">
+          {timeline}
+          <Split id={`${page}.deck.side`} direction="row" initial={Math.round(innerWidth * 0.3)} min={260} max={Math.round(innerWidth * 0.5)} side="end">
+            <div className="deck">{columnOf('deck', deck.controls)}</div>
+            {columnOf('side', deck.side)}
+          </Split>
+        </Split>
+      </Split>
+    );
+  }
   if (mode === 'classic') {
     return sides(
       <Split id={`${page}.rows`} direction="column" initial={Math.round(innerHeight * 0.36)} min={120} max={Math.round(innerHeight * 0.75)} side="end">
