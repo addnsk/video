@@ -14,6 +14,9 @@ const MODES: { mode: ScopeMode; label: 'scopeWaveform' | 'scopeParade' | 'scopeV
   { mode: 'histogram', label: 'scopeHistogram' },
 ];
 
+const WAVE_FLOOR = 0.18;
+const WAVE_GAIN = 1.4;
+
 const CHANNEL_RGB: [number, number, number][] = [
   [255, 90, 80],
   [90, 220, 110],
@@ -103,32 +106,40 @@ export class ScopesPanel {
   }
 
   private waveform(g: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: ScopeData, parade: boolean) {
-    const { width, height } = canvas;
-    const image = g.createImageData(width, height);
     const channels = parade ? [0, 1, 2] : [3];
-    const gain = (256 * 6) / Math.max(1, data.samples / data.columns);
+    const columns = data.columns;
+    const levels = data.levels;
+    const image = new ImageData(columns * channels.length, levels);
+    const perColumn = Math.max(1, data.samples / columns);
     channels.forEach((channel, slot) => {
-      const span = width / channels.length;
       const [cr, cg, cb] = CHANNEL_RGB[channel];
-      for (let column = 0; column < data.columns; column++) {
-        const x0 = Math.floor(slot * span + (column * span) / data.columns);
-        const x1 = Math.max(x0 + 1, Math.floor(slot * span + ((column + 1) * span) / data.columns));
-        for (let level = 0; level < data.levels; level++) {
-          const count = data.waveform[(column * data.levels + level) * 4 + channel];
+      for (let column = 0; column < columns; column++) {
+        for (let level = 0; level < levels; level++) {
+          const count = data.waveform[(column * levels + level) * 4 + channel];
           if (!count) continue;
-          const intensity = Math.min(1, (count * gain) / 256);
-          const y = height - 1 - Math.floor((level * (height - 1)) / 255);
-          for (let x = x0; x < x1; x++) {
-            const i = (y * width + x) * 4;
-            image.data[i] = Math.min(255, image.data[i] + cr * intensity);
-            image.data[i + 1] = Math.min(255, image.data[i + 1] + cg * intensity);
-            image.data[i + 2] = Math.min(255, image.data[i + 2] + cb * intensity);
-            image.data[i + 3] = 255;
-          }
+          const intensity = Math.min(1, WAVE_FLOOR + Math.sqrt(count / perColumn) * WAVE_GAIN);
+          const i = ((levels - 1 - level) * image.width + slot * columns + column) * 4;
+          image.data[i] = cr * intensity;
+          image.data[i + 1] = cg * intensity;
+          image.data[i + 2] = cb * intensity;
+          image.data[i + 3] = 255;
         }
       }
     });
-    g.putImageData(image, 0, 0);
+    const source = new OffscreenCanvas(image.width, image.height);
+    source.getContext('2d')!.putImageData(image, 0, 0);
+    const gap = parade ? Math.round(canvas.width * 0.01) : 0;
+    const span = (canvas.width - gap * (channels.length - 1)) / channels.length;
+    const thickness = Math.max(1, canvas.height / levels);
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.imageSmoothingEnabled = true;
+    for (let slot = 0; slot < channels.length; slot++) {
+      for (const dy of [-thickness / 2, 0, thickness / 2]) {
+        g.drawImage(source, slot * columns, 0, columns, levels, slot * (span + gap), dy, span, canvas.height);
+      }
+    }
+    g.restore();
   }
 
   private histogram(g: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: ScopeData) {

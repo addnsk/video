@@ -44,6 +44,7 @@ export class CurveEditor {
     this.canvas.addEventListener('pointermove', (e) => this.move(e));
     this.canvas.addEventListener('pointerup', () => (this.dragging = null));
     this.canvas.addEventListener('dblclick', (e) => this.toggle(e));
+    new ResizeObserver(() => this.paint()).observe(this.canvas);
     this.paint();
   }
 
@@ -136,7 +137,7 @@ export class CurveEditor {
     this.onInput(this.active.name, points);
   }
 
-  private paintHistogram(g: CanvasRenderingContext2D, s: number) {
+  private paintHistogram(g: CanvasRenderingContext2D, w: number, s: number) {
     const data = this.histogram;
     if (!data) return;
     let peak = 1;
@@ -147,49 +148,54 @@ export class CurveEditor {
       g.fillStyle = color;
       g.beginPath();
       g.moveTo(0, s);
-      for (let i = 0; i < 256; i++) g.lineTo((i / 255) * s, s - Math.sqrt(data[i * 4 + c] / peak) * s * 0.9);
-      g.lineTo(s, s);
+      for (let i = 0; i < 256; i++) g.lineTo((i / 255) * w, s - Math.sqrt(data[i * 4 + c] / peak) * s * 0.9);
+      g.lineTo(w, s);
       g.fill();
     });
     g.restore();
   }
 
   private paint() {
-    const g = this.canvas.getContext('2d')!;
-    const s = this.canvas.width;
-    const style = getComputedStyle(this.canvas);
-    g.clearRect(0, 0, s, s);
-    this.paintHistogram(g, s);
-    g.strokeStyle = style.getPropertyValue('--line');
+    const canvas = this.canvas;
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    const w = Math.round((canvas.clientWidth || SIZE) * dpr);
+    const hgt = Math.round((canvas.clientHeight || SIZE) * dpr);
+    if (canvas.width !== w || canvas.height !== hgt) [canvas.width, canvas.height] = [w, hgt];
+    const g = canvas.getContext('2d')!;
+    const style = getComputedStyle(canvas);
+    g.clearRect(0, 0, w, hgt);
+    this.paintHistogram(g, w, hgt);
+    g.strokeStyle = style.getPropertyValue('--edge');
     g.lineWidth = 1;
     for (let k = 1; k < 4; k++) {
-      const p = Math.round((k * s) / 4) + 0.5;
+      const px = Math.round((k * w) / 4) + 0.5;
+      const py = Math.round((k * hgt) / 4) + 0.5;
       g.beginPath();
-      g.moveTo(p, 0);
-      g.lineTo(p, s);
-      g.moveTo(0, p);
-      g.lineTo(s, p);
+      g.moveTo(px, 0);
+      g.lineTo(px, hgt);
+      g.moveTo(0, py);
+      g.lineTo(w, py);
       g.stroke();
     }
-    g.setLineDash([4, 4]);
+    g.setLineDash([4 * dpr, 4 * dpr]);
     g.beginPath();
     if (this.active.periodic) {
-      g.moveTo(0, s / 2);
-      g.lineTo(s, s / 2);
+      g.moveTo(0, hgt / 2);
+      g.lineTo(w, hgt / 2);
     } else {
-      g.moveTo(0, s);
-      g.lineTo(s, 0);
+      g.moveTo(0, hgt);
+      g.lineTo(w, 0);
     }
     g.stroke();
     g.setLineDash([]);
     const values = this.values.get(this.active.name) ?? this.active.neutral;
-    const samples = sampleCurve(values, s / 2, this.active.periodic);
+    const samples = sampleCurve(values, Math.max(64, Math.round(w / 2)), this.active.periodic);
     g.strokeStyle = this.active.color || style.getPropertyValue('--fg');
-    g.lineWidth = 3;
+    g.lineWidth = 1.5 * dpr;
     g.beginPath();
     samples.forEach((v, i) => {
-      const x = (i / (samples.length - 1)) * s;
-      const y = (1 - Math.min(1, Math.max(0, v))) * s;
+      const x = (i / (samples.length - 1)) * w;
+      const y = (1 - Math.min(1, Math.max(0, v))) * hgt;
       if (i) g.lineTo(x, y);
       else g.moveTo(x, y);
     });
@@ -197,8 +203,9 @@ export class CurveEditor {
     g.fillStyle = style.getPropertyValue('--accent');
     for (const [x, y] of toPairs(values)) {
       g.beginPath();
-      g.arc(x * s, (1 - y) * s, 9, 0, Math.PI * 2);
+      g.arc(x * w, (1 - y) * hgt, 4.5 * dpr, 0, Math.PI * 2);
       g.fill();
     }
   }
+
 }
