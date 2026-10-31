@@ -247,13 +247,12 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
   );
   const toolbar = h('div', { class: 'transport' },
     h('div', { class: 'transport-side' }, viewTabs, h('span', { class: 'divider' }), ...undoRedo, h('span', { class: 'divider' }), timelineLeft),
-    playback,
     h('div', { class: 'transport-side end' }, timelineRight, h('span', { class: 'divider' }), editButtons[1], compare),
   );
   showView('timeline');
 
   const timelineSection = h('section', { class: 'timeline' }, toolbar, timelinePane, nodeEditor.element);
-  const viewerChips = h('div', { class: 'viewer-chips' }, controls.viewerTabs, h('div', { class: 'spacer' }), liveLoudness, meter.element, rate, timecode);
+  const viewerChips = h('div', { class: 'viewer-chips' }, h('div', { class: 'chips-side' }, controls.viewerTabs), playback, h('div', { class: 'chips-side end' }, liveLoudness, meter.element, rate, timecode));
   const clipStrip = new ClipStrip(session, selection);
   enhanceSelects(document.body);
   const workspace = mountWorkspace(root, {
@@ -267,8 +266,6 @@ export function mountApp(root: HTMLElement, preview: HTMLCanvasElement, session:
       docked = page === 'color' && !nodeEditor.element.closest('.timeline');
       if (!docked && !nodeEditor.element.closest('.timeline')) timelineSection.append(nodeEditor.element);
       viewTabs.hidden = docked;
-      if (docked) viewerChips.insertBefore(playback, viewerChips.children[1]);
-      else if (playback.parentElement !== toolbar) toolbar.insertBefore(playback, toolbar.children[1]);
       showView(page === 'fusion' ? 'nodes' : 'timeline');
     },
   });
